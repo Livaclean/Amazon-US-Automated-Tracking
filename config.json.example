@@ -1,0 +1,16 @@
+{
+  "input_folder": "input",
+  "output_folder": "output",
+  "logs_folder": "logs",
+  "chrome_profile_path": "C:\\Users\\YOU\\AppData\\Local\\AmazonTrackingChrome",
+  "chrome_profile_name": "Default",
+  "amazon_base_url": "https://sellercentral.amazon.com",
+  "headless": false,
+  "delay_between_shipments_seconds": 2,
+  "delay_between_tracking_numbers_seconds": 1,
+  "column_fc_code": 3,
+  "column_fba_id": 4,
+  "column_tracking": 7,
+  "column_carrier": 8,
+  "us_fc_codes_file": "us_fc_codes.txt"
+}

@@ -1,0 +1,21 @@
+# Virtual environment
+.venv/
+
+# Logs and generated output
+logs/
+output/
+input/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Config (contains personal paths — copy config.json.example instead)
+config.json
+
+# Screenshots
+*.png
+*.jpg
