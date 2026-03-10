@@ -29,12 +29,31 @@ def load_us_fc_prefixes(us_fc_codes_file: str) -> set:
     return prefixes
 
 
-def is_us_fc(fc_code, us_prefixes: set) -> bool:
-    """True if fc_code starts with a known US 3-letter FC prefix."""
+def load_fc_prefixes(fc_codes_file: str) -> set:
+    """Reads an FC codes file, returns set of uppercase prefixes (any length)."""
+    prefixes = set()
+    try:
+        with open(fc_codes_file, "r") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    prefixes.add(line.upper())
+    except FileNotFoundError:
+        logger.warning(f"FC codes file not found: {fc_codes_file}")
+    return prefixes
+
+
+def is_region_fc(fc_code, prefixes: set) -> bool:
+    """True if fc_code starts with any known FC prefix from the given set."""
     if not fc_code:
         return False
     fc_str = str(fc_code).strip().upper()
-    return len(fc_str) >= 3 and fc_str[:3] in us_prefixes
+    return any(fc_str.startswith(p) for p in prefixes)
+
+
+def is_us_fc(fc_code, us_prefixes: set) -> bool:
+    """Backward-compatible alias for is_region_fc."""
+    return is_region_fc(fc_code, us_prefixes)
 
 
 def group_by_fba_id(rows: list) -> dict:
@@ -177,3 +196,40 @@ def parse_and_filter(config: dict) -> dict:
         all_us_rows.extend(us_rows)
 
     return group_by_fba_id(all_us_rows)
+
+
+def parse_and_filter_by_region(config: dict) -> dict:
+    """
+    Finds Excel files, loads all rows, then splits by region using each region's FC codes file.
+    Returns: {"US": {"FBA123": [...]}, "CA": {"FBA456": [...]}, ...}
+    Each region only contains FBA IDs whose FC code matches that region's prefixes.
+    """
+    regions = config.get("regions", [])
+    if not regions:
+        logger.warning("No 'regions' key in config — falling back to US-only parse_and_filter()")
+        return {"US": parse_and_filter(config)}
+
+    excel_files = find_excel_files(config["input_folder"])
+    if not excel_files:
+        logger.warning(f"No Excel files found in {config['input_folder']}")
+        return {r["name"]: {} for r in regions}
+
+    all_rows = []
+    for file_path in excel_files:
+        logger.info(f"Reading: {file_path}")
+        rows = load_excel_file(file_path, config)
+        all_rows.extend(rows)
+    logger.info(f"Loaded {len(all_rows)} total rows across {len(excel_files)} file(s)")
+
+    result = {}
+    for region in regions:
+        name = region["name"]
+        fc_file = region.get("fc_codes_file", "")
+        prefixes = load_fc_prefixes(fc_file)
+        if not prefixes:
+            logger.warning(f"[{name}] No FC prefixes loaded from {fc_file!r}")
+        region_rows = [r for r in all_rows if is_region_fc(r["fc_code"], prefixes)]
+        logger.info(f"[{name}] {len(region_rows)} row(s) matched")
+        result[name] = group_by_fba_id(region_rows)
+
+    return result
