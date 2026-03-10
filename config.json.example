@@ -12,5 +12,10 @@
   "column_fba_id": 4,
   "column_tracking": 7,
   "column_carrier": 8,
-  "us_fc_codes_file": "us_fc_codes.txt"
+  "regions": [
+    { "name": "US", "amazon_url": "https://sellercentral.amazon.com",   "fc_codes_file": "fc_codes/us_fc_codes.txt" },
+    { "name": "CA", "amazon_url": "https://sellercentral.amazon.ca",    "fc_codes_file": "fc_codes/ca_fc_codes.txt" },
+    { "name": "UK", "amazon_url": "https://sellercentral.amazon.co.uk", "fc_codes_file": "fc_codes/uk_fc_codes.txt" },
+    { "name": "EU", "amazon_url": "https://sellercentral.amazon.de",    "fc_codes_file": "fc_codes/eu_fc_codes.txt" }
+  ]
 }

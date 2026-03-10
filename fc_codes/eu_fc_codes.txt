@@ -1,0 +1,39 @@
+# EU Amazon Fulfillment Center 3-letter prefixes
+# Germany
+BER
+CGN
+DTM
+DUS
+EDE
+FRA
+HAM
+LEJ
+MUC
+STR
+XDE
+# France
+CDG
+LYS
+ORY
+MRS
+NTE
+BOD
+TLS
+# Spain
+BCN
+MAD
+SVQ
+XES
+# Italy
+MXP
+FCO
+TRN
+XIT
+# Poland
+KTW
+POZ
+SZZ
+WRO
+LCJ
+# Czech Republic
+PRG

@@ -1,0 +1,8 @@
+# Canada Amazon Fulfillment Center 3-letter prefixes
+YVR
+YYZ
+PRTO
+YYC
+YOW
+YEG
+YUL

@@ -1,0 +1,11 @@
+# UK Amazon Fulfillment Center 3-letter prefixes
+BHX
+CWL
+EDI
+EUK
+GLA
+LBA
+LCY
+LTN
+MAN
+XUK
