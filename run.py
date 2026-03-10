@@ -43,7 +43,7 @@ def load_config(config_path: str = "config.json") -> dict:
         "column_fba_id": 4,
         "column_tracking": 7,
         "column_carrier": 8,
-        "us_fc_codes_file": "us_fc_codes.txt",
+        "us_fc_codes_file": "fc_codes/us_fc_codes.txt",
     }
     for k, v in defaults.items():
         config.setdefault(k, v)
@@ -101,6 +101,93 @@ def write_summary(results: list, logs_folder: str) -> None:
     report = Path(logs_folder) / f"summary_{ts_file}.txt"
     report.write_text("\n".join(lines), encoding="utf-8")
     print("\n" + "\n".join(lines))
+
+
+def write_region_summary(region_name: str, results: list, logs_folder: str, timestamp: str) -> None:
+    """Writes a per-region summary file to logs/summary_<REGION>_<timestamp>.txt."""
+    icons = {
+        "success": "[OK]      ",
+        "partial": "[PARTIAL] ",
+        "failed": "[FAILED]  ",
+        "not_found": "[NOTFOUND]",
+        "skipped": "[SKIP]    ",
+    }
+    lines = [
+        "=" * 60,
+        f"REGION: {region_name} — {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+        "=" * 60,
+        f"Total FBA shipments: {len(results)}",
+        f"  Successful: {sum(1 for r in results if r['status'] == 'success')}",
+        f"  Partial:    {sum(1 for r in results if r['status'] == 'partial')}",
+        f"  Failed:     {sum(1 for r in results if r['status'] in ('failed', 'not_found'))}",
+        f"  Skipped:    {sum(1 for r in results if r['status'] == 'skipped')}",
+        "",
+        "DETAILS:",
+    ]
+    for r in results:
+        icon = icons.get(r["status"], "[?]       ")
+        lines.append(
+            f"  {icon} {r['fba_id']}  - "
+            f"{r.get('succeeded', 0)} added, "
+            f"{r.get('already_existed', 0)} existed, "
+            f"{r.get('failed', 0)} failed "
+            f"(of {r.get('total', 0)})"
+        )
+    lines.append("=" * 60)
+
+    report = Path(logs_folder) / f"summary_{region_name}_{timestamp}.txt"
+    report.write_text("\n".join(lines), encoding="utf-8")
+    print(f"\n[{region_name}] Summary saved: {report.name}")
+
+
+def wait_for_login(page, region_name: str, amazon_url: str, timeout_seconds: int = 300) -> bool:
+    """
+    Navigates to amazon_url, checks login status.
+    If not logged in, prints a prompt and polls every 5 seconds for up to timeout_seconds.
+    Returns True if logged in (or already was), False if timed out.
+    """
+    import time
+    logger = logging.getLogger(__name__)
+    try:
+        page.goto(amazon_url, wait_until="domcontentloaded", timeout=30000)
+        page_text = page.inner_text("body")
+    except Exception as e:
+        logger.warning(f"[{region_name}] Failed to navigate to {amazon_url}: {e}")
+        return False
+
+    logged_in = (
+        "sign in" not in page_text.lower()
+        and "sign-in" not in page_text.lower()
+        and ("hello" in page_text.lower() or "seller central" in page_text.lower())
+    )
+
+    if logged_in:
+        logger.info(f"[{region_name}] Already logged in at {amazon_url}")
+        return True
+
+    print(f"\n[{region_name}] NOT logged in at {amazon_url}")
+    print(f"[{region_name}] Please log in manually in the browser. Waiting up to {timeout_seconds // 60} minutes...")
+
+    deadline = time.time() + timeout_seconds
+    while time.time() < deadline:
+        time.sleep(5)
+        try:
+            page.goto(amazon_url, wait_until="domcontentloaded", timeout=15000)
+            page_text = page.inner_text("body")
+            logged_in = (
+                "sign in" not in page_text.lower()
+                and "sign-in" not in page_text.lower()
+                and ("hello" in page_text.lower() or "seller central" in page_text.lower())
+            )
+            if logged_in:
+                print(f"[{region_name}] Login detected! Proceeding...")
+                return True
+        except Exception:
+            pass
+
+    logger.warning(f"[{region_name}] Login timed out after {timeout_seconds}s — skipping region")
+    print(f"[{region_name}] Login timed out — skipping this region.")
+    return False
 
 
 def write_shipment_records(has_tracking: dict, missing_tracking: list, logs_folder: str) -> None:
@@ -189,6 +276,13 @@ def main():
         default=None,
         help="Path to a tracking_ids JSON file — skip Excel parsing and carrier scraping, upload directly",
     )
+    parser.add_argument(
+        "--regions",
+        nargs="+",
+        default=None,
+        metavar="REGION",
+        help="Limit which regions to run (e.g. --regions US CA). Default: all regions in config.",
+    )
     args = parser.parse_args()
 
     # Pre-initialize so these are always in scope even if an early exception occurs
@@ -200,7 +294,7 @@ def main():
     setup_logging(config["logs_folder"])
 
     # Import project modules after logging is configured
-    from parse_excel import parse_and_filter, categorize_shipments
+    from parse_excel import parse_and_filter, parse_and_filter_by_region, categorize_shipments
     from fetch_sub_tracking import get_all_sub_tracking, check_fedex_login
     from upload_tracking import (
         create_browser_context,
@@ -214,16 +308,45 @@ def main():
 
     logger = logging.getLogger(__name__)
 
-    # Step 1: Parse Excel
+    # Determine which regions to run
+    configured_regions = config.get("regions", [])
+    if not configured_regions:
+        # Backward compat: no regions in config → US only using amazon_base_url
+        configured_regions = [{
+            "name": "US",
+            "amazon_url": config.get("amazon_base_url", "https://sellercentral.amazon.com"),
+            "fc_codes_file": config.get("us_fc_codes_file", "fc_codes/us_fc_codes.txt"),
+        }]
+
+    if args.regions:
+        allowed = set(args.regions)
+        configured_regions = [r for r in configured_regions if r["name"] in allowed]
+        if not configured_regions:
+            print(f"\nERROR: None of the specified --regions ({args.regions}) found in config.")
+            return
+
+    # Step 1: Parse Excel — load all regions at once
     logger.info("Reading Excel file from input folder...")
-    shipments_all = parse_and_filter(config)
+    all_regions_data = parse_and_filter_by_region(config)
+    # Also keep a flat dict for backward-compat (highlight_excel, --from-json, etc.)
+    shipments_all = {}
+    for region_data in all_regions_data.values():
+        shipments_all.update(region_data)
 
     if args.only_fba:
-        if args.only_fba not in shipments_all:
-            print(f"\nERROR: FBA ID '{args.only_fba}' not found in Excel.")
+        for name in all_regions_data:
+            if args.only_fba in all_regions_data[name]:
+                all_regions_data[name] = {args.only_fba: all_regions_data[name][args.only_fba]}
+            else:
+                all_regions_data[name] = {}
+        found_in = [n for n in all_regions_data if all_regions_data[n]]
+        if not found_in:
+            print(f"\nERROR: FBA ID '{args.only_fba}' not found in any region.")
             return
-        shipments_all = {args.only_fba: shipments_all[args.only_fba]}
-        print(f"\nRunning for single shipment: {args.only_fba}")
+        shipments_all = {}
+        for region_data in all_regions_data.values():
+            shipments_all.update(region_data)
+        print(f"\nRunning for single shipment: {args.only_fba} (found in: {', '.join(found_in)})")
 
     if args.fba_list:
         fba_list_path = Path(args.fba_list)
@@ -231,29 +354,32 @@ def main():
             print(f"\nERROR: FBA list file not found: {args.fba_list}")
             return
         fba_ids = {line.strip() for line in fba_list_path.read_text(encoding="utf-8").splitlines() if line.strip()}
-        shipments_all = {fba: v for fba, v in shipments_all.items() if fba in fba_ids}
+        for name in all_regions_data:
+            all_regions_data[name] = {fba: v for fba, v in all_regions_data[name].items() if fba in fba_ids}
+        shipments_all = {}
+        for region_data in all_regions_data.values():
+            shipments_all.update(region_data)
         print(f"\nFiltered to {len(shipments_all)} FBA(s) from list: {fba_list_path.name}")
 
     if not shipments_all:
-        print(f"\nNo US FBA shipments found.")
+        print(f"\nNo FBA shipments found in any configured region.")
         print(f"  - Drop your Excel file in:  {config['input_folder']}")
-        print(f"  - Check column D has US FC codes (e.g. BNA, PHX, IND)")
-        print(f"  - Check us_fc_codes.txt has the right prefixes")
+        print(f"  - Check column D has FC codes matching your regions")
         try:
             input("\nPress Enter to exit...")
         except EOFError:
             pass
         return
 
-    # Categorize: split into has-tracking vs missing-tracking (also filters "/" entries)
+    # Categorize for carrier scrape (has_tracking only)
     shipments_raw, missing_tracking = categorize_shipments(shipments_all)
     write_shipment_records(shipments_raw, missing_tracking, config["logs_folder"])
 
     if missing_tracking:
-        print(f"\n  {len(missing_tracking)} FBA(s) have no usable tracking in Excel — recorded to logs.")
+        print(f"\n  {len(missing_tracking)} FBA(s) have no usable tracking — recorded to logs.")
 
     total_main = sum(len(v) for v in shipments_raw.values())
-    print(f"\nFound {len(shipments_raw)} US FBA shipments with {total_main} trackable entries.")
+    print(f"\nFound {len(shipments_raw)} FBA shipments with {total_main} trackable entries across {len(configured_regions)} region(s).")
 
     # --from-json: skip Excel + carrier scraping, load tracking directly from JSON
     if args.from_json:
@@ -447,17 +573,47 @@ def main():
             print(f"\n{'='*60}")
             return
 
-        # Step 4: Upload to Amazon Seller Central
-        print("\n[2/2] Uploading to Amazon Seller Central...")
-        check_login_status(page, config["amazon_base_url"])
-        results = upload_all_shipments(shipments_with_subs, config, page)
+        # Step 4: Region loop — login check + upload for each region
+        print(f"\n[2/2] Uploading to Amazon ({len(configured_regions)} region(s))...")
+        ts_run = datetime.now().strftime("%Y%m%d_%H%M%S")
+        all_results = []
 
-        # Step 5: Post-run - highlight updated rows, save to output, write summary
-        # (inside try so files are only processed when upload completed without crashing)
+        for region in configured_regions:
+            region_name = region["name"]
+            amazon_url = region["amazon_url"]
+
+            # Get this region's FBA IDs
+            region_fba_ids = set(all_regions_data.get(region_name, {}).keys())
+            region_shipments = {fba: shipments_with_subs[fba] for fba in region_fba_ids if fba in shipments_with_subs}
+
+            if not region_shipments:
+                print(f"\n[{region_name}] No shipments to upload — skipping.")
+                write_region_summary(region_name, [], config["logs_folder"], ts_run)
+                continue
+
+            print(f"\n{'='*60}")
+            print(f"[{region_name}] {len(region_shipments)} shipment(s) — {amazon_url}")
+            print(f"{'='*60}")
+
+            # Per-region login check (wait up to 5 min)
+            logged_in = wait_for_login(page, region_name, amazon_url, timeout_seconds=300)
+            if not logged_in:
+                write_region_summary(region_name, [], config["logs_folder"], ts_run)
+                continue
+
+            # Upload for this region (pass region's URL via config override)
+            region_config = dict(config)
+            region_config["amazon_base_url"] = amazon_url
+            region_results = upload_all_shipments(region_shipments, region_config, page)
+            all_results.extend(region_results)
+            write_region_summary(region_name, region_results, config["logs_folder"], ts_run)
+
+        results = all_results  # used by write_summary below
+
+        # Step 5: Post-run - highlight updated rows, save to output, write combined summary
         ts_out = datetime.now().strftime("%Y%m%d_%H%M%S")
         input_folder = Path(config["input_folder"])
         output_folder = Path(config["output_folder"])
-        # Use shipments_all (full dict with row_number per entry) not shipments_raw (tracking-filtered subset)
         updated_rows = collect_updated_row_numbers(shipments_all, results)
 
         for pattern in ["*.xls", "*.xlsx"]:
@@ -470,8 +626,8 @@ def main():
                         logger.info(f"Highlighted output saved: {actual_dest}")
                         print(f"Output saved with highlights: {Path(actual_dest).name}")
                     except PermissionError:
-                        logger.warning(f"Could not delete input file (in use): {src_file.name} — please close it manually")
-                        print(f"Output saved: {Path(actual_dest).name} (input file still open — close it to delete)")
+                        logger.warning(f"Could not delete input file (in use): {src_file.name}")
+                        print(f"Output saved: {Path(actual_dest).name} (input file still open — close it manually)")
                 else:
                     logger.warning(f"Output file not confirmed — input NOT deleted: {src_file}")
                     print(f"WARNING: Could not confirm output file — input kept: {src_file.name}")
