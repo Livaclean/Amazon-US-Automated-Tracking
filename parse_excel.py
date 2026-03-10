@@ -15,20 +15,6 @@ def detect_excel_engine(file_path: str) -> str:
     raise ValueError(f"Unsupported file extension: {suffix!r}. Expected .xls or .xlsx.")
 
 
-def load_us_fc_prefixes(us_fc_codes_file: str) -> set:
-    """Reads us_fc_codes.txt, returns set of uppercase 3-letter prefixes."""
-    prefixes = set()
-    try:
-        with open(us_fc_codes_file, "r") as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#"):
-                    prefixes.add(line.upper())
-    except FileNotFoundError:
-        logger.warning(f"US FC codes file not found: {us_fc_codes_file}")
-    return prefixes
-
-
 def load_fc_prefixes(fc_codes_file: str) -> set:
     """Reads an FC codes file, returns set of uppercase prefixes (any length)."""
     prefixes = set()
@@ -41,6 +27,11 @@ def load_fc_prefixes(fc_codes_file: str) -> set:
     except FileNotFoundError:
         logger.warning(f"FC codes file not found: {fc_codes_file}")
     return prefixes
+
+
+def load_us_fc_prefixes(us_fc_codes_file: str) -> set:
+    """Backward-compatible alias for load_fc_prefixes."""
+    return load_fc_prefixes(us_fc_codes_file)
 
 
 def is_region_fc(fc_code, prefixes: set) -> bool:
