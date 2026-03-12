@@ -210,11 +210,16 @@ def check_login_status(page, base_url: str) -> None:
 
 def navigate_to_shipment(page, fba_id: str, base_url: str) -> bool:
     """
-    Navigates to /fba/inbound-shipment/summary/{fba_id}/tracking.
-    Handles login redirects (including multi-step auth) by retrying up to 3 times.
+    Navigates to the tracking page for a shipment.
+    AWD shipments (STAR- prefix) use /awd/inbound-shipment/{id}/tracking_spd.
+    FBA shipments use /fba/inbound-shipment/summary/{id}/tracking.
+    Handles login redirects by retrying up to 3 times.
     Returns True on success, False if shipment not found or nav failed.
     """
-    url = f"{base_url}/fba/inbound-shipment/summary/{fba_id}/tracking"
+    if fba_id.startswith("STAR-"):
+        url = f"{base_url}/awd/inbound-shipment/{fba_id}/tracking_spd"
+    else:
+        url = f"{base_url}/fba/inbound-shipment/summary/{fba_id}/tracking"
     logger.info(f"  -> {url}")
 
     for attempt in range(3):
@@ -246,8 +251,8 @@ def navigate_to_shipment(page, fba_id: str, base_url: str) -> bool:
 def _get_tracking_frame(page):
     """
     Returns the iframe frame object for the tracking input section.
-    The tracking inputs are inside an iframe with id='iframe-tracking'.
-    Returns None if not found.
+    FBA: iframe URL contains /fba/inbound/summary/tracking
+    Returns None if not found (AWD pages have no iframe — use main page directly).
     """
     for frame in page.frames:
         if "/fba/inbound/summary/tracking" in frame.url:
@@ -255,11 +260,27 @@ def _get_tracking_frame(page):
     return None
 
 
-def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict) -> dict:
+def _get_tracking_context(page, fba_id: str):
+    """
+    Returns the frame or main page to use for querying tracking inputs.
+    FBA: uses the tracking iframe.
+    AWD (STAR- prefix): no iframe — inputs are in the main page.
+    Returns None if no suitable context found.
+    """
+    frame = _get_tracking_frame(page)
+    if frame:
+        return frame
+    if fba_id.startswith("STAR-"):
+        return page
+    return None
+
+
+def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict, force: bool = False) -> dict:
     """
     Fills tracking numbers into the per-box input fields in the tracking iframe,
     then clicks 'Update all' to save.
     sub_ids: list of tracking numbers to fill (one per box row, in order).
+    force: if True, overwrite inputs that already have a value instead of skipping them.
     Returns result dict with counts.
     """
     logs_folder = config.get("logs_folder", "logs")
@@ -290,30 +311,30 @@ def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict) 
         result["status"] = "skipped"
         return result
 
-    # Wait for the tracking iframe to load
+    # Wait for the tracking iframe (FBA) or main page (AWD) to be ready
     tracking_frame = None
     for _ in range(20):  # up to 10 seconds
-        tracking_frame = _get_tracking_frame(page)
+        tracking_frame = _get_tracking_context(page, fba_id)
         if tracking_frame:
             break
         page.wait_for_timeout(500)
 
     if not tracking_frame:
-        logger.error(f"  Could not find tracking iframe for {fba_id}")
+        logger.error(f"  Could not find tracking context for {fba_id}")
         _screenshot(page, f"no_iframe_{fba_id}", logs_folder)
         result["status"] = "failed"
         result["failed"] = len(sub_ids)
         return result
 
-    # Wait for the iframe DOM to fully render its inputs
+    # Wait for the DOM to fully render its inputs
     try:
-        tracking_frame.wait_for_selector("input[placeholder*='auto fill']", timeout=10000)
+        tracking_frame.wait_for_selector("input[placeholder*='auto fill'], input[placeholder*='Enter tracking']", timeout=10000)
     except Exception:
         logger.warning(f"  Timed out waiting for tracking inputs in iframe for {fba_id}")
 
     # Find all empty tracking input fields in the iframe
     try:
-        inputs = tracking_frame.query_selector_all("input[placeholder*='auto fill']")
+        inputs = tracking_frame.query_selector_all("input[placeholder*='auto fill'], input[placeholder*='Enter tracking']")
     except Exception as e:
         logger.error(f"  Could not query tracking inputs in iframe: {e}")
         result["status"] = "failed"
@@ -335,7 +356,7 @@ def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict) 
         inp = inputs[i]
         try:
             existing = (inp.get_attribute("value") or inp.evaluate("e => e.value") or "").strip()
-            if existing:
+            if existing and not force:
                 logger.debug(f"  Box {i+1}: already has value '{existing}' — skipping")
                 result["already_existed"] += 1
                 result["tracking_results"].append({
@@ -344,6 +365,8 @@ def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict) 
                 })
                 continue
             inp.click()
+            if existing and force:
+                inp.evaluate("e => { e.select(); }")
             inp.fill(tid)
             filled += 1
             logger.debug(f"  Box {i+1}: filled {tid}")
@@ -583,22 +606,22 @@ def check_amazon_tracking_status(page, fba_id: str, config: dict) -> str:
 
     tracking_frame = None
     for _ in range(20):
-        tracking_frame = _get_tracking_frame(page)
+        tracking_frame = _get_tracking_context(page, fba_id)
         if tracking_frame:
             break
         page.wait_for_timeout(500)
 
     if not tracking_frame:
-        logger.warning(f"  [check] No tracking iframe found for {fba_id}")
+        logger.warning(f"  [check] No tracking context found for {fba_id}")
         return "not_found"
 
     try:
-        tracking_frame.wait_for_selector("input[placeholder*='auto fill']", timeout=10000)
+        tracking_frame.wait_for_selector("input[placeholder*='auto fill'], input[placeholder*='Enter tracking']", timeout=10000)
     except Exception:
         logger.warning(f"  [check] Timed out waiting for inputs for {fba_id}")
 
     try:
-        inputs = tracking_frame.query_selector_all("input[placeholder*='auto fill']")
+        inputs = tracking_frame.query_selector_all("input[placeholder*='auto fill'], input[placeholder*='Enter tracking']")
     except Exception as e:
         logger.warning(f"  [check] Could not query inputs for {fba_id}: {e}")
         return "not_found"
@@ -641,8 +664,8 @@ def get_slot_count(page, fba_id: str, base_url: str) -> int:
     if not tracking_frame:
         return 0
     try:
-        tracking_frame.wait_for_selector("input[placeholder*='auto fill']", timeout=10000)
-        inputs = tracking_frame.query_selector_all("input[placeholder*='auto fill']")
+        tracking_frame.wait_for_selector("input[placeholder*='auto fill'], input[placeholder*='Enter tracking']", timeout=10000)
+        inputs = tracking_frame.query_selector_all("input[placeholder*='auto fill'], input[placeholder*='Enter tracking']")
         return len(inputs)
     except Exception:
         return 0
@@ -663,21 +686,23 @@ def check_all_shipments_on_amazon(shipments_raw: dict, config: dict, page) -> tu
         status = check_amazon_tracking_status(page, fba_id, config)
         logger.info(f"  -> Amazon status: {status}")
 
-        if status == "complete":
+        if status in ("complete", "not_found"):
             already_complete.append(fba_id)
-            print(f"  [DONE]    {fba_id} — already complete on Amazon")
+            label = "complete" if status == "complete" else "not found (delivered/closed)"
+            print(f"  [DONE]    {fba_id} — {label}")
         else:
             needs_upload[fba_id] = entries
-            label = "partial" if status == "partial" else ("not found" if status == "not_found" else "pending")
+            label = "partial" if status == "partial" else "pending (empty)"
             print(f"  [PENDING] {fba_id} — {label}")
 
     return needs_upload, already_complete
 
 
-def upload_all_shipments(shipments: dict, config: dict, page) -> list:
+def upload_all_shipments(shipments: dict, config: dict, page, force: bool = False) -> list:
     """
     Uploads sub-tracking IDs to Amazon for each FBA shipment.
     shipments: {"FBA123": ["sub_id1", "sub_id2"], ...}
+    force: if True, overwrite inputs that already have values.
     Returns list of per-shipment result dicts.
     """
     base_url = config.get("amazon_base_url", "https://sellercentral.amazon.com")
@@ -706,7 +731,7 @@ def upload_all_shipments(shipments: dict, config: dict, page) -> list:
             results.append(r)
             continue
 
-        shipment_result = upload_tracking_to_shipment(page, sub_ids, fba_id, config)
+        shipment_result = upload_tracking_to_shipment(page, sub_ids, fba_id, config, force=force)
         r["status"] = shipment_result["status"]
         r["succeeded"] = shipment_result["succeeded"]
         r["already_existed"] = shipment_result["already_existed"]

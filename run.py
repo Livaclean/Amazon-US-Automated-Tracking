@@ -63,6 +63,59 @@ def ensure_folders(config: dict) -> None:
         old_png.unlink(missing_ok=True)
 
 
+def cleanup_logs(logs_folder: str) -> None:
+    """
+    Cleans up old log files at the start of each run.
+    - Keeps completed_fba_*.txt (persistent done caches) always.
+    - Keeps only the 3 most recent files of each timestamped type.
+    - Deletes all one-off debug/temp files (fedex_page_*, ups_page_*, debug_*, etc.).
+    """
+    logs = Path(logs_folder)
+
+    # One-off debug/temp patterns to delete entirely
+    debug_patterns = [
+        "fedex_page_*.txt", "fedex_*.txt", "ups_page_*.txt", "ups_*.txt",
+        "debug_*.*", "page_discovery_*.txt", "precheck_result.json",
+        "retry_*.txt", "test_*.png", "test_*.txt",
+        "group*_*.txt", "*_ready.txt", "*_notfound.txt",
+        "new_us_fba_list.txt", "non_us_fba_list*.txt",
+        "ups_shipment_response.json", "fedex_api_response.json",
+    ]
+    deleted = 0
+    for pattern in debug_patterns:
+        for f in logs.glob(pattern):
+            f.unlink(missing_ok=True)
+            deleted += 1
+
+    # Timestamped file types — keep only the 3 most recent of each group
+    # Group by prefix (everything before the timestamp)
+    import re
+    timestamped_patterns = [
+        "tracking_upload_*.log",
+        "shipments_with_tracking_*.txt",
+        "shipments_missing_tracking_*.txt",
+        "amazon_already_complete_*.txt",
+        "amazon_needs_upload_*.txt",
+        "summary_*.txt",
+        "tracking_ids_*.json",
+    ]
+    for pattern in timestamped_patterns:
+        files = sorted(logs.glob(pattern), key=lambda f: f.stat().st_mtime, reverse=True)
+        # Group by non-timestamp prefix to keep last 3 per type/region
+        groups: dict = {}
+        for f in files:
+            # Strip trailing timestamp: remove last _YYYYMMDD_HHMMSS or _YYYY-MM-DD_HH-MM-SS
+            key = re.sub(r'[_-]\d{8}[_-]\d{6}$', '', f.stem)
+            groups.setdefault(key, []).append(f)
+        for group_files in groups.values():
+            for old_file in group_files[3:]:  # keep 3 most recent
+                old_file.unlink(missing_ok=True)
+                deleted += 1
+
+    if deleted:
+        print(f"  Cleaned up {deleted} old log file(s).")
+
+
 def write_summary(results: list, logs_folder: str) -> None:
     """Writes a human-readable summary report to logs/."""
     now = datetime.now()
@@ -142,44 +195,37 @@ def write_region_summary(region_name: str, results: list, logs_folder: str, time
 
 def wait_for_login(page, region_name: str, amazon_url: str, timeout_seconds: int = 300) -> bool:
     """
-    Navigates to amazon_url, checks login status.
-    If not logged in, prints a prompt and polls every 5 seconds for up to timeout_seconds.
-    Returns True if logged in (or already was), False if timed out.
+    Navigates to amazon_url and checks if we're logged in by inspecting the final URL.
+    If redirected to ap/signin, prints a prompt and polls the current URL every 3 seconds
+    WITHOUT navigating — letting the user log in uninterrupted.
+    Returns True once no longer on a signin page, False if timed out.
     """
     import time
     logger = logging.getLogger(__name__)
+
+    def _is_login_url(url: str) -> bool:
+        return "ap/signin" in url or "ap/register" in url or "/signin" in url.lower()
+
     try:
         page.goto(amazon_url, wait_until="domcontentloaded", timeout=30000)
-        page_text = page.inner_text("body")
     except Exception as e:
         logger.warning(f"[{region_name}] Failed to navigate to {amazon_url}: {e}")
         return False
 
-    logged_in = (
-        "sign in" not in page_text.lower()
-        and "sign-in" not in page_text.lower()
-        and ("hello" in page_text.lower() or "seller central" in page_text.lower())
-    )
-
-    if logged_in:
+    if not _is_login_url(page.url):
         logger.info(f"[{region_name}] Already logged in at {amazon_url}")
         return True
 
-    print(f"\n[{region_name}] NOT logged in at {amazon_url}")
-    print(f"[{region_name}] Please log in manually in the browser. Waiting up to {timeout_seconds // 60} minutes...")
+    print(f"\n[{region_name}] NOT logged in.")
+    print(f"[{region_name}] Please log in in the browser. Waiting up to {timeout_seconds // 60} minutes...")
+    print(f"[{region_name}] (Do NOT close the browser — log in and we'll detect it automatically)")
 
     deadline = time.time() + timeout_seconds
     while time.time() < deadline:
-        time.sleep(5)
+        time.sleep(3)
         try:
-            page.goto(amazon_url, wait_until="domcontentloaded", timeout=15000)
-            page_text = page.inner_text("body")
-            logged_in = (
-                "sign in" not in page_text.lower()
-                and "sign-in" not in page_text.lower()
-                and ("hello" in page_text.lower() or "seller central" in page_text.lower())
-            )
-            if logged_in:
+            current_url = page.url
+            if not _is_login_url(current_url):
                 print(f"[{region_name}] Login detected! Proceeding...")
                 return True
         except Exception:
@@ -277,6 +323,11 @@ def main():
         help="Path to a tracking_ids JSON file — skip Excel parsing and carrier scraping, upload directly",
     )
     parser.add_argument(
+        "--rewrite",
+        action="store_true",
+        help="Overwrite tracking inputs that already have a value (force rewrite)",
+    )
+    parser.add_argument(
         "--regions",
         nargs="+",
         default=None,
@@ -291,6 +342,7 @@ def main():
 
     config = load_config(args.config)
     ensure_folders(config)
+    cleanup_logs(config["logs_folder"])
     setup_logging(config["logs_folder"])
 
     # Import project modules after logging is configured
@@ -383,7 +435,6 @@ def main():
 
     # --from-json: skip Excel + carrier scraping, load tracking directly from JSON
     if args.from_json:
-        from upload_tracking import get_slot_count
         json_path = Path(args.from_json)
         if not json_path.exists():
             print(f"\nERROR: JSON file not found: {args.from_json}")
@@ -438,7 +489,6 @@ def main():
                         slot_counts[fba_id] = count
                         print(f"    {fba_id}: {count} slot(s)")
 
-                    # Distribute pool sequentially based on slot counts
                     pool_idx = 0
                     for fba_id in fba_ids:
                         n = slot_counts.get(fba_id, 0)
@@ -451,7 +501,7 @@ def main():
                         logger.warning(f"  Pool has {len(pool)} IDs but only {pool_idx} slots assigned — {pool[pool_idx:]} left over")
 
             print("\nUploading to Amazon Seller Central...")
-            results = upload_all_shipments(shipments_with_subs, config, page)
+            results = upload_all_shipments(shipments_with_subs, config, page, force=args.rewrite)
         finally:
             context.close()
             pw.stop()
@@ -475,9 +525,6 @@ def main():
         return
 
     page = context.new_page()
-
-    # Initialize results before the try block so it is always defined,
-    # even if an exception occurs before upload_all_shipments() is reached.
     results = []
 
     try:
@@ -495,86 +542,48 @@ def main():
 
         # Check-only mode: visit each FBA on Amazon, record status, do NOT upload
         if args.check_only:
-            print("\n[CHECK ONLY] Logging into Amazon Seller Central...")
-            check_login_status(page, config["amazon_base_url"])
-            print(f"\nChecking {len(shipments_raw)} shipments on Amazon (read-only)...\n")
-            needs_upload, already_complete = check_all_shipments_on_amazon(shipments_raw, config, page)
             ts_chk = datetime.now().strftime("%Y%m%d_%H%M%S")
             logs = Path(config["logs_folder"])
-            complete_file = logs / f"amazon_already_complete_{ts_chk}.txt"
-            pending_file = logs / f"amazon_needs_upload_{ts_chk}.txt"
-            complete_file.write_text("\n".join(sorted(already_complete)), encoding="utf-8")
-            pending_file.write_text("\n".join(sorted(needs_upload.keys())), encoding="utf-8")
+            all_needs_upload = {}
+            all_already_complete = []
+
+            for region in configured_regions:
+                region_name = region["name"]
+                amazon_url = region["amazon_url"]
+                region_fba_ids = set(all_regions_data.get(region_name, {}).keys())
+                region_shipments = {fba: shipments_raw[fba] for fba in region_fba_ids if fba in shipments_raw}
+                if not region_shipments:
+                    print(f"\n[{region_name}] No shipments to check — skipping.")
+                    continue
+
+                print(f"\n[CHECK ONLY] [{region_name}] Logging into {amazon_url}...")
+                logged_in = wait_for_login(page, region_name, amazon_url, timeout_seconds=300)
+                if not logged_in:
+                    print(f"[{region_name}] Login timed out — skipping.")
+                    continue
+
+                region_config = dict(config)
+                region_config["amazon_base_url"] = amazon_url
+                print(f"\n[{region_name}] Checking {len(region_shipments)} shipments (read-only)...\n")
+                needs_upload, already_complete = check_all_shipments_on_amazon(region_shipments, region_config, page)
+                all_needs_upload.update(needs_upload)
+                all_already_complete.extend(already_complete)
+
+                complete_file = logs / f"amazon_already_complete_{region_name}_{ts_chk}.txt"
+                pending_file = logs / f"amazon_needs_upload_{region_name}_{ts_chk}.txt"
+                complete_file.write_text("\n".join(sorted(already_complete)), encoding="utf-8")
+                pending_file.write_text("\n".join(sorted(needs_upload.keys())), encoding="utf-8")
+                print(f"\n[{region_name}] Already complete : {len(already_complete)} -> {complete_file.name}")
+                print(f"[{region_name}] Needs upload     : {len(needs_upload)} -> {pending_file.name}")
+
             print(f"\n{'='*60}")
             print(f"CHECK COMPLETE (nothing was uploaded)")
-            print(f"  Already have tracking on Amazon : {len(already_complete)}")
-            print(f"  Missing tracking (needs upload) : {len(needs_upload)}")
-            print(f"\n  Already complete -> {complete_file.name}")
-            print(f"  Needs upload     -> {pending_file.name}")
+            print(f"  Already have tracking : {len(all_already_complete)}")
+            print(f"  Missing tracking      : {len(all_needs_upload)}")
             print(f"{'='*60}")
             return
 
-        # Step 3: Fetch sub-tracking IDs from carrier sites (or use main tracking numbers directly)
-        if args.skip_carrier:
-            print("\n[1/2] Skipping carrier scraping — using main tracking numbers directly...")
-            shipments_with_subs = {}
-            for fba_id, entries in shipments_raw.items():
-                main_ids = [e["tracking"] for e in entries if e.get("tracking")]
-                logger.info(f"FBA {fba_id}: using {len(main_ids)} main tracking number(s) directly")
-                shipments_with_subs[fba_id] = main_ids
-        else:
-            # Check if any FedEx shipments present — if so, ensure FedEx login
-            has_fedex = any(
-                "fedex" in str(e.get("carrier", "")).lower()
-                for entries in shipments_raw.values()
-                for e in entries
-            )
-            if has_fedex:
-                print("\n[FedEx] Checking FedEx login...")
-                check_fedex_login(page)
-
-            print("\n[1/2] Fetching sub-package tracking IDs from UPS/FedEx...")
-            shipments_with_subs = {}
-            for fba_id, entries in shipments_raw.items():
-                logger.info(f"\nFBA {fba_id}: {len(entries)} main tracking entries")
-                main_ids = [e["tracking"] for e in entries if e.get("tracking")]
-                sub_ids = get_all_sub_tracking(page, entries, config["logs_folder"])
-                # Include main tracking + sub-IDs, deduplicated, main first
-                all_ids = list(dict.fromkeys(main_ids + sub_ids))
-                logger.info(f"  -> {len(all_ids)} total tracking IDs ({len(main_ids)} main + {len(sub_ids)} sub)")
-                shipments_with_subs[fba_id] = all_ids
-
-        # Save all tracking IDs (parent + sub) to file for future reference
-        ts_ids = datetime.now().strftime("%Y%m%d_%H%M%S")
-        tracking_ids_file = Path(config["logs_folder"]) / f"tracking_ids_{ts_ids}.json"
-        combined = {
-            fba_id: {
-                "parent": shipments_raw.get(fba_id, []),
-                "sub_ids": shipments_with_subs.get(fba_id, []),
-            }
-            for fba_id in set(list(shipments_raw.keys()) + list(shipments_with_subs.keys()))
-        }
-        with open(tracking_ids_file, "w", encoding="utf-8") as f:
-            json.dump(combined, f, indent=2)
-        logger.info(f"Tracking IDs saved to: {tracking_ids_file}")
-        print(f"\nTracking IDs saved to: {tracking_ids_file}")
-
-        # Collect-only mode: print tracking list and stop before uploading
-        if args.collect_only:
-            print(f"\n{'='*60}")
-            print("TRACKING COLLECTION COMPLETE (nothing uploaded)")
-            print(f"{'='*60}")
-            for fba_id, data in sorted(combined.items()):
-                main = [e["tracking"] for e in data.get("parent", []) if e.get("tracking")]
-                subs = data.get("sub_ids", [])
-                print(f"\n  {fba_id}")
-                print(f"    Main : {', '.join(main) if main else '(none)'}")
-                print(f"    Subs : {', '.join(subs) if subs else '(none)'}")
-            print(f"\n{'='*60}")
-            return
-
-        # Step 4: Region loop — login check + upload for each region
-        print(f"\n[2/2] Uploading to Amazon ({len(configured_regions)} region(s))...")
+        # Step 3: Region loop — for each region: login → pre-check Amazon → carrier scrape → upload
         ts_run = datetime.now().strftime("%Y%m%d_%H%M%S")
         all_results = []
 
@@ -582,35 +591,137 @@ def main():
             region_name = region["name"]
             amazon_url = region["amazon_url"]
 
-            # Get this region's FBA IDs
             region_fba_ids = set(all_regions_data.get(region_name, {}).keys())
-            region_shipments = {fba: shipments_with_subs[fba] for fba in region_fba_ids if fba in shipments_with_subs}
+            region_shipments_raw = {fba: shipments_raw[fba] for fba in region_fba_ids if fba in shipments_raw}
 
-            if not region_shipments:
-                print(f"\n[{region_name}] No shipments to upload — skipping.")
+            if not region_shipments_raw:
+                print(f"\n[{region_name}] No shipments to process — skipping.")
+                write_region_summary(region_name, [], config["logs_folder"], ts_run)
+                continue
+
+            # Load persistent done list — skip FBAs we've already confirmed done in a previous run
+            done_cache_file = Path(config["logs_folder"]) / f"completed_fba_{region_name}.txt"
+            cached_done = set()
+            if done_cache_file.exists() and not args.rewrite:
+                cached_done = {line.strip() for line in done_cache_file.read_text(encoding="utf-8").splitlines() if line.strip()}
+                before = len(region_shipments_raw)
+                region_shipments_raw = {fba: v for fba, v in region_shipments_raw.items() if fba not in cached_done}
+                skipped = before - len(region_shipments_raw)
+                if skipped:
+                    print(f"\n[{region_name}] Skipping {skipped} FBA(s) from done cache — already confirmed complete.")
+
+            if not region_shipments_raw:
+                print(f"\n[{region_name}] All shipments already in done cache — nothing to do.")
                 write_region_summary(region_name, [], config["logs_folder"], ts_run)
                 continue
 
             print(f"\n{'='*60}")
-            print(f"[{region_name}] {len(region_shipments)} shipment(s) — {amazon_url}")
+            print(f"[{region_name}] {len(region_shipments_raw)} shipment(s) — {amazon_url}")
             print(f"{'='*60}")
 
-            # Per-region login check (wait up to 5 min)
+            # Login to this region's Amazon
             logged_in = wait_for_login(page, region_name, amazon_url, timeout_seconds=300)
             if not logged_in:
                 write_region_summary(region_name, [], config["logs_folder"], ts_run)
                 continue
 
-            # Upload for this region (pass region's URL via config override)
             region_config = dict(config)
             region_config["amazon_base_url"] = amazon_url
-            region_results = upload_all_shipments(region_shipments, region_config, page)
+
+            # Pre-check Amazon: skip shipments already complete (unless --rewrite forces all)
+            if not args.rewrite:
+                print(f"\n[{region_name}] Pre-checking Amazon status ({len(region_shipments_raw)} shipment(s))...")
+                needs_upload, already_complete = check_all_shipments_on_amazon(region_shipments_raw, region_config, page)
+                if already_complete:
+                    print(f"[{region_name}] {len(already_complete)} already complete — skipping carrier scrape for those.")
+                    # Persist newly confirmed done FBAs so we never check them again
+                    all_done = cached_done | set(already_complete)
+                    done_cache_file.write_text("\n".join(sorted(all_done)), encoding="utf-8")
+                    logger.info(f"[{region_name}] Done cache updated: {len(all_done)} total FBA(s) in {done_cache_file.name}")
+                region_shipments_raw = needs_upload  # dict {fba_id: entries}, already filtered
+                if not region_shipments_raw:
+                    print(f"[{region_name}] All shipments already complete — nothing to upload.")
+                    write_region_summary(region_name, [], config["logs_folder"], ts_run)
+                    continue
+                print(f"[{region_name}] {len(region_shipments_raw)} shipment(s) need tracking upload.")
+
+            # Carrier scraping — only for shipments that need uploading
+            if args.skip_carrier:
+                print(f"\n[{region_name}] Using main tracking numbers directly (--skip-carrier)...")
+                shipments_with_subs = {}
+                for fba_id, entries in region_shipments_raw.items():
+                    main_ids = [e["tracking"] for e in entries if e.get("tracking")]
+                    logger.info(f"FBA {fba_id}: using {len(main_ids)} main tracking number(s) directly")
+                    shipments_with_subs[fba_id] = main_ids
+            else:
+                has_fedex = any(
+                    "fedex" in str(e.get("carrier", "")).lower()
+                    for entries in region_shipments_raw.values()
+                    for e in entries
+                )
+                if has_fedex:
+                    print(f"\n[{region_name}] Checking FedEx login...")
+                    check_fedex_login(page)
+
+                print(f"\n[{region_name}] Fetching sub-package tracking IDs from UPS/FedEx...")
+                shipments_with_subs = {}
+                for fba_id, entries in region_shipments_raw.items():
+                    logger.info(f"\nFBA {fba_id}: {len(entries)} main tracking entries")
+                    main_ids = [e["tracking"] for e in entries if e.get("tracking")]
+                    sub_ids = get_all_sub_tracking(page, entries, config["logs_folder"])
+                    all_ids = list(dict.fromkeys(main_ids + sub_ids))
+                    logger.info(f"  -> {len(all_ids)} total tracking IDs ({len(main_ids)} main + {len(sub_ids)} sub)")
+                    shipments_with_subs[fba_id] = all_ids
+
+            # Save tracking IDs to JSON
+            ts_ids = datetime.now().strftime("%Y%m%d_%H%M%S")
+            tracking_ids_file = Path(config["logs_folder"]) / f"tracking_ids_{region_name}_{ts_ids}.json"
+            combined = {
+                fba_id: {
+                    "parent": region_shipments_raw.get(fba_id, []),
+                    "sub_ids": shipments_with_subs.get(fba_id, []),
+                }
+                for fba_id in shipments_with_subs
+            }
+            with open(tracking_ids_file, "w", encoding="utf-8") as f:
+                json.dump(combined, f, indent=2)
+            logger.info(f"Tracking IDs saved to: {tracking_ids_file}")
+            print(f"\nTracking IDs saved to: {tracking_ids_file.name}")
+
+            # Collect-only: print summary and skip upload for this region
+            if args.collect_only:
+                print(f"\n[{region_name}] Tracking collection complete (not uploading):")
+                for fba_id, data in sorted(combined.items()):
+                    main = [e["tracking"] for e in data.get("parent", []) if e.get("tracking")]
+                    subs = data.get("sub_ids", [])
+                    print(f"  {fba_id}")
+                    print(f"    Main : {', '.join(main) if main else '(none)'}")
+                    print(f"    Subs : {', '.join(subs) if subs else '(none)'}")
+                continue
+
+            # Upload
+            print(f"\n[{region_name}] Uploading to Amazon...")
+            region_results = upload_all_shipments(shipments_with_subs, region_config, page, force=args.rewrite)
             all_results.extend(region_results)
             write_region_summary(region_name, region_results, config["logs_folder"], ts_run)
 
-        results = all_results  # used by write_summary below
+            # Add successfully uploaded FBAs to done cache
+            if not args.rewrite:
+                newly_done = {r["fba_id"] for r in region_results if r["status"] in ("success", "skipped")}
+                if newly_done:
+                    all_done = cached_done | set(already_complete) | newly_done
+                    done_cache_file.write_text("\n".join(sorted(all_done)), encoding="utf-8")
+                    logger.info(f"[{region_name}] Done cache updated after upload: {len(all_done)} total FBA(s)")
 
-        # Step 5: Post-run - highlight updated rows, save to output, write combined summary
+        if args.collect_only:
+            print(f"\n{'='*60}")
+            print("TRACKING COLLECTION COMPLETE (nothing uploaded)")
+            print(f"{'='*60}")
+            return
+
+        results = all_results
+
+        # Step 4: Post-run - highlight updated rows, save to output, write combined summary
         ts_out = datetime.now().strftime("%Y%m%d_%H%M%S")
         input_folder = Path(config["input_folder"])
         output_folder = Path(config["output_folder"])
@@ -635,8 +746,14 @@ def main():
         write_summary(results, config["logs_folder"])
 
     finally:
-        context.close()
-        pw.stop()
+        try:
+            context.close()
+        except Exception:
+            pass
+        try:
+            pw.stop()
+        except Exception:
+            pass
 
     try:
         input("\nPress Enter to close this window...")

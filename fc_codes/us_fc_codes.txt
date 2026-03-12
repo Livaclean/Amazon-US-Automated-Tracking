@@ -68,6 +68,7 @@ PIT
 RDU
 RFD
 RIC
+RMN
 RNO
 RSW
 SAT
@@ -83,3 +84,15 @@ STL
 TUL
 TUS
 TYS
+# --- Additional US FCs confirmed accessible on Amazon US ---
+FWA
+GEU
+GRY
+IAH
+ILG
+LAN
+MCC
+MDW
+SWF
+TEB
+VGT

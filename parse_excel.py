@@ -52,21 +52,31 @@ def group_by_fba_id(rows: list) -> dict:
     Groups rows by FBA ID. Deduplicates tracking entries.
     Returns: {"FBA123": [{"tracking": "...", "carrier": "..."}, ...]}
     Skips rows with empty/None fba_id.
+    If an FBA ID contains "/" with multiple valid IDs (e.g. "STAR-A/STAR-B"),
+    each part is treated as a separate FBA ID sharing the same tracking entry.
     """
     result = {}
     for row in rows:
-        fba_id = str(row.get("fba_id") or "").strip()
-        if not fba_id:
+        fba_id_raw = str(row.get("fba_id") or "").strip()
+        if not fba_id_raw:
             continue
+
+        # Split combined IDs like "STAR-A/STAR-B" into separate shipments
+        parts = [p.strip() for p in fba_id_raw.split("/") if p.strip()]
+        if not parts:
+            continue  # pure "/" or empty — skip
+        fba_ids = parts
+
         entry = {
             "tracking": str(row.get("tracking_num", "")).strip(),
             "carrier": str(row.get("carrier", "")).strip(),
             "row_number": row.get("row_number"),
         }
-        if fba_id not in result:
-            result[fba_id] = []
-        if entry not in result[fba_id]:
-            result[fba_id].append(entry)
+        for fba_id in fba_ids:
+            if fba_id not in result:
+                result[fba_id] = []
+            if entry not in result[fba_id]:
+                result[fba_id].append(entry)
     return result
 
 
@@ -104,50 +114,75 @@ def _xlrd_cell_str(sheet, row, col) -> str:
     return str(cell.value).strip()
 
 
+def _detect_xls_sheet_cols(sheet) -> tuple:
+    """
+    Scans the first 3 rows of an xls sheet for a header row containing
+    'FBA ID' and 'TRACKING'. Returns (header_row_idx, col_fc, col_fba, col_tracking, col_carrier).
+    Falls back to config-default positions (3, 4, 7, 8) if header not found.
+    """
+    for r in range(min(3, sheet.nrows)):
+        vals = [str(sheet.cell(r, c).value).strip().upper() for c in range(sheet.ncols)]
+        fba_cols  = [i for i, v in enumerate(vals) if v == "FBA ID"]
+        trk_cols  = [i for i, v in enumerate(vals) if "TRACKING" in v]
+        dest_cols = [i for i, v in enumerate(vals) if "DESTINATION" in v]
+        carr_cols = [i for i, v in enumerate(vals) if v == "CARRIER"]
+        if fba_cols and trk_cols:
+            col_fc  = dest_cols[0] if dest_cols else max(0, fba_cols[0] - 1)
+            col_fba = fba_cols[0]
+            col_trk = trk_cols[0]
+            col_car = carr_cols[0] if carr_cols else col_trk + 1
+            return r, col_fc, col_fba, col_trk, col_car
+    return 0, 3, 4, 7, 8  # default fallback
+
+
 def load_excel_file(file_path: str, config: dict) -> list:
     """
     Loads Excel file rows as dicts using column indices from config.
+    For xls files: reads ALL sheets, auto-detects column positions from each sheet's header row.
+    For xlsx files: reads ALL sheets using config column indices.
     Default: D=3 (fc_code), E=4 (fba_id), H=7 (tracking_num), I=8 (carrier).
-    Skips header row and rows missing fba_id. Rows with empty tracking_num are included.
+    Skips header rows and rows missing fba_id. Rows with empty tracking_num are included.
     """
-    col_fc = config.get("column_fc_code", 3)
-    col_fba = config.get("column_fba_id", 4)
-    col_tracking = config.get("column_tracking", 7)
-    col_carrier = config.get("column_carrier", 8)
+    col_fc_cfg = config.get("column_fc_code", 3)
+    col_fba_cfg = config.get("column_fba_id", 4)
+    col_tracking_cfg = config.get("column_tracking", 7)
+    col_carrier_cfg = config.get("column_carrier", 8)
     rows = []
 
     if detect_excel_engine(file_path) == "xlrd":
         import xlrd
         wb = xlrd.open_workbook(file_path)
-        sheet = wb.sheet_by_index(0)
-        for r in range(1, sheet.nrows):
-            try:
-                fc = _xlrd_cell_str(sheet, r, col_fc).strip()
-                fba = _xlrd_cell_str(sheet, r, col_fba).strip()
-                trk = _xlrd_cell_str(sheet, r, col_tracking).strip()
-                car = _xlrd_cell_str(sheet, r, col_carrier).strip() if sheet.ncols > col_carrier else ""
-                if fba:
-                    rows.append({"fc_code": fc, "fba_id": fba, "tracking_num": trk,
-                                 "carrier": car, "row_number": r + 1})
-            except IndexError:
-                logger.warning(f"Row {r+1}: IndexError — check column indices in config.json (column_fc_code={col_fc}, column_fba_id={col_fba}, column_tracking={col_tracking}, column_carrier={col_carrier})")
-                break  # Stop processing if config is wrong — don't silently skip all rows
+        for sheet_idx in range(wb.nsheets):
+            sheet = wb.sheet_by_index(sheet_idx)
+            header_row, col_fc, col_fba, col_tracking, col_carrier = _detect_xls_sheet_cols(sheet)
+            for r in range(header_row + 1, sheet.nrows):
+                try:
+                    fc  = _xlrd_cell_str(sheet, r, col_fc).strip()
+                    fba = _xlrd_cell_str(sheet, r, col_fba).strip()
+                    trk = _xlrd_cell_str(sheet, r, col_tracking).strip()
+                    car = _xlrd_cell_str(sheet, r, col_carrier).strip() if sheet.ncols > col_carrier else ""
+                    if fba:
+                        rows.append({"fc_code": fc, "fba_id": fba, "tracking_num": trk,
+                                     "carrier": car, "row_number": r + 1})
+                except IndexError:
+                    logger.warning(f"Sheet {sheet.name!r} row {r+1}: IndexError — skipping row")
+                    continue
     else:
         from openpyxl import load_workbook
         wb = load_workbook(file_path, read_only=True, data_only=True)
-        sheet = wb.active
-        for idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True)):
-            try:
-                fc = str(row[col_fc] or "").strip()
-                fba = str(row[col_fba] or "").strip()
-                trk = str(row[col_tracking] or "").strip()
-                car = str(row[col_carrier] or "").strip() if len(row) > col_carrier else ""
-                if fba:
-                    rows.append({"fc_code": fc, "fba_id": fba, "tracking_num": trk,
-                                 "carrier": car, "row_number": idx + 2})
-            except (IndexError, TypeError):
-                logger.warning(f"Row {idx+2}: IndexError/TypeError — check column indices in config.json")
-                break
+        for sheet in wb.worksheets:
+            for idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True)):
+                try:
+                    fc  = str(row[col_fc_cfg] or "").strip()
+                    fba = str(row[col_fba_cfg] or "").strip()
+                    trk = str(row[col_tracking_cfg] or "").strip()
+                    car = str(row[col_carrier_cfg] or "").strip() if len(row) > col_carrier_cfg else ""
+                    if fba:
+                        rows.append({"fc_code": fc, "fba_id": fba, "tracking_num": trk,
+                                     "carrier": car, "row_number": idx + 2})
+                except (IndexError, TypeError):
+                    logger.warning(f"Sheet {sheet.title!r} row {idx+2}: IndexError/TypeError — skipping row")
+                    continue
     return rows
 
 

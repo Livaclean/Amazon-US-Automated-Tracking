@@ -2,11 +2,14 @@
 # Germany
 BER
 CGN
+DMT
 DTM
 DUS
 EDE
 FRA
+HAJ
 HAM
+KSF
 LEJ
 MUC
 STR

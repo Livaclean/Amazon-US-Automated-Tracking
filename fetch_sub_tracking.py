@@ -330,7 +330,8 @@ def _is_fedex_logged_in(page) -> bool:
 
 def check_fedex_login(page) -> None:
     """
-    Navigates to FedEx home and waits for manual login if not already logged in.
+    Checks FedEx login status but does NOT block — trkqual URLs work without login
+    for shipments in 'Label created' state, so we just log and proceed.
     """
     try:
         page.goto(FEDEX_LOGIN_URL, timeout=20000)
@@ -341,19 +342,8 @@ def check_fedex_login(page) -> None:
 
     if _is_fedex_logged_in(page):
         logger.info("FedEx: already logged in")
-        return
-
-    logger.warning("FedEx login required — waiting for manual login in browser window")
-    print("\n" + "=" * 60)
-    print("ACTION REQUIRED: Log in to FedEx in the browser window.")
-    print("Script will continue automatically once logged in (up to 5 min).")
-    print("=" * 60)
-    for _ in range(300):
-        page.wait_for_timeout(1000)
-        if _is_fedex_logged_in(page):
-            logger.info("FedEx login detected — continuing")
-            break
-    page.wait_for_timeout(1500)
+    else:
+        logger.info("FedEx: not logged in — proceeding anyway (trkqual URLs work without login)")
 
 
 def fetch_fedex_sub_tracking(page, main_tracking: str, logs_folder: str = None) -> list:
