@@ -1,0 +1,857 @@
+2026-03-17 02:08:46,418 [INFO] Log file: logs\tracking_upload_2026-03-17_02-08-46.log
+2026-03-17 02:08:46,646 [INFO] Reading Excel file from input folder...
+2026-03-17 02:08:46,647 [INFO] Reading: input\shipments  details  26-3(1)(1).xls
+2026-03-17 02:08:46,691 [INFO] Loaded 212 total rows across 1 file(s)
+2026-03-17 02:08:46,693 [INFO] [US] 116 row(s) matched
+2026-03-17 02:08:46,694 [INFO] [CA] 9 row(s) matched
+2026-03-17 02:08:46,694 [INFO] [UK] 10 row(s) matched
+2026-03-17 02:08:46,695 [INFO] [EU] 16 row(s) matched
+2026-03-17 02:08:46,696 [INFO] [AWD] 13 row(s) matched
+2026-03-17 02:08:46,698 [INFO] Shipment records written:
+  With tracking (143): logs\shipments_with_tracking_20260317_020846.txt
+  Missing tracking (20): logs\shipments_missing_tracking_20260317_020846.txt
+2026-03-17 02:08:46,698 [INFO] Launching Chrome with your saved profile...
+2026-03-17 02:08:47,352 [DEBUG] Using proactor: IocpProactor
+2026-03-17 02:08:51,484 [INFO] [US] Already logged in at https://sellercentral.amazon.com
+2026-03-17 02:08:51,484 [INFO]   [1/105] Checking Amazon: FBA196Q6QFV6
+2026-03-17 02:08:51,485 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196Q6QFV6/tracking
+2026-03-17 02:08:54,938 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/ap/signin?clientContext=133-5238888-0187456&openid.pape.max_auth_age=0&openid.return_to=https%3A%2F%2Fsellercentral.amazon.com%2Ffba%2Finbound-shipment%2Fsummary%2FFBA196Q6QFV6%2Ftracking&openid.identity=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.assoc_handle=sc_na_amazon_v2&openid.mode=checkid_setup&language=en_US&openid.claimed_id=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&pageId=sc_amazon_v3_unified&openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&ssoResponse=eyJ6aXAiOiJERUYiLCJlbmMiOiJBMjU2R0NNIiwiYWxnIjoiQTI1NktXIn0.R7g4KpGQFhGqV4nOJnV0vM5gFn9Gn24ao6K3Gt6J-jFtXlBdEeNacw.nwq000kvAbkRrPGw.zf0JVosnOsSqNUClwx1i8vLn25veJpV11JaVDCbuOpCT5NcJwBfmdvb7DMM-Vo9t8GSBUxjxULFuuEpE763RUwKHlCP3nrbidTw-QlN_H8lBJA-sT5axJ63EkbCO0LGz0lysNHVJjn777AHYDLrSy8HKKJZvi-TirVhghzCU918ciYpSI0CsFy7C2W-G0y4RYeHVOu0W4WhakUpcx_nfxT0GBJ_ws3znTeY-gD7XnTZVMsDd4Akb2mxQqrM7owVPNqLHmxYDnzqnShoye7lOXJpU1IqdIJvumMvoK_1Fouo9oY4ihLYrimVcU_Kq6Zeur1z5W7ZgtnzqBdEHee7qACJ8fdxzlyL91P0OpBPABAjXgTpufAcJj7mq5vMFdvP1W97kK5anZ3gB_lh0nnBGk0H2ks1i7tWN7Qd0wZWfDyZBRM-OYJnLsOXOnvtocBJTSK92sHbIvaSoYLkbOKHpQY8Lc107QTvqN0nNQ1KA-tJX0VR-2yJCYHo9_SOg059rT8w_J9czJafZh27W7xu_FDQRyAwfssn0h_Ir-OYuZ7UfKhXNlbDdNc_HFfjSq7nRYGaPQiUvdnKVgoEHEyVS-k28dh5-k6bpya9iBDC71lG087r50uX3y7I3rkwEp_cazaiCo_w4iNJ4lGrkFYyc12K0.AyH12UH0GtIxWpDJo8GPvw
+2026-03-17 02:08:54,938 [WARNING]   Redirected to login (attempt 1)
+2026-03-17 02:08:54,938 [WARNING] Amazon login required — waiting for manual login in browser window
+2026-03-17 02:09:30,268 [INFO] Amazon login detected (stable) — continuing
+2026-03-17 02:09:35,914 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196Q6QFV6/tracking
+2026-03-17 02:09:45,991 [WARNING]   [check] Timed out waiting for inputs for FBA196Q6QFV6
+2026-03-17 02:09:45,997 [INFO]   -> Amazon status: not_found
+2026-03-17 02:09:45,998 [INFO]   [2/105] Checking Amazon: FBA198G5WK9P
+2026-03-17 02:09:45,998 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198G5WK9P/tracking
+2026-03-17 02:09:50,061 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198G5WK9P/tracking
+2026-03-17 02:09:50,479 [INFO]   -> Amazon status: complete
+2026-03-17 02:09:50,479 [INFO]   [3/105] Checking Amazon: FBA1976WX5LB
+2026-03-17 02:09:50,479 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1976WX5LB/tracking
+2026-03-17 02:09:55,220 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1976WX5LB/tracking
+2026-03-17 02:10:05,264 [WARNING]   [check] Timed out waiting for inputs for FBA1976WX5LB
+2026-03-17 02:10:05,269 [INFO]   -> Amazon status: not_found
+2026-03-17 02:10:05,270 [INFO]   [4/105] Checking Amazon: FBA198MP8HT5
+2026-03-17 02:10:05,270 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MP8HT5/tracking
+2026-03-17 02:10:09,435 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MP8HT5/tracking
+2026-03-17 02:10:09,587 [INFO]   -> Amazon status: empty
+2026-03-17 02:10:09,587 [INFO]   [5/105] Checking Amazon: FBA196S4XTYH
+2026-03-17 02:10:09,587 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196S4XTYH/tracking
+2026-03-17 02:10:13,562 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196S4XTYH/tracking
+2026-03-17 02:10:13,931 [INFO]   -> Amazon status: complete
+2026-03-17 02:10:13,932 [INFO]   [6/105] Checking Amazon: FBA198MNS2RT
+2026-03-17 02:10:13,932 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNS2RT/tracking
+2026-03-17 02:10:17,815 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNS2RT/tracking
+2026-03-17 02:10:17,898 [INFO]   -> Amazon status: empty
+2026-03-17 02:10:17,898 [INFO]   [7/105] Checking Amazon: FBA1976WD9WR
+2026-03-17 02:10:17,898 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1976WD9WR/tracking
+2026-03-17 02:10:22,012 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1976WD9WR/tracking
+2026-03-17 02:10:32,061 [WARNING]   [check] Timed out waiting for inputs for FBA1976WD9WR
+2026-03-17 02:10:32,065 [INFO]   -> Amazon status: not_found
+2026-03-17 02:10:32,065 [INFO]   [8/105] Checking Amazon: FBA1978M390T
+2026-03-17 02:10:32,065 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1978M390T/tracking
+2026-03-17 02:10:35,507 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1978M390T/tracking
+2026-03-17 02:10:36,435 [INFO]   -> Amazon status: complete
+2026-03-17 02:10:36,435 [INFO]   [9/105] Checking Amazon: FBA1978NH5R3
+2026-03-17 02:10:36,435 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1978NH5R3/tracking
+2026-03-17 02:10:40,118 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1978NH5R3/tracking
+2026-03-17 02:10:50,154 [WARNING]   [check] Timed out waiting for inputs for FBA1978NH5R3
+2026-03-17 02:10:50,158 [INFO]   -> Amazon status: not_found
+2026-03-17 02:10:50,158 [INFO]   [10/105] Checking Amazon: FBA1972NVGYF
+2026-03-17 02:10:50,158 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1972NVGYF/tracking
+2026-03-17 02:10:53,998 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1972NVGYF/tracking
+2026-03-17 02:11:04,031 [WARNING]   [check] Timed out waiting for inputs for FBA1972NVGYF
+2026-03-17 02:11:04,036 [INFO]   -> Amazon status: not_found
+2026-03-17 02:11:04,036 [INFO]   [11/105] Checking Amazon: FBA198G7KNLW
+2026-03-17 02:11:04,036 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198G7KNLW/tracking
+2026-03-17 02:11:07,704 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198G7KNLW/tracking
+2026-03-17 02:11:07,978 [INFO]   -> Amazon status: complete
+2026-03-17 02:11:07,979 [INFO]   [12/105] Checking Amazon: FBA195RRK7L8
+2026-03-17 02:11:07,979 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195RRK7L8/tracking
+2026-03-17 02:11:10,630 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195RRK7L8/tracking
+2026-03-17 02:11:20,679 [WARNING]   [check] Timed out waiting for inputs for FBA195RRK7L8
+2026-03-17 02:11:20,683 [INFO]   -> Amazon status: not_found
+2026-03-17 02:11:20,683 [INFO]   [13/105] Checking Amazon: FBA198B8Q91F
+2026-03-17 02:11:20,683 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198B8Q91F/tracking
+2026-03-17 02:11:24,790 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198B8Q91F/tracking
+2026-03-17 02:11:24,903 [INFO]   -> Amazon status: complete
+2026-03-17 02:11:24,903 [INFO]   [14/105] Checking Amazon: FBA196S5FRT5
+2026-03-17 02:11:24,903 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196S5FRT5/tracking
+2026-03-17 02:11:28,926 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196S5FRT5/tracking
+2026-03-17 02:11:29,184 [INFO]   -> Amazon status: complete
+2026-03-17 02:11:29,184 [INFO]   [15/105] Checking Amazon: FBA196Q8M55J
+2026-03-17 02:11:29,184 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196Q8M55J/tracking
+2026-03-17 02:11:33,187 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196Q8M55J/tracking
+2026-03-17 02:11:43,226 [WARNING]   [check] Timed out waiting for inputs for FBA196Q8M55J
+2026-03-17 02:11:43,231 [INFO]   -> Amazon status: not_found
+2026-03-17 02:11:43,231 [INFO]   [16/105] Checking Amazon: FBA195W4S5L8
+2026-03-17 02:11:43,231 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195W4S5L8/tracking
+2026-03-17 02:11:47,272 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195W4S5L8/tracking
+2026-03-17 02:11:57,306 [WARNING]   [check] Timed out waiting for inputs for FBA195W4S5L8
+2026-03-17 02:11:57,309 [INFO]   -> Amazon status: not_found
+2026-03-17 02:11:57,309 [INFO]   [17/105] Checking Amazon: FBA197G1ZXPZ
+2026-03-17 02:11:57,310 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197G1ZXPZ/tracking
+2026-03-17 02:12:01,050 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197G1ZXPZ/tracking
+2026-03-17 02:12:11,093 [WARNING]   [check] Timed out waiting for inputs for FBA197G1ZXPZ
+2026-03-17 02:12:11,096 [INFO]   -> Amazon status: not_found
+2026-03-17 02:12:11,096 [INFO]   [18/105] Checking Amazon: FBA1972RSFFY
+2026-03-17 02:12:11,096 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1972RSFFY/tracking
+2026-03-17 02:12:14,983 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1972RSFFY/tracking
+2026-03-17 02:12:25,021 [WARNING]   [check] Timed out waiting for inputs for FBA1972RSFFY
+2026-03-17 02:12:25,025 [INFO]   -> Amazon status: not_found
+2026-03-17 02:12:25,025 [INFO]   [19/105] Checking Amazon: FBA19690JXGL
+2026-03-17 02:12:25,025 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19690JXGL/tracking
+2026-03-17 02:12:28,004 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19690JXGL/tracking
+2026-03-17 02:12:38,045 [WARNING]   [check] Timed out waiting for inputs for FBA19690JXGL
+2026-03-17 02:12:38,049 [INFO]   -> Amazon status: not_found
+2026-03-17 02:12:38,049 [INFO]   [20/105] Checking Amazon: FBA198MNQG7C
+2026-03-17 02:12:38,049 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNQG7C/tracking
+2026-03-17 02:12:41,781 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNQG7C/tracking
+2026-03-17 02:12:41,994 [INFO]   -> Amazon status: empty
+2026-03-17 02:12:41,994 [INFO]   [21/105] Checking Amazon: FBA1978MZ07N
+2026-03-17 02:12:41,994 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1978MZ07N/tracking
+2026-03-17 02:12:45,808 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1978MZ07N/tracking
+2026-03-17 02:12:55,846 [WARNING]   [check] Timed out waiting for inputs for FBA1978MZ07N
+2026-03-17 02:12:55,850 [INFO]   -> Amazon status: not_found
+2026-03-17 02:12:55,850 [INFO]   [22/105] Checking Amazon: FBA19691M6ZB
+2026-03-17 02:12:55,850 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19691M6ZB/tracking
+2026-03-17 02:12:59,287 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19691M6ZB/tracking
+2026-03-17 02:13:00,177 [INFO]   -> Amazon status: complete
+2026-03-17 02:13:00,177 [INFO]   [23/105] Checking Amazon: FBA197HFQKDT
+2026-03-17 02:13:00,177 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197HFQKDT/tracking
+2026-03-17 02:13:04,329 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197HFQKDT/tracking
+2026-03-17 02:13:05,232 [INFO]   -> Amazon status: complete
+2026-03-17 02:13:05,232 [INFO]   [24/105] Checking Amazon: FBA198L0JGRD
+2026-03-17 02:13:05,232 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198L0JGRD/tracking
+2026-03-17 02:13:09,384 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198L0JGRD/tracking
+2026-03-17 02:13:10,307 [INFO]   -> Amazon status: complete
+2026-03-17 02:13:10,307 [INFO]   [25/105] Checking Amazon: FBA1924FWPYT
+2026-03-17 02:13:10,307 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1924FWPYT/tracking
+2026-03-17 02:13:14,454 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1924FWPYT/tracking
+2026-03-17 02:13:24,498 [WARNING]   [check] Timed out waiting for inputs for FBA1924FWPYT
+2026-03-17 02:13:24,503 [INFO]   -> Amazon status: not_found
+2026-03-17 02:13:24,504 [INFO]   [26/105] Checking Amazon: FBA195KDVJ3Q
+2026-03-17 02:13:24,504 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KDVJ3Q/tracking
+2026-03-17 02:13:28,522 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KDVJ3Q/tracking
+2026-03-17 02:13:38,563 [WARNING]   [check] Timed out waiting for inputs for FBA195KDVJ3Q
+2026-03-17 02:13:38,570 [INFO]   -> Amazon status: not_found
+2026-03-17 02:13:38,570 [INFO]   [27/105] Checking Amazon: FBA197G30X63
+2026-03-17 02:13:38,570 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197G30X63/tracking
+2026-03-17 02:13:42,665 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197G30X63/tracking
+2026-03-17 02:13:52,713 [WARNING]   [check] Timed out waiting for inputs for FBA197G30X63
+2026-03-17 02:13:52,716 [INFO]   -> Amazon status: not_found
+2026-03-17 02:13:52,716 [INFO]   [28/105] Checking Amazon: FBA1953XC1SY
+2026-03-17 02:13:52,716 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1953XC1SY/tracking
+2026-03-17 02:13:56,833 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1953XC1SY/tracking
+2026-03-17 02:14:06,865 [WARNING]   [check] Timed out waiting for inputs for FBA1953XC1SY
+2026-03-17 02:14:06,869 [INFO]   -> Amazon status: not_found
+2026-03-17 02:14:06,869 [INFO]   [29/105] Checking Amazon: FBA1976Y23ZS
+2026-03-17 02:14:06,869 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1976Y23ZS/tracking
+2026-03-17 02:14:10,663 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1976Y23ZS/tracking
+2026-03-17 02:14:20,711 [WARNING]   [check] Timed out waiting for inputs for FBA1976Y23ZS
+2026-03-17 02:14:20,716 [INFO]   -> Amazon status: not_found
+2026-03-17 02:14:20,716 [INFO]   [30/105] Checking Amazon: FBA197D1SZ07
+2026-03-17 02:14:20,716 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197D1SZ07/tracking
+2026-03-17 02:14:24,310 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197D1SZ07/tracking
+2026-03-17 02:14:34,351 [WARNING]   [check] Timed out waiting for inputs for FBA197D1SZ07
+2026-03-17 02:14:34,356 [INFO]   -> Amazon status: not_found
+2026-03-17 02:14:34,356 [INFO]   [31/105] Checking Amazon: FBA198L0HB5T
+2026-03-17 02:14:34,356 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198L0HB5T/tracking
+2026-03-17 02:14:38,012 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198L0HB5T/tracking
+2026-03-17 02:14:38,919 [INFO]   -> Amazon status: complete
+2026-03-17 02:14:38,919 [INFO]   [32/105] Checking Amazon: FBA19659Y3RJ
+2026-03-17 02:14:38,920 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19659Y3RJ/tracking
+2026-03-17 02:14:42,932 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19659Y3RJ/tracking
+2026-03-17 02:14:52,981 [WARNING]   [check] Timed out waiting for inputs for FBA19659Y3RJ
+2026-03-17 02:14:52,986 [INFO]   -> Amazon status: not_found
+2026-03-17 02:14:52,986 [INFO]   [33/105] Checking Amazon: FBA195RQLSNM
+2026-03-17 02:14:52,986 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195RQLSNM/tracking
+2026-03-17 02:14:56,833 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195RQLSNM/tracking
+2026-03-17 02:15:06,865 [WARNING]   [check] Timed out waiting for inputs for FBA195RQLSNM
+2026-03-17 02:15:06,869 [INFO]   -> Amazon status: not_found
+2026-03-17 02:15:06,869 [INFO]   [34/105] Checking Amazon: FBA198MN1D74
+2026-03-17 02:15:06,869 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MN1D74/tracking
+2026-03-17 02:15:11,026 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MN1D74/tracking
+2026-03-17 02:15:11,264 [INFO]   -> Amazon status: empty
+2026-03-17 02:15:11,264 [INFO]   [35/105] Checking Amazon: FBA196S4P3NF
+2026-03-17 02:15:11,264 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196S4P3NF/tracking
+2026-03-17 02:15:15,383 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196S4P3NF/tracking
+2026-03-17 02:15:15,666 [INFO]   -> Amazon status: complete
+2026-03-17 02:15:15,666 [INFO]   [36/105] Checking Amazon: FBA1978MKF7Z
+2026-03-17 02:15:15,666 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1978MKF7Z/tracking
+2026-03-17 02:15:19,097 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1978MKF7Z/tracking
+2026-03-17 02:15:20,017 [INFO]   -> Amazon status: complete
+2026-03-17 02:15:20,018 [INFO]   [37/105] Checking Amazon: FBA1972MKJNZ
+2026-03-17 02:15:20,018 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1972MKJNZ/tracking
+2026-03-17 02:15:23,679 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1972MKJNZ/tracking
+2026-03-17 02:15:33,727 [WARNING]   [check] Timed out waiting for inputs for FBA1972MKJNZ
+2026-03-17 02:15:33,730 [INFO]   -> Amazon status: not_found
+2026-03-17 02:15:33,730 [INFO]   [38/105] Checking Amazon: FBA198L0VZDW
+2026-03-17 02:15:33,730 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198L0VZDW/tracking
+2026-03-17 02:15:37,353 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198L0VZDW/tracking
+2026-03-17 02:15:38,270 [INFO]   -> Amazon status: complete
+2026-03-17 02:15:38,270 [INFO]   [39/105] Checking Amazon: FBA19659DXNC
+2026-03-17 02:15:38,271 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19659DXNC/tracking
+2026-03-17 02:15:42,487 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19659DXNC/tracking
+2026-03-17 02:15:52,534 [WARNING]   [check] Timed out waiting for inputs for FBA19659DXNC
+2026-03-17 02:15:52,540 [INFO]   -> Amazon status: not_found
+2026-03-17 02:15:52,540 [INFO]   [40/105] Checking Amazon: FBA19659KS5T
+2026-03-17 02:15:52,540 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19659KS5T/tracking
+2026-03-17 02:15:56,324 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19659KS5T/tracking
+2026-03-17 02:16:06,358 [WARNING]   [check] Timed out waiting for inputs for FBA19659KS5T
+2026-03-17 02:16:06,361 [INFO]   -> Amazon status: not_found
+2026-03-17 02:16:06,361 [INFO]   [41/105] Checking Amazon: FBA1978LLQNX
+2026-03-17 02:16:06,361 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1978LLQNX/tracking
+2026-03-17 02:16:10,182 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1978LLQNX/tracking
+2026-03-17 02:16:11,100 [INFO]   -> Amazon status: complete
+2026-03-17 02:16:11,100 [INFO]   [42/105] Checking Amazon: FBA197D0GZRT
+2026-03-17 02:16:11,100 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197D0GZRT/tracking
+2026-03-17 02:16:13,810 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197D0GZRT/tracking
+2026-03-17 02:16:14,766 [INFO]   -> Amazon status: complete
+2026-03-17 02:16:14,766 [INFO]   [43/105] Checking Amazon: FBA197D1329W
+2026-03-17 02:16:14,766 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197D1329W/tracking
+2026-03-17 02:16:18,319 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197D1329W/tracking
+2026-03-17 02:16:28,369 [WARNING]   [check] Timed out waiting for inputs for FBA197D1329W
+2026-03-17 02:16:28,375 [INFO]   -> Amazon status: not_found
+2026-03-17 02:16:28,375 [INFO]   [44/105] Checking Amazon: FBA198MNVCDH
+2026-03-17 02:16:28,375 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNVCDH/tracking
+2026-03-17 02:16:32,382 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNVCDH/tracking
+2026-03-17 02:16:32,473 [INFO]   -> Amazon status: empty
+2026-03-17 02:16:32,473 [INFO]   [45/105] Checking Amazon: FBA1968Z317V
+2026-03-17 02:16:32,473 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1968Z317V/tracking
+2026-03-17 02:16:36,647 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1968Z317V/tracking
+2026-03-17 02:16:46,690 [WARNING]   [check] Timed out waiting for inputs for FBA1968Z317V
+2026-03-17 02:16:46,694 [INFO]   -> Amazon status: not_found
+2026-03-17 02:16:46,694 [INFO]   [46/105] Checking Amazon: FBA1968YG6M9
+2026-03-17 02:16:46,694 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1968YG6M9/tracking
+2026-03-17 02:16:50,405 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1968YG6M9/tracking
+2026-03-17 02:17:00,447 [WARNING]   [check] Timed out waiting for inputs for FBA1968YG6M9
+2026-03-17 02:17:00,451 [INFO]   -> Amazon status: not_found
+2026-03-17 02:17:00,451 [INFO]   [47/105] Checking Amazon: FBA196Q8TVJ8
+2026-03-17 02:17:00,451 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196Q8TVJ8/tracking
+2026-03-17 02:17:04,100 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196Q8TVJ8/tracking
+2026-03-17 02:17:14,147 [WARNING]   [check] Timed out waiting for inputs for FBA196Q8TVJ8
+2026-03-17 02:17:14,151 [INFO]   -> Amazon status: not_found
+2026-03-17 02:17:14,151 [INFO]   [48/105] Checking Amazon: FBA196GJL5C1
+2026-03-17 02:17:14,151 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196GJL5C1/tracking
+2026-03-17 02:17:17,937 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196GJL5C1/tracking
+2026-03-17 02:17:27,972 [WARNING]   [check] Timed out waiting for inputs for FBA196GJL5C1
+2026-03-17 02:17:27,977 [INFO]   -> Amazon status: not_found
+2026-03-17 02:17:27,977 [INFO]   [49/105] Checking Amazon: FBA195W5SLF9
+2026-03-17 02:17:27,977 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195W5SLF9/tracking
+2026-03-17 02:17:32,002 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195W5SLF9/tracking
+2026-03-17 02:17:42,052 [WARNING]   [check] Timed out waiting for inputs for FBA195W5SLF9
+2026-03-17 02:17:42,056 [INFO]   -> Amazon status: not_found
+2026-03-17 02:17:42,056 [INFO]   [50/105] Checking Amazon: FBA1974M4SY4
+2026-03-17 02:17:42,056 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1974M4SY4/tracking
+2026-03-17 02:17:45,444 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1974M4SY4/tracking
+2026-03-17 02:17:46,353 [INFO]   -> Amazon status: complete
+2026-03-17 02:17:46,353 [INFO]   [51/105] Checking Amazon: FBA198L0S8BF
+2026-03-17 02:17:46,353 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198L0S8BF/tracking
+2026-03-17 02:17:50,148 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198L0S8BF/tracking
+2026-03-17 02:17:50,539 [INFO]   -> Amazon status: complete
+2026-03-17 02:17:50,539 [INFO]   [52/105] Checking Amazon: FBA1972N97WY
+2026-03-17 02:17:50,539 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1972N97WY/tracking
+2026-03-17 02:17:53,425 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1972N97WY/tracking
+2026-03-17 02:18:03,461 [WARNING]   [check] Timed out waiting for inputs for FBA1972N97WY
+2026-03-17 02:18:03,465 [INFO]   -> Amazon status: not_found
+2026-03-17 02:18:03,465 [INFO]   [53/105] Checking Amazon: FBA19657N0P2
+2026-03-17 02:18:03,465 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19657N0P2/tracking
+2026-03-17 02:18:07,047 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19657N0P2/tracking
+2026-03-17 02:18:17,086 [WARNING]   [check] Timed out waiting for inputs for FBA19657N0P2
+2026-03-17 02:18:17,090 [INFO]   -> Amazon status: not_found
+2026-03-17 02:18:17,090 [INFO]   [54/105] Checking Amazon: FBA197HFQ6Y9
+2026-03-17 02:18:17,090 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197HFQ6Y9/tracking
+2026-03-17 02:18:20,844 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197HFQ6Y9/tracking
+2026-03-17 02:18:30,879 [WARNING]   [check] Timed out waiting for inputs for FBA197HFQ6Y9
+2026-03-17 02:18:30,883 [INFO]   -> Amazon status: not_found
+2026-03-17 02:18:30,883 [INFO]   [55/105] Checking Amazon: FBA197HGGQXC
+2026-03-17 02:18:30,884 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197HGGQXC/tracking
+2026-03-17 02:18:34,563 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197HGGQXC/tracking
+2026-03-17 02:18:35,009 [INFO]   -> Amazon status: complete
+2026-03-17 02:18:35,009 [INFO]   [56/105] Checking Amazon: FBA198MNFVNH
+2026-03-17 02:18:35,009 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNFVNH/tracking
+2026-03-17 02:18:38,859 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNFVNH/tracking
+2026-03-17 02:18:38,920 [INFO]   -> Amazon status: empty
+2026-03-17 02:18:38,920 [INFO]   [57/105] Checking Amazon: FBA195W4HTHN
+2026-03-17 02:18:38,920 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195W4HTHN/tracking
+2026-03-17 02:18:42,491 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195W4HTHN/tracking
+2026-03-17 02:18:52,522 [WARNING]   [check] Timed out waiting for inputs for FBA195W4HTHN
+2026-03-17 02:18:52,527 [INFO]   -> Amazon status: not_found
+2026-03-17 02:18:52,527 [INFO]   [58/105] Checking Amazon: FBA197D0R9QL
+2026-03-17 02:18:52,527 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197D0R9QL/tracking
+2026-03-17 02:18:55,756 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197D0R9QL/tracking
+2026-03-17 02:18:56,687 [INFO]   -> Amazon status: complete
+2026-03-17 02:18:56,687 [INFO]   [59/105] Checking Amazon: FBA198KZ9P9K
+2026-03-17 02:18:56,687 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198KZ9P9K/tracking
+2026-03-17 02:19:00,808 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198KZ9P9K/tracking
+2026-03-17 02:19:02,217 [INFO]   -> Amazon status: complete
+2026-03-17 02:19:02,217 [INFO]   [60/105] Checking Amazon: FBA195KFXXLQ
+2026-03-17 02:19:02,217 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KFXXLQ/tracking
+2026-03-17 02:19:05,845 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KFXXLQ/tracking
+2026-03-17 02:19:15,882 [WARNING]   [check] Timed out waiting for inputs for FBA195KFXXLQ
+2026-03-17 02:19:15,887 [INFO]   -> Amazon status: not_found
+2026-03-17 02:19:15,887 [INFO]   [61/105] Checking Amazon: FBA1974PGMNJ
+2026-03-17 02:19:15,887 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1974PGMNJ/tracking
+2026-03-17 02:19:19,864 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1974PGMNJ/tracking
+2026-03-17 02:19:20,168 [INFO]   -> Amazon status: complete
+2026-03-17 02:19:20,168 [INFO]   [62/105] Checking Amazon: FBA198B71ZZT
+2026-03-17 02:19:20,168 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198B71ZZT/tracking
+2026-03-17 02:19:23,273 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198B71ZZT/tracking
+2026-03-17 02:19:33,323 [WARNING]   [check] Timed out waiting for inputs for FBA198B71ZZT
+2026-03-17 02:19:33,328 [INFO]   -> Amazon status: not_found
+2026-03-17 02:19:33,328 [INFO]   [63/105] Checking Amazon: FBA195W5TZJF
+2026-03-17 02:19:33,328 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195W5TZJF/tracking
+2026-03-17 02:19:37,635 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195W5TZJF/tracking
+2026-03-17 02:19:47,679 [WARNING]   [check] Timed out waiting for inputs for FBA195W5TZJF
+2026-03-17 02:19:47,682 [INFO]   -> Amazon status: not_found
+2026-03-17 02:19:47,682 [INFO]   [64/105] Checking Amazon: FBA198G682TX
+2026-03-17 02:19:47,682 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198G682TX/tracking
+2026-03-17 02:19:51,744 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198G682TX/tracking
+2026-03-17 02:20:01,782 [WARNING]   [check] Timed out waiting for inputs for FBA198G682TX
+2026-03-17 02:20:01,786 [INFO]   -> Amazon status: not_found
+2026-03-17 02:20:01,787 [INFO]   [65/105] Checking Amazon: FBA196Q71BN5
+2026-03-17 02:20:01,787 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196Q71BN5/tracking
+2026-03-17 02:20:05,582 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196Q71BN5/tracking
+2026-03-17 02:20:15,613 [WARNING]   [check] Timed out waiting for inputs for FBA196Q71BN5
+2026-03-17 02:20:15,616 [INFO]   -> Amazon status: not_found
+2026-03-17 02:20:15,617 [INFO]   [66/105] Checking Amazon: FBA198G6XCCF
+2026-03-17 02:20:15,617 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198G6XCCF/tracking
+2026-03-17 02:20:19,257 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198G6XCCF/tracking
+2026-03-17 02:20:20,127 [INFO]   -> Amazon status: complete
+2026-03-17 02:20:20,127 [INFO]   [67/105] Checking Amazon: FBA197G1P0Y9
+2026-03-17 02:20:20,127 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197G1P0Y9/tracking
+2026-03-17 02:20:24,141 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197G1P0Y9/tracking
+2026-03-17 02:20:34,205 [WARNING]   [check] Timed out waiting for inputs for FBA197G1P0Y9
+2026-03-17 02:20:34,208 [INFO]   -> Amazon status: not_found
+2026-03-17 02:20:34,208 [INFO]   [68/105] Checking Amazon: FBA197HCJ4M9
+2026-03-17 02:20:34,208 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197HCJ4M9/tracking
+2026-03-17 02:20:37,734 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197HCJ4M9/tracking
+2026-03-17 02:20:47,773 [WARNING]   [check] Timed out waiting for inputs for FBA197HCJ4M9
+2026-03-17 02:20:47,780 [INFO]   -> Amazon status: not_found
+2026-03-17 02:20:47,780 [INFO]   [69/105] Checking Amazon: FBA198B9GG6N
+2026-03-17 02:20:47,780 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198B9GG6N/tracking
+2026-03-17 02:20:51,911 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198B9GG6N/tracking
+2026-03-17 02:20:52,205 [INFO]   -> Amazon status: complete
+2026-03-17 02:20:52,206 [INFO]   [70/105] Checking Amazon: FBA198MM4Q36
+2026-03-17 02:20:52,206 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MM4Q36/tracking
+2026-03-17 02:20:56,089 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MM4Q36/tracking
+2026-03-17 02:20:56,172 [INFO]   -> Amazon status: empty
+2026-03-17 02:20:56,172 [INFO]   [71/105] Checking Amazon: FBA197HCLBGJ
+2026-03-17 02:20:56,172 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197HCLBGJ/tracking
+2026-03-17 02:20:59,609 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197HCLBGJ/tracking
+2026-03-17 02:21:09,653 [WARNING]   [check] Timed out waiting for inputs for FBA197HCLBGJ
+2026-03-17 02:21:09,657 [INFO]   -> Amazon status: not_found
+2026-03-17 02:21:09,657 [INFO]   [72/105] Checking Amazon: FBA196S4SMHM
+2026-03-17 02:21:09,657 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196S4SMHM/tracking
+2026-03-17 02:21:14,169 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196S4SMHM/tracking
+2026-03-17 02:21:15,044 [INFO]   -> Amazon status: complete
+2026-03-17 02:21:15,044 [INFO]   [73/105] Checking Amazon: FBA195KGXQDF
+2026-03-17 02:21:15,044 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KGXQDF/tracking
+2026-03-17 02:21:18,960 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KGXQDF/tracking
+2026-03-17 02:21:28,993 [WARNING]   [check] Timed out waiting for inputs for FBA195KGXQDF
+2026-03-17 02:21:28,997 [INFO]   -> Amazon status: not_found
+2026-03-17 02:21:28,997 [INFO]   [74/105] Checking Amazon: FBA1976XBL9F
+2026-03-17 02:21:28,997 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1976XBL9F/tracking
+2026-03-17 02:21:31,720 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1976XBL9F/tracking
+2026-03-17 02:21:41,765 [WARNING]   [check] Timed out waiting for inputs for FBA1976XBL9F
+2026-03-17 02:21:41,769 [INFO]   -> Amazon status: not_found
+2026-03-17 02:21:41,770 [INFO]   [75/105] Checking Amazon: FBA196908BP7
+2026-03-17 02:21:41,770 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196908BP7/tracking
+2026-03-17 02:21:45,730 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196908BP7/tracking
+2026-03-17 02:21:55,773 [WARNING]   [check] Timed out waiting for inputs for FBA196908BP7
+2026-03-17 02:21:55,777 [INFO]   -> Amazon status: not_found
+2026-03-17 02:21:55,777 [INFO]   [76/105] Checking Amazon: FBA196GJK92W
+2026-03-17 02:21:55,777 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196GJK92W/tracking
+2026-03-17 02:21:59,796 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196GJK92W/tracking
+2026-03-17 02:22:09,846 [WARNING]   [check] Timed out waiting for inputs for FBA196GJK92W
+2026-03-17 02:22:09,850 [INFO]   -> Amazon status: not_found
+2026-03-17 02:22:09,850 [INFO]   [77/105] Checking Amazon: FBA197G2Q92T
+2026-03-17 02:22:09,850 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197G2Q92T/tracking
+2026-03-17 02:22:13,893 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197G2Q92T/tracking
+2026-03-17 02:22:23,928 [WARNING]   [check] Timed out waiting for inputs for FBA197G2Q92T
+2026-03-17 02:22:23,932 [INFO]   -> Amazon status: not_found
+2026-03-17 02:22:23,932 [INFO]   [78/105] Checking Amazon: FBA195RQWLVN
+2026-03-17 02:22:23,932 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195RQWLVN/tracking
+2026-03-17 02:22:27,984 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195RQWLVN/tracking
+2026-03-17 02:22:38,020 [WARNING]   [check] Timed out waiting for inputs for FBA195RQWLVN
+2026-03-17 02:22:38,023 [INFO]   -> Amazon status: not_found
+2026-03-17 02:22:38,023 [INFO]   [79/105] Checking Amazon: FBA195KDPZ15
+2026-03-17 02:22:38,023 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KDPZ15/tracking
+2026-03-17 02:22:42,121 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KDPZ15/tracking
+2026-03-17 02:22:52,153 [WARNING]   [check] Timed out waiting for inputs for FBA195KDPZ15
+2026-03-17 02:22:52,157 [INFO]   -> Amazon status: not_found
+2026-03-17 02:22:52,157 [INFO]   [80/105] Checking Amazon: FBA1974NGD95
+2026-03-17 02:22:52,157 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1974NGD95/tracking
+2026-03-17 02:22:56,161 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1974NGD95/tracking
+2026-03-17 02:22:56,558 [INFO]   -> Amazon status: complete
+2026-03-17 02:22:56,558 [INFO]   [81/105] Checking Amazon: FBA197D2ZS2S
+2026-03-17 02:22:56,558 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197D2ZS2S/tracking
+2026-03-17 02:23:00,368 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197D2ZS2S/tracking
+2026-03-17 02:23:01,274 [INFO]   -> Amazon status: complete
+2026-03-17 02:23:01,274 [INFO]   [82/105] Checking Amazon: FBA195RTL58W
+2026-03-17 02:23:01,274 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195RTL58W/tracking
+2026-03-17 02:23:05,129 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195RTL58W/tracking
+2026-03-17 02:23:15,168 [WARNING]   [check] Timed out waiting for inputs for FBA195RTL58W
+2026-03-17 02:23:15,172 [INFO]   -> Amazon status: not_found
+2026-03-17 02:23:15,172 [INFO]   [83/105] Checking Amazon: FBA196S3D07M
+2026-03-17 02:23:15,172 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196S3D07M/tracking
+2026-03-17 02:23:19,033 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196S3D07M/tracking
+2026-03-17 02:23:20,424 [INFO]   -> Amazon status: complete
+2026-03-17 02:23:20,424 [INFO]   [84/105] Checking Amazon: FBA19691WY6R
+2026-03-17 02:23:20,424 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19691WY6R/tracking
+2026-03-17 02:23:24,010 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19691WY6R/tracking
+2026-03-17 02:23:34,045 [WARNING]   [check] Timed out waiting for inputs for FBA19691WY6R
+2026-03-17 02:23:34,050 [INFO]   -> Amazon status: not_found
+2026-03-17 02:23:34,050 [INFO]   [85/105] Checking Amazon: FBA198MN2JXL
+2026-03-17 02:23:34,050 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MN2JXL/tracking
+2026-03-17 02:23:37,986 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MN2JXL/tracking
+2026-03-17 02:23:38,106 [INFO]   -> Amazon status: empty
+2026-03-17 02:23:38,106 [INFO]   [86/105] Checking Amazon: FBA1972Q2S5Y
+2026-03-17 02:23:38,107 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1972Q2S5Y/tracking
+2026-03-17 02:23:41,332 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1972Q2S5Y/tracking
+2026-03-17 02:23:42,223 [INFO]   -> Amazon status: complete
+2026-03-17 02:23:42,223 [INFO]   [87/105] Checking Amazon: FBA1974P91HS
+2026-03-17 02:23:42,223 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1974P91HS/tracking
+2026-03-17 02:23:45,484 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1974P91HS/tracking
+2026-03-17 02:23:46,365 [INFO]   -> Amazon status: complete
+2026-03-17 02:23:46,365 [INFO]   [88/105] Checking Amazon: FBA19692LS2Z
+2026-03-17 02:23:46,365 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19692LS2Z/tracking
+2026-03-17 02:23:50,024 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19692LS2Z/tracking
+2026-03-17 02:23:50,920 [INFO]   -> Amazon status: complete
+2026-03-17 02:23:50,920 [INFO]   [89/105] Checking Amazon: FBA1974K3MSK
+2026-03-17 02:23:50,920 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1974K3MSK/tracking
+2026-03-17 02:23:54,303 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1974K3MSK/tracking
+2026-03-17 02:23:55,702 [INFO]   -> Amazon status: complete
+2026-03-17 02:23:55,702 [INFO]   [90/105] Checking Amazon: FBA1976WTG48
+2026-03-17 02:23:55,702 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1976WTG48/tracking
+2026-03-17 02:23:59,312 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1976WTG48/tracking
+2026-03-17 02:24:09,353 [WARNING]   [check] Timed out waiting for inputs for FBA1976WTG48
+2026-03-17 02:24:09,357 [INFO]   -> Amazon status: not_found
+2026-03-17 02:24:09,357 [INFO]   [91/105] Checking Amazon: FBA198MN5NHS
+2026-03-17 02:24:09,357 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MN5NHS/tracking
+2026-03-17 02:24:13,456 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MN5NHS/tracking
+2026-03-17 02:24:13,594 [INFO]   -> Amazon status: empty
+2026-03-17 02:24:13,594 [INFO]   [92/105] Checking Amazon: FBA198B9K8NM
+2026-03-17 02:24:13,594 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198B9K8NM/tracking
+2026-03-17 02:24:17,393 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198B9K8NM/tracking
+2026-03-17 02:24:17,781 [INFO]   -> Amazon status: complete
+2026-03-17 02:24:17,781 [INFO]   [93/105] Checking Amazon: FBA195KF35JQ
+2026-03-17 02:24:17,781 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KF35JQ/tracking
+2026-03-17 02:24:21,334 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KF35JQ/tracking
+2026-03-17 02:24:31,370 [WARNING]   [check] Timed out waiting for inputs for FBA195KF35JQ
+2026-03-17 02:24:31,374 [INFO]   -> Amazon status: not_found
+2026-03-17 02:24:31,374 [INFO]   [94/105] Checking Amazon: FBA1968ZKT05
+2026-03-17 02:24:31,374 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1968ZKT05/tracking
+2026-03-17 02:24:35,710 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1968ZKT05/tracking
+2026-03-17 02:24:45,747 [WARNING]   [check] Timed out waiting for inputs for FBA1968ZKT05
+2026-03-17 02:24:45,751 [INFO]   -> Amazon status: not_found
+2026-03-17 02:24:45,751 [INFO]   [95/105] Checking Amazon: FBA195KFDJQ6
+2026-03-17 02:24:45,751 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KFDJQ6/tracking
+2026-03-17 02:24:49,070 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KFDJQ6/tracking
+2026-03-17 02:24:59,098 [WARNING]   [check] Timed out waiting for inputs for FBA195KFDJQ6
+2026-03-17 02:24:59,104 [INFO]   -> Amazon status: not_found
+2026-03-17 02:24:59,105 [INFO]   [96/105] Checking Amazon: FBA195W56JZ2
+2026-03-17 02:24:59,105 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195W56JZ2/tracking
+2026-03-17 02:25:03,121 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195W56JZ2/tracking
+2026-03-17 02:25:13,163 [WARNING]   [check] Timed out waiting for inputs for FBA195W56JZ2
+2026-03-17 02:25:13,167 [INFO]   -> Amazon status: not_found
+2026-03-17 02:25:13,167 [INFO]   [97/105] Checking Amazon: FBA198MP8FJ6
+2026-03-17 02:25:13,167 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MP8FJ6/tracking
+2026-03-17 02:25:17,429 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MP8FJ6/tracking
+2026-03-17 02:25:17,666 [INFO]   -> Amazon status: empty
+2026-03-17 02:25:17,667 [INFO]   [98/105] Checking Amazon: FBA196916Q98
+2026-03-17 02:25:17,667 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196916Q98/tracking
+2026-03-17 02:25:21,576 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196916Q98/tracking
+2026-03-17 02:25:21,952 [INFO]   -> Amazon status: complete
+2026-03-17 02:25:21,952 [INFO]   [99/105] Checking Amazon: FBA198G7HFTM
+2026-03-17 02:25:21,952 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198G7HFTM/tracking
+2026-03-17 02:25:25,892 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198G7HFTM/tracking
+2026-03-17 02:25:26,249 [INFO]   -> Amazon status: complete
+2026-03-17 02:25:26,250 [INFO]   [100/105] Checking Amazon: FBA198B9GMJT
+2026-03-17 02:25:26,250 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198B9GMJT/tracking
+2026-03-17 02:25:29,509 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198B9GMJT/tracking
+2026-03-17 02:25:30,398 [INFO]   -> Amazon status: complete
+2026-03-17 02:25:30,398 [INFO]   [101/105] Checking Amazon: FBA195RR3M99
+2026-03-17 02:25:30,398 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195RR3M99/tracking
+2026-03-17 02:25:33,930 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195RR3M99/tracking
+2026-03-17 02:25:43,975 [WARNING]   [check] Timed out waiting for inputs for FBA195RR3M99
+2026-03-17 02:25:43,979 [INFO]   -> Amazon status: not_found
+2026-03-17 02:25:43,980 [INFO]   [102/105] Checking Amazon: FBA197G2V41K
+2026-03-17 02:25:43,980 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197G2V41K/tracking
+2026-03-17 02:25:47,764 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197G2V41K/tracking
+2026-03-17 02:25:57,817 [WARNING]   [check] Timed out waiting for inputs for FBA197G2V41K
+2026-03-17 02:25:57,821 [INFO]   -> Amazon status: not_found
+2026-03-17 02:25:57,821 [INFO]   [103/105] Checking Amazon: FBA196598GYB
+2026-03-17 02:25:57,821 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196598GYB/tracking
+2026-03-17 02:26:01,861 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196598GYB/tracking
+2026-03-17 02:26:11,901 [WARNING]   [check] Timed out waiting for inputs for FBA196598GYB
+2026-03-17 02:26:11,905 [INFO]   -> Amazon status: not_found
+2026-03-17 02:26:11,905 [INFO]   [104/105] Checking Amazon: FBA196Q7P4VT
+2026-03-17 02:26:11,905 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196Q7P4VT/tracking
+2026-03-17 02:26:15,827 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196Q7P4VT/tracking
+2026-03-17 02:26:25,863 [WARNING]   [check] Timed out waiting for inputs for FBA196Q7P4VT
+2026-03-17 02:26:25,867 [INFO]   -> Amazon status: not_found
+2026-03-17 02:26:25,867 [INFO]   [105/105] Checking Amazon: FBA1968XYYNC
+2026-03-17 02:26:25,867 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1968XYYNC/tracking
+2026-03-17 02:26:30,644 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1968XYYNC/tracking
+2026-03-17 02:26:40,688 [WARNING]   [check] Timed out waiting for inputs for FBA1968XYYNC
+2026-03-17 02:26:40,694 [INFO]   -> Amazon status: not_found
+2026-03-17 02:26:40,695 [INFO] [US] Done cache updated: 95 total FBA(s) in completed_fba_US.txt
+2026-03-17 02:26:46,067 [INFO] FedEx: not logged in — proceeding anyway (trkqual URLs work without login)
+2026-03-17 02:26:46,067 [INFO] 
+FBA FBA198MP8HT5: 1 main tracking entries
+2026-03-17 02:26:46,067 [INFO]   Fetching sub-tracking for 1ZK6B4420300436229 (UPS)
+2026-03-17 02:26:46,067 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZK6B4420300436229&loc=en_US
+2026-03-17 02:26:54,400 [DEBUG]   Clicked 'Other Packages in this Shipment'
+2026-03-17 02:26:56,422 [INFO]   Page 1: +7 sub-IDs (total 7)
+2026-03-17 02:26:56,448 [DEBUG]   No next-page button found — done at page 1
+2026-03-17 02:26:56,448 [INFO]   Total 7 unique sub-IDs across all pages
+2026-03-17 02:26:56,448 [INFO]   -> 8 total tracking IDs (1 main + 7 sub)
+2026-03-17 02:26:56,448 [INFO] 
+FBA FBA198MNS2RT: 1 main tracking entries
+2026-03-17 02:26:56,449 [INFO]   Fetching sub-tracking for 889615331920 (FEDEX)
+2026-03-17 02:27:01,075 [INFO]   Trying 4 trkqual candidates for 889615331920
+2026-03-17 02:27:01,075 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615331920&trkqual=12029~889615331920~FDEG
+2026-03-17 02:27:09,144 [INFO]   trkqual 12029~889615331920~FDEG loaded — piece indicator: False
+2026-03-17 02:27:10,011 [DEBUG]   Clicked 'View more details'
+2026-03-17 02:27:20,138 [INFO]   Found 0 sub-IDs via regex (trkqual 12029~889615331920~FDEG)
+2026-03-17 02:27:20,138 [DEBUG]   trkqual 12029~889615331920~FDEG gave 0 sub-IDs — trying next candidate
+2026-03-17 02:27:20,139 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615331920&trkqual=12030~889615331920~FDEG
+2026-03-17 02:27:28,107 [INFO]   trkqual 12030~889615331920~FDEG loaded — piece indicator: True
+2026-03-17 02:27:29,219 [DEBUG]   Clicked 'View more details'
+2026-03-17 02:27:40,055 [DEBUG]   Clicked 'pieces'
+2026-03-17 02:27:42,075 [INFO]   Found 8 sub-IDs from 'Piece Shipment' section
+2026-03-17 02:27:42,075 [INFO]   -> 9 total tracking IDs (1 main + 8 sub)
+2026-03-17 02:27:42,075 [INFO] 
+FBA FBA198MNQG7C: 1 main tracking entries
+2026-03-17 02:27:42,075 [INFO]   Fetching sub-tracking for 889615331920 (FEDEX)
+2026-03-17 02:27:46,724 [INFO]   Trying 4 trkqual candidates for 889615331920
+2026-03-17 02:27:46,725 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615331920&trkqual=12029~889615331920~FDEG
+2026-03-17 02:27:53,789 [INFO]   trkqual 12029~889615331920~FDEG loaded — piece indicator: False
+2026-03-17 02:27:54,673 [DEBUG]   Clicked 'View more details'
+2026-03-17 02:28:04,807 [INFO]   Found 0 sub-IDs via regex (trkqual 12029~889615331920~FDEG)
+2026-03-17 02:28:04,807 [DEBUG]   trkqual 12029~889615331920~FDEG gave 0 sub-IDs — trying next candidate
+2026-03-17 02:28:04,807 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615331920&trkqual=12030~889615331920~FDEG
+2026-03-17 02:28:11,903 [INFO]   trkqual 12030~889615331920~FDEG loaded — piece indicator: True
+2026-03-17 02:28:12,983 [DEBUG]   Clicked 'View more details'
+2026-03-17 02:28:23,796 [DEBUG]   Clicked 'pieces'
+2026-03-17 02:28:25,812 [INFO]   Found 8 sub-IDs from 'Piece Shipment' section
+2026-03-17 02:28:25,812 [INFO]   -> 9 total tracking IDs (1 main + 8 sub)
+2026-03-17 02:28:25,812 [INFO] 
+FBA FBA198MN1D74: 1 main tracking entries
+2026-03-17 02:28:25,812 [INFO]   Fetching sub-tracking for 1ZK6B4420317731566 (UPS)
+2026-03-17 02:28:25,812 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZK6B4420317731566&loc=en_US
+2026-03-17 02:28:32,835 [DEBUG]   Clicked 'Other Packages in this Shipment'
+2026-03-17 02:28:34,861 [INFO]   Page 1: +8 sub-IDs (total 8)
+2026-03-17 02:28:34,926 [DEBUG]   No next-page button found — done at page 1
+2026-03-17 02:28:34,926 [INFO]   Total 8 unique sub-IDs across all pages
+2026-03-17 02:28:34,926 [INFO]   -> 9 total tracking IDs (1 main + 8 sub)
+2026-03-17 02:28:34,926 [INFO] 
+FBA FBA198MNVCDH: 1 main tracking entries
+2026-03-17 02:28:34,927 [INFO]   Fetching sub-tracking for 1ZK6B4420311769715 (UPS)
+2026-03-17 02:28:34,927 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZK6B4420311769715&loc=en_US
+2026-03-17 02:28:41,814 [DEBUG]   Clicked 'Other Packages in this Shipment'
+2026-03-17 02:28:43,833 [INFO]   Page 1: +8 sub-IDs (total 8)
+2026-03-17 02:28:43,859 [DEBUG]   No next-page button found — done at page 1
+2026-03-17 02:28:43,860 [INFO]   Total 8 unique sub-IDs across all pages
+2026-03-17 02:28:43,860 [INFO]   -> 9 total tracking IDs (1 main + 8 sub)
+2026-03-17 02:28:43,860 [INFO] 
+FBA FBA198MNFVNH: 1 main tracking entries
+2026-03-17 02:28:43,860 [INFO]   Fetching sub-tracking for 889615380608 (FEDEX)
+2026-03-17 02:28:48,532 [INFO]   Trying 4 trkqual candidates for 889615380608
+2026-03-17 02:28:48,533 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615380608&trkqual=12029~889615380608~FDEG
+2026-03-17 02:28:56,475 [INFO]   trkqual 12029~889615380608~FDEG loaded — piece indicator: False
+2026-03-17 02:28:57,369 [DEBUG]   Clicked 'View more details'
+2026-03-17 02:29:07,493 [INFO]   Found 0 sub-IDs via regex (trkqual 12029~889615380608~FDEG)
+2026-03-17 02:29:07,493 [DEBUG]   trkqual 12029~889615380608~FDEG gave 0 sub-IDs — trying next candidate
+2026-03-17 02:29:07,493 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615380608&trkqual=12030~889615380608~FDEG
+2026-03-17 02:29:15,394 [INFO]   trkqual 12030~889615380608~FDEG loaded — piece indicator: True
+2026-03-17 02:29:16,504 [DEBUG]   Clicked 'View more details'
+2026-03-17 02:29:27,251 [DEBUG]   Clicked 'pieces'
+2026-03-17 02:29:29,278 [INFO]   Found 7 sub-IDs from 'Piece Shipment' section
+2026-03-17 02:29:29,278 [INFO]   -> 8 total tracking IDs (1 main + 7 sub)
+2026-03-17 02:29:29,278 [INFO] 
+FBA FBA198MM4Q36: 1 main tracking entries
+2026-03-17 02:29:29,278 [INFO]   Fetching sub-tracking for 1ZK6B4420300436229 (UPS)
+2026-03-17 02:29:29,278 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZK6B4420300436229&loc=en_US
+2026-03-17 02:29:36,188 [DEBUG]   Clicked 'Other Packages in this Shipment'
+2026-03-17 02:29:38,205 [INFO]   Page 1: +7 sub-IDs (total 7)
+2026-03-17 02:29:38,226 [DEBUG]   No next-page button found — done at page 1
+2026-03-17 02:29:38,226 [INFO]   Total 7 unique sub-IDs across all pages
+2026-03-17 02:29:38,227 [INFO]   -> 8 total tracking IDs (1 main + 7 sub)
+2026-03-17 02:29:38,227 [INFO] 
+FBA FBA198MN2JXL: 1 main tracking entries
+2026-03-17 02:29:38,227 [INFO]   Fetching sub-tracking for 889615331920 (FEDEX)
+2026-03-17 02:29:42,394 [INFO]   Trying 4 trkqual candidates for 889615331920
+2026-03-17 02:29:42,394 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615331920&trkqual=12029~889615331920~FDEG
+2026-03-17 02:29:49,445 [INFO]   trkqual 12029~889615331920~FDEG loaded — piece indicator: False
+2026-03-17 02:29:50,326 [DEBUG]   Clicked 'View more details'
+2026-03-17 02:30:00,450 [INFO]   Found 0 sub-IDs via regex (trkqual 12029~889615331920~FDEG)
+2026-03-17 02:30:00,450 [DEBUG]   trkqual 12029~889615331920~FDEG gave 0 sub-IDs — trying next candidate
+2026-03-17 02:30:00,450 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615331920&trkqual=12030~889615331920~FDEG
+2026-03-17 02:30:08,219 [INFO]   trkqual 12030~889615331920~FDEG loaded — piece indicator: True
+2026-03-17 02:30:09,285 [DEBUG]   Clicked 'View more details'
+2026-03-17 02:30:20,080 [DEBUG]   Clicked 'pieces'
+2026-03-17 02:30:22,101 [INFO]   Found 8 sub-IDs from 'Piece Shipment' section
+2026-03-17 02:30:22,102 [INFO]   -> 9 total tracking IDs (1 main + 8 sub)
+2026-03-17 02:30:22,102 [INFO] 
+FBA FBA198MN5NHS: 1 main tracking entries
+2026-03-17 02:30:22,102 [INFO]   Fetching sub-tracking for 889615380608 (FEDEX)
+2026-03-17 02:30:25,307 [INFO]   Trying 4 trkqual candidates for 889615380608
+2026-03-17 02:30:25,307 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615380608&trkqual=12029~889615380608~FDEG
+2026-03-17 02:30:32,417 [INFO]   trkqual 12029~889615380608~FDEG loaded — piece indicator: False
+2026-03-17 02:30:33,322 [DEBUG]   Clicked 'View more details'
+2026-03-17 02:30:43,451 [INFO]   Found 0 sub-IDs via regex (trkqual 12029~889615380608~FDEG)
+2026-03-17 02:30:43,451 [DEBUG]   trkqual 12029~889615380608~FDEG gave 0 sub-IDs — trying next candidate
+2026-03-17 02:30:43,451 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615380608&trkqual=12030~889615380608~FDEG
+2026-03-17 02:30:50,474 [INFO]   trkqual 12030~889615380608~FDEG loaded — piece indicator: True
+2026-03-17 02:30:51,515 [DEBUG]   Clicked 'View more details'
+2026-03-17 02:31:02,264 [DEBUG]   Clicked 'pieces'
+2026-03-17 02:31:04,286 [INFO]   Found 7 sub-IDs from 'Piece Shipment' section
+2026-03-17 02:31:04,286 [INFO]   -> 8 total tracking IDs (1 main + 7 sub)
+2026-03-17 02:31:04,287 [INFO] 
+FBA FBA198MP8FJ6: 1 main tracking entries
+2026-03-17 02:31:04,287 [INFO]   Fetching sub-tracking for 1ZK6B4420311769715 (UPS)
+2026-03-17 02:31:04,287 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZK6B4420311769715&loc=en_US
+2026-03-17 02:31:11,242 [DEBUG]   Clicked 'Other Packages in this Shipment'
+2026-03-17 02:31:13,259 [INFO]   Page 1: +8 sub-IDs (total 8)
+2026-03-17 02:31:13,282 [DEBUG]   No next-page button found — done at page 1
+2026-03-17 02:31:13,282 [INFO]   Total 8 unique sub-IDs across all pages
+2026-03-17 02:31:13,282 [INFO]   -> 9 total tracking IDs (1 main + 8 sub)
+2026-03-17 02:31:13,284 [INFO] Tracking IDs saved to: logs\tracking_ids_US_20260317_023113.json
+2026-03-17 02:31:13,284 [INFO] 
+FBA FBA198MP8HT5: 8 sub-tracking IDs
+2026-03-17 02:31:13,284 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MP8HT5/tracking
+2026-03-17 02:31:16,453 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MP8HT5/tracking
+2026-03-17 02:31:17,376 [INFO]   Found 7 empty tracking input(s), have 8 sub-IDs to fill
+2026-03-17 02:31:18,765 [DEBUG]   Box 1: filled 1ZK6B4420300436229
+2026-03-17 02:31:19,836 [DEBUG]   Box 2: filled 1ZK6B4420301277882
+2026-03-17 02:31:20,918 [DEBUG]   Box 3: filled 1ZK6B4420307265044
+2026-03-17 02:31:21,990 [DEBUG]   Box 4: filled 1ZK6B4420307739854
+2026-03-17 02:31:23,070 [DEBUG]   Box 5: filled 1ZK6B4420313715831
+2026-03-17 02:31:24,140 [DEBUG]   Box 6: filled 1ZK6B4420313956269
+2026-03-17 02:31:25,207 [DEBUG]   Box 7: filled 1ZK6B4420314490279
+2026-03-17 02:31:25,778 [INFO]   Clicked 'Update all' — saving 7 tracking number(s)
+2026-03-17 02:31:31,796 [INFO] 
+FBA FBA198MNS2RT: 9 sub-tracking IDs
+2026-03-17 02:31:31,796 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNS2RT/tracking
+2026-03-17 02:31:34,612 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNS2RT/tracking
+2026-03-17 02:31:36,536 [INFO]   Found 1 empty tracking input(s), have 9 sub-IDs to fill
+2026-03-17 02:31:37,682 [DEBUG]   Box 1: filled 889615331920
+2026-03-17 02:31:38,241 [INFO]   Clicked 'Update all' — saving 1 tracking number(s)
+2026-03-17 02:31:44,251 [INFO] 
+FBA FBA198MNQG7C: 9 sub-tracking IDs
+2026-03-17 02:31:44,251 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNQG7C/tracking
+2026-03-17 02:31:48,325 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNQG7C/tracking
+2026-03-17 02:31:48,499 [INFO]   Found 8 empty tracking input(s), have 9 sub-IDs to fill
+2026-03-17 02:31:49,575 [DEBUG]   Box 1: filled 889615331920
+2026-03-17 02:31:50,656 [DEBUG]   Box 2: filled 889615331930
+2026-03-17 02:31:51,735 [DEBUG]   Box 3: filled 889615331941
+2026-03-17 02:31:52,807 [DEBUG]   Box 4: filled 889615331952
+2026-03-17 02:31:53,872 [DEBUG]   Box 5: filled 889615331963
+2026-03-17 02:31:54,960 [DEBUG]   Box 6: filled 889615331974
+2026-03-17 02:31:56,024 [DEBUG]   Box 7: filled 889615331985
+2026-03-17 02:31:57,085 [DEBUG]   Box 8: filled 889615331996
+2026-03-17 02:31:57,639 [INFO]   Clicked 'Update all' — saving 8 tracking number(s)
+2026-03-17 02:32:03,655 [INFO] 
+FBA FBA198MN1D74: 9 sub-tracking IDs
+2026-03-17 02:32:03,655 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MN1D74/tracking
+2026-03-17 02:32:07,413 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MN1D74/tracking
+2026-03-17 02:32:07,678 [INFO]   Found 9 empty tracking input(s), have 9 sub-IDs to fill
+2026-03-17 02:32:08,777 [DEBUG]   Box 1: filled 1ZK6B4420317731566
+2026-03-17 02:32:09,848 [DEBUG]   Box 2: filled 1ZK6B4420300691239
+2026-03-17 02:32:10,913 [DEBUG]   Box 3: filled 1ZK6B4420300784442
+2026-03-17 02:32:12,003 [DEBUG]   Box 4: filled 1ZK6B4420302307623
+2026-03-17 02:32:13,092 [DEBUG]   Box 5: filled 1ZK6B4420307654392
+2026-03-17 02:32:14,251 [DEBUG]   Box 6: filled 1ZK6B4420308749181
+2026-03-17 02:32:15,391 [DEBUG]   Box 7: filled 1ZK6B4420312673576
+2026-03-17 02:32:16,689 [DEBUG]   Box 8: filled 1ZK6B4420315137613
+2026-03-17 02:32:17,789 [DEBUG]   Box 9: filled 1ZK6B4420317645203
+2026-03-17 02:32:18,373 [INFO]   Clicked 'Update all' — saving 9 tracking number(s)
+2026-03-17 02:32:24,382 [INFO] 
+FBA FBA198MNVCDH: 9 sub-tracking IDs
+2026-03-17 02:32:24,382 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNVCDH/tracking
+2026-03-17 02:32:28,393 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNVCDH/tracking
+2026-03-17 02:32:28,462 [INFO]   Found 1 empty tracking input(s), have 9 sub-IDs to fill
+2026-03-17 02:32:29,573 [DEBUG]   Box 1: filled 1ZK6B4420311769715
+2026-03-17 02:32:30,140 [INFO]   Clicked 'Update all' — saving 1 tracking number(s)
+2026-03-17 02:32:36,156 [INFO] 
+FBA FBA198MNFVNH: 8 sub-tracking IDs
+2026-03-17 02:32:36,156 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNFVNH/tracking
+2026-03-17 02:32:39,762 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNFVNH/tracking
+2026-03-17 02:32:40,644 [INFO]   Found 1 empty tracking input(s), have 8 sub-IDs to fill
+2026-03-17 02:32:41,737 [DEBUG]   Box 1: filled 889615380608
+2026-03-17 02:32:42,302 [INFO]   Clicked 'Update all' — saving 1 tracking number(s)
+2026-03-17 02:32:48,311 [INFO] 
+FBA FBA198MM4Q36: 8 sub-tracking IDs
+2026-03-17 02:32:48,311 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MM4Q36/tracking
+2026-03-17 02:32:52,300 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MM4Q36/tracking
+2026-03-17 02:32:52,376 [INFO]   Found 1 empty tracking input(s), have 8 sub-IDs to fill
+2026-03-17 02:32:53,485 [DEBUG]   Box 1: filled 1ZK6B4420300436229
+2026-03-17 02:32:54,043 [INFO]   Clicked 'Update all' — saving 1 tracking number(s)
+2026-03-17 02:33:00,060 [INFO] 
+FBA FBA198MN2JXL: 9 sub-tracking IDs
+2026-03-17 02:33:00,060 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MN2JXL/tracking
+2026-03-17 02:33:03,409 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MN2JXL/tracking
+2026-03-17 02:33:04,305 [INFO]   Found 1 empty tracking input(s), have 9 sub-IDs to fill
+2026-03-17 02:33:05,448 [DEBUG]   Box 1: filled 889615331920
+2026-03-17 02:33:06,021 [INFO]   Clicked 'Update all' — saving 1 tracking number(s)
+2026-03-17 02:33:12,035 [INFO] 
+FBA FBA198MN5NHS: 8 sub-tracking IDs
+2026-03-17 02:33:12,035 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MN5NHS/tracking
+2026-03-17 02:33:15,613 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MN5NHS/tracking
+2026-03-17 02:33:16,496 [INFO]   Found 7 empty tracking input(s), have 8 sub-IDs to fill
+2026-03-17 02:33:17,599 [DEBUG]   Box 1: filled 889615380608
+2026-03-17 02:33:18,680 [DEBUG]   Box 2: filled 889615380619
+2026-03-17 02:33:19,767 [DEBUG]   Box 3: filled 889615380620
+2026-03-17 02:33:20,857 [DEBUG]   Box 4: filled 889615380630
+2026-03-17 02:33:21,951 [DEBUG]   Box 5: filled 889615380641
+2026-03-17 02:33:23,034 [DEBUG]   Box 6: filled 889615380652
+2026-03-17 02:33:24,100 [DEBUG]   Box 7: filled 889615380663
+2026-03-17 02:33:24,654 [INFO]   Clicked 'Update all' — saving 7 tracking number(s)
+2026-03-17 02:33:30,661 [INFO] 
+FBA FBA198MP8FJ6: 9 sub-tracking IDs
+2026-03-17 02:33:30,661 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MP8FJ6/tracking
+2026-03-17 02:33:34,674 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MP8FJ6/tracking
+2026-03-17 02:33:34,832 [INFO]   Found 8 empty tracking input(s), have 9 sub-IDs to fill
+2026-03-17 02:33:35,935 [DEBUG]   Box 1: filled 1ZK6B4420311769715
+2026-03-17 02:33:37,149 [DEBUG]   Box 2: filled 1ZK6B4420302259355
+2026-03-17 02:33:38,224 [DEBUG]   Box 3: filled 1ZK6B4420308795336
+2026-03-17 02:33:39,284 [DEBUG]   Box 4: filled 1ZK6B4420308957385
+2026-03-17 02:33:40,352 [DEBUG]   Box 5: filled 1ZK6B4420309249773
+2026-03-17 02:33:41,408 [DEBUG]   Box 6: filled 1ZK6B4420310464546
+2026-03-17 02:33:42,504 [DEBUG]   Box 7: filled 1ZK6B4420311014593
+2026-03-17 02:33:43,584 [DEBUG]   Box 8: filled 1ZK6B4420314995760
+2026-03-17 02:33:44,149 [INFO]   Clicked 'Update all' — saving 8 tracking number(s)
+2026-03-17 02:33:50,155 [INFO] [US] Done cache updated after upload: 105 total FBA(s)
+2026-03-17 02:33:53,653 [INFO] [UK] Already logged in at https://sellercentral.amazon.co.uk
+2026-03-17 02:33:53,653 [INFO]   [1/1] Checking Amazon: FBA15LJ0N1GK
+2026-03-17 02:33:53,653 [INFO]   -> https://sellercentral.amazon.co.uk/fba/inbound-shipment/summary/FBA15LJ0N1GK/tracking
+2026-03-17 02:33:56,641 [DEBUG]   URL after navigation: https://sellercentral.amazon.co.uk/fba/inbound-shipment/summary/FBA15LJ0N1GK/tracking
+2026-03-17 02:33:56,839 [INFO]   -> Amazon status: empty
+2026-03-17 02:33:56,839 [INFO] 
+FBA FBA15LJ0N1GK: 1 main tracking entries
+2026-03-17 02:33:56,839 [INFO]   Fetching sub-tracking for 1ZJ4493X0430340291 (UPS)
+2026-03-17 02:33:56,839 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZJ4493X0430340291&loc=en_US
+2026-03-17 02:34:07,155 [DEBUG]   Clicked 'Other Packages in this Shipment'
+2026-03-17 02:34:09,161 [INFO]   Page 1: +1 sub-IDs (total 1)
+2026-03-17 02:34:09,181 [DEBUG]   No next-page button found — done at page 1
+2026-03-17 02:34:09,181 [INFO]   Total 1 unique sub-IDs across all pages
+2026-03-17 02:34:09,181 [INFO]   -> 2 total tracking IDs (1 main + 1 sub)
+2026-03-17 02:34:09,182 [INFO] Tracking IDs saved to: logs\tracking_ids_UK_20260317_023409.json
+2026-03-17 02:34:09,182 [INFO] 
+FBA FBA15LJ0N1GK: 2 sub-tracking IDs
+2026-03-17 02:34:09,182 [INFO]   -> https://sellercentral.amazon.co.uk/fba/inbound-shipment/summary/FBA15LJ0N1GK/tracking
+2026-03-17 02:34:12,391 [DEBUG]   URL after navigation: https://sellercentral.amazon.co.uk/fba/inbound-shipment/summary/FBA15LJ0N1GK/tracking
+2026-03-17 02:34:12,460 [INFO]   Found 2 empty tracking input(s), have 2 sub-IDs to fill
+2026-03-17 02:34:13,547 [DEBUG]   Box 1: filled 1ZJ4493X0430340291
+2026-03-17 02:34:14,612 [DEBUG]   Box 2: filled 1ZJ4493X0436196508
+2026-03-17 02:34:15,185 [INFO]   Clicked 'Update all' — saving 2 tracking number(s)
+2026-03-17 02:34:21,192 [INFO] [UK] Done cache updated after upload: 19 total FBA(s)
+2026-03-17 02:34:23,465 [INFO] [EU] Already logged in at https://sellercentral.amazon.de
+2026-03-17 02:34:23,465 [INFO]   [1/16] Checking Amazon: FBA15KK5V7J8
+2026-03-17 02:34:23,465 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KK5V7J8/tracking
+2026-03-17 02:34:27,498 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/ap/signin?clientContext=259-5842198-6983366&openid.pape.max_auth_age=0&openid.return_to=https%3A%2F%2Fsellercentral.amazon.de%2Ffba%2Finbound-shipment%2Fsummary%2FFBA15KK5V7J8%2Ftracking&openid.identity=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.assoc_handle=sc_de_amazon_v2&openid.mode=checkid_setup&language=en_DE&openid.claimed_id=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&pageId=sc_amazon_v3_unified&openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&ssoResponse=eyJ6aXAiOiJERUYiLCJlbmMiOiJBMjU2R0NNIiwiYWxnIjoiQTI1NktXIn0.xy8PMDd_XAcfi3QIkKuldS7miwywy_8dJMCPBlTeUsQIyTIx1OJhmQ.4R8thipcoMXwtweA.JR4GC-HNVHllfTCGG4DhxUCigYJwLrdHZTeyNiuUNLgXL_TbND3f8HiZsgEDz704IyMU-wd8_1uvfDLBKmuhbceTZV3-mgD1PlGhkxsXkSg_HzzK_j1VZsi8EgML8lEtmOdM_IdsZlWeGUUXbvMwM5SrBc-jMWQdb0LopmEALYwitawUOhxmebjzNypuzoBFPz7agtlOuW7QTAQvKFq-08vbPuD682KhQNGcQ4ALCvMmx9hXE4CxAE3aLxrVfahtxKMkjRfrc8Rcjza1urDkqF6DNr-zEr9KuJDqfggW3ea9OFrgloFaGn5KwgANdD-0aOyzYIuDOVCwwF4GYIITaa-vbERealf_vme6uaahwY6ahDAQmvYPMKrq9vrYMX4FYKPLBy1ea18HGBbRQwfUrtbUtMKSCqdVjuxAalPFzp_eKVYmlwPeNuD4qBv7oAWnB1wohzFeVhW5OKgMLfc2ErPmeV_i-m1Jt45Rhc18ERrOaKQJukX00IX99dh7QGwnNq8HdFfwWEdPyoTEMNt1c96DR4EbPD0gTiNkfUMNwG7yyyd-dyk5Xu8OFnVVGXbM9WfApsL6IF-BcLnKY7PCAR7EgpNQ3oSM0YBjaVri26QHWetXItdtlziAy9Yh2dCwwQCeAO4w_NWU5CKnEhko8iOpVfnQ76eE.wIZ5hp314H47Up66uDSu0w
+2026-03-17 02:34:27,498 [WARNING]   Redirected to login (attempt 1)
+2026-03-17 02:34:27,499 [WARNING] Amazon login required — waiting for manual login in browser window
+2026-03-17 02:39:34,714 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/ap/signin?clientContext=259-5842198-6983366&openid.pape.max_auth_age=0&openid.return_to=https%3A%2F%2Fsellercentral.amazon.de%2Ffba%2Finbound-shipment%2Fsummary%2FFBA15KK5V7J8%2Ftracking&openid.identity=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.assoc_handle=sc_de_amazon_v2&openid.mode=checkid_setup&language=en_DE&openid.claimed_id=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&pageId=sc_amazon_v3_unified&openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&ssoResponse=eyJ6aXAiOiJERUYiLCJlbmMiOiJBMjU2R0NNIiwiYWxnIjoiQTI1NktXIn0.jHEL_uh4kGyOqsqZLsVf-boyAizaAr3y5AEzwCkrl1i42EaglzNm4A.PUo-RFVqyNiEcZac.d01QhUTNPf5C8uTpgXJgQEbKQGDkmwjRYNcnlgcA3puvtrXYvJhjKED3-WK_2TbP4XQjIISrXX9Vf9y1iA561ZJHqT18h1Dp0iSjZ7hKZYDMdIYaVLC_L2NGJ2oHU7cpcvsyGMl_IzOf8ECxZwUcfTjala0NHGeOGpru0f6Mu1llZFgkFh2xMurs7XZbpoRmTfXw31hwxeEjbaW8wdaID_eBr4yKDRWCFBboZnQSk6f9rQ_HBfoHzTtZQFZWRZR4GDv1X-lTP8iZ_GsvCQ62RtpAIvqlp9PqrEzodOtjuU3cNVzKNObFDK7pFOblq3aBx9HoL9zEHd6N0EpI_WsFC1jIwXcthJk5u4OB4IgYbaWv6ob3qFNOmrt0A-7e3-SxE0oS4lpLM-ze5pFC858Ba45577HrTDIsqyhlZ2yEq32imVsE6pJL4gi5Th3hOx_bpV-CVglY0QpoOuF4c7Z3e0vJe3I1ovN9IBcx8t15AicsJGVAsMFNCv6PJSF_r6WtwWrVviEvx8-ExYIlGfyYlVE7xh6xsErMxTcvpXIETcUdlLz0m85NR3GWHUwE-iRafGtABbKHF1876B9ozJI88pMeMmJdT0H2pJ7GImib0-s35g2ptIi9q4miflW74ID9H-HDVcdvThXY1I9mVf5MuMxAuIKbAA.72kjM4ltdvFdmCRtM6rE8g
+2026-03-17 02:39:34,714 [WARNING]   Redirected to login (attempt 2)
+2026-03-17 02:39:34,714 [WARNING] Amazon login required — waiting for manual login in browser window
+2026-03-17 02:40:11,957 [INFO] Amazon login detected (stable) — continuing
+2026-03-17 02:40:17,271 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KK5V7J8/tracking
+2026-03-17 02:40:27,356 [WARNING]   [check] Timed out waiting for inputs for FBA15KK5V7J8
+2026-03-17 02:40:27,360 [INFO]   -> Amazon status: not_found
+2026-03-17 02:40:27,360 [INFO]   [2/16] Checking Amazon: FBA15KK5NQM6
+2026-03-17 02:40:27,360 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KK5NQM6/tracking
+2026-03-17 02:40:30,465 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KK5NQM6/tracking
+2026-03-17 02:40:31,387 [INFO]   -> Amazon status: complete
+2026-03-17 02:40:31,388 [INFO]   [3/16] Checking Amazon: FBA15KK5S8W8
+2026-03-17 02:40:31,388 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KK5S8W8/tracking
+2026-03-17 02:40:34,578 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KK5S8W8/tracking
+2026-03-17 02:40:35,506 [INFO]   -> Amazon status: complete
+2026-03-17 02:40:35,506 [INFO]   [4/16] Checking Amazon: FBA15KLXGFBV
+2026-03-17 02:40:35,506 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KLXGFBV/tracking
+2026-03-17 02:40:39,325 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KLXGFBV/tracking
+2026-03-17 02:40:49,359 [WARNING]   [check] Timed out waiting for inputs for FBA15KLXGFBV
+2026-03-17 02:40:49,363 [INFO]   -> Amazon status: not_found
+2026-03-17 02:40:49,363 [INFO]   [5/16] Checking Amazon: FBA15L0VRZQK
+2026-03-17 02:40:49,363 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15L0VRZQK/tracking
+2026-03-17 02:40:53,484 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15L0VRZQK/tracking
+2026-03-17 02:41:03,528 [WARNING]   [check] Timed out waiting for inputs for FBA15L0VRZQK
+2026-03-17 02:41:03,534 [INFO]   -> Amazon status: not_found
+2026-03-17 02:41:03,534 [INFO]   [6/16] Checking Amazon: FBA15L0VX9FQ
+2026-03-17 02:41:03,534 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15L0VX9FQ/tracking
+2026-03-17 02:41:07,506 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15L0VX9FQ/tracking
+2026-03-17 02:41:17,542 [WARNING]   [check] Timed out waiting for inputs for FBA15L0VX9FQ
+2026-03-17 02:41:17,545 [INFO]   -> Amazon status: not_found
+2026-03-17 02:41:17,545 [INFO]   [7/16] Checking Amazon: FBA15LCSV57H
+2026-03-17 02:41:17,546 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15LCSV57H/tracking
+2026-03-17 02:41:21,266 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15LCSV57H/tracking
+2026-03-17 02:41:31,311 [WARNING]   [check] Timed out waiting for inputs for FBA15LCSV57H
+2026-03-17 02:41:31,314 [INFO]   -> Amazon status: not_found
+2026-03-17 02:41:31,314 [INFO]   [8/16] Checking Amazon: FBA15KY65B9N
+2026-03-17 02:41:31,314 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KY65B9N/tracking
+2026-03-17 02:41:35,473 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KY65B9N/tracking
+2026-03-17 02:41:45,510 [WARNING]   [check] Timed out waiting for inputs for FBA15KY65B9N
+2026-03-17 02:41:45,514 [INFO]   -> Amazon status: not_found
+2026-03-17 02:41:45,514 [INFO]   [9/16] Checking Amazon: FBA15L2BC66R
+2026-03-17 02:41:45,514 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15L2BC66R/tracking
+2026-03-17 02:41:49,161 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15L2BC66R/tracking
+2026-03-17 02:41:49,263 [INFO]   -> Amazon status: complete
+2026-03-17 02:41:49,264 [INFO]   [10/16] Checking Amazon: FBA15KK5TKDF
+2026-03-17 02:41:49,264 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KK5TKDF/tracking
+2026-03-17 02:41:53,438 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KK5TKDF/tracking
+2026-03-17 02:42:03,474 [WARNING]   [check] Timed out waiting for inputs for FBA15KK5TKDF
+2026-03-17 02:42:03,479 [INFO]   -> Amazon status: not_found
+2026-03-17 02:42:03,479 [INFO]   [11/16] Checking Amazon: FBA15KK5MBYM
+2026-03-17 02:42:03,479 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KK5MBYM/tracking
+2026-03-17 02:42:07,430 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KK5MBYM/tracking
+2026-03-17 02:42:17,471 [WARNING]   [check] Timed out waiting for inputs for FBA15KK5MBYM
+2026-03-17 02:42:17,476 [INFO]   -> Amazon status: not_found
+2026-03-17 02:42:17,476 [INFO]   [12/16] Checking Amazon: FBA15L700J6Y
+2026-03-17 02:42:17,476 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15L700J6Y/tracking
+2026-03-17 02:42:21,697 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15L700J6Y/tracking
+2026-03-17 02:42:22,603 [INFO]   -> Amazon status: complete
+2026-03-17 02:42:22,603 [INFO]   [13/16] Checking Amazon: FBA15KLXFVV8
+2026-03-17 02:42:22,603 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KLXFVV8/tracking
+2026-03-17 02:42:26,383 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KLXFVV8/tracking
+2026-03-17 02:42:27,818 [INFO]   -> Amazon status: complete
+2026-03-17 02:42:27,818 [INFO]   [14/16] Checking Amazon: FBA15KK5YLTT
+2026-03-17 02:42:27,819 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KK5YLTT/tracking
+2026-03-17 02:42:31,695 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15KK5YLTT/tracking
+2026-03-17 02:42:31,987 [INFO]   -> Amazon status: complete
+2026-03-17 02:42:31,987 [INFO]   [15/16] Checking Amazon: FBA15L3RLJ8Z
+2026-03-17 02:42:31,988 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15L3RLJ8Z/tracking
+2026-03-17 02:42:36,183 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15L3RLJ8Z/tracking
+2026-03-17 02:42:36,581 [INFO]   -> Amazon status: empty
+2026-03-17 02:42:36,581 [INFO]   [16/16] Checking Amazon: FBA15LB4KYD6
+2026-03-17 02:42:36,581 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15LB4KYD6/tracking
+2026-03-17 02:42:40,041 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15LB4KYD6/tracking
+2026-03-17 02:42:50,075 [WARNING]   [check] Timed out waiting for inputs for FBA15LB4KYD6
+2026-03-17 02:42:50,078 [INFO]   -> Amazon status: not_found
+2026-03-17 02:42:50,079 [INFO] [EU] Done cache updated: 15 total FBA(s) in completed_fba_EU.txt
+2026-03-17 02:42:50,080 [INFO] 
+FBA FBA15L3RLJ8Z: 1 main tracking entries
+2026-03-17 02:42:50,081 [INFO]   Fetching sub-tracking for 1ZY9996D6836442888 (ups)
+2026-03-17 02:42:50,081 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZY9996D6836442888&loc=en_US
+2026-03-17 02:43:03,287 [DEBUG]   Clicked 'Other Packages in this Shipment'
+2026-03-17 02:43:05,300 [INFO]   Page 1: +5 sub-IDs (total 5)
+2026-03-17 02:43:05,325 [DEBUG]   No next-page button found — done at page 1
+2026-03-17 02:43:05,326 [INFO]   Total 5 unique sub-IDs across all pages
+2026-03-17 02:43:05,326 [INFO]   -> 6 total tracking IDs (1 main + 5 sub)
+2026-03-17 02:43:05,327 [INFO] Tracking IDs saved to: logs\tracking_ids_EU_20260317_024305.json
+2026-03-17 02:43:05,328 [INFO] 
+FBA FBA15L3RLJ8Z: 6 sub-tracking IDs
+2026-03-17 02:43:05,328 [INFO]   -> https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15L3RLJ8Z/tracking
+2026-03-17 02:43:08,144 [DEBUG]   URL after navigation: https://sellercentral.amazon.de/fba/inbound-shipment/summary/FBA15L3RLJ8Z/tracking
+2026-03-17 02:43:09,025 [INFO]   Found 6 empty tracking input(s), have 6 sub-IDs to fill
+2026-03-17 02:43:10,108 [DEBUG]   Box 1: filled 1ZY9996D6836442888
+2026-03-17 02:43:11,180 [DEBUG]   Box 2: filled 1ZY9996D6822686936
+2026-03-17 02:43:12,280 [DEBUG]   Box 3: filled 1ZY9996D6826171716
+2026-03-17 02:43:13,356 [DEBUG]   Box 4: filled 1ZY9996D6832485296
+2026-03-17 02:43:14,443 [DEBUG]   Box 5: filled 1ZY9996D6836026908
+2026-03-17 02:43:15,511 [DEBUG]   Box 6: filled 1ZY9996D6838503728
+2026-03-17 02:43:16,089 [INFO]   Clicked 'Update all' — saving 6 tracking number(s)
+2026-03-17 02:43:22,099 [INFO] [EU] Done cache updated after upload: 16 total FBA(s)
+2026-03-17 02:43:22,226 [INFO] Highlighted output saved: output\shipments  details  26-3(1)(1)_processed_20260317_024322.xlsx

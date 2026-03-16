@@ -362,8 +362,8 @@ def fetch_fedex_sub_tracking(page, main_tracking: str, logs_folder: str = None) 
 
     # Build trkqual URL — try FDEG (Ground) first, then FDXE (Express)
     trkqual_candidates = [
-        f"12029~{main_tracking}~FDEG",
         f"12030~{main_tracking}~FDEG",
+        f"12029~{main_tracking}~FDEG",
         f"10800~{main_tracking}~FDXE",
         f"10800~{main_tracking}~FXSP",
     ]
