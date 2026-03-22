@@ -47,3 +47,14 @@ def test_highlight_saves_to_xlsx_for_xls_dest(tmp_path):
     result_path = highlight_and_save(str(src), str(dest), {2})
     assert result_path.endswith(".xlsx")
     assert Path(result_path).exists()
+
+def test_highlight_xls_source(sample_xls, tmp_path):
+    """highlight_and_save should handle .xls source, output as .xlsx."""
+    from highlight_excel import highlight_and_save
+    import openpyxl
+    dest = tmp_path / "output.xlsx"
+    result_path = highlight_and_save(sample_xls, str(dest), {2, 3})
+    assert result_path.endswith(".xlsx")
+    assert Path(result_path).exists()
+    wb = openpyxl.load_workbook(result_path)
+    assert wb.active is not None
