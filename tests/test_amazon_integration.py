@@ -7,8 +7,6 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from upload_tracking import (
-    create_browser_context,
-    check_login_status,
     navigate_to_shipment,
     check_amazon_tracking_status,
     discover_page_elements,
@@ -19,7 +17,8 @@ logger = logging.getLogger(__name__)
 
 def _is_login_page(url: str) -> bool:
     """Check if current URL is an Amazon login page."""
-    return "ap/signin" in url or "ap/register" in url or "/signin" in url.lower()
+    lower = url.lower()
+    return "ap/signin" in lower or "ap/register" in lower or "/signin" in lower
 
 
 @pytest.mark.integration

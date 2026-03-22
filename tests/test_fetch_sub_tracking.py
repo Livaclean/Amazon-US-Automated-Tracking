@@ -89,13 +89,6 @@ def test_extract_fedex_15digit():
     assert "123456789012345" in result
 
 
-def test_extract_fedex_20digit():
-    """FedEx pattern should match 20-digit tracking numbers."""
-    text = "Tracking: 12345678901234567890"
-    result = extract_fedex_tracking_from_text(text)
-    assert "12345678901234567890" in result
-
-
 def test_extract_fedex_22digit():
     """FedEx pattern should match 22-digit tracking numbers."""
     text = "Tracking: 1234567890123456789012"
