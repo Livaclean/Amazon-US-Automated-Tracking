@@ -70,3 +70,46 @@ def test_deduplicate_basic():
 def test_deduplicate_preserves_order():
     result = deduplicate_tracking_numbers(["1Z003", "1Z001", "1Z002"])
     assert result == ["1Z003", "1Z001", "1Z002"]
+
+# ---------------------------------------------------------------------------
+# NEW: Edge case coverage for all regex branches
+# ---------------------------------------------------------------------------
+
+def test_extract_ups_1z_format():
+    """UPS pattern should match 1Z + 16 alphanumeric = 18 total chars."""
+    text = "Package: 1ZABCDEFGH12345678"
+    result = extract_ups_tracking_from_text(text)
+    assert "1ZABCDEFGH12345678" in result
+
+
+def test_extract_fedex_15digit():
+    """FedEx pattern should match 15-digit tracking numbers."""
+    text = "Tracking: 123456789012345"
+    result = extract_fedex_tracking_from_text(text)
+    assert "123456789012345" in result
+
+
+def test_extract_fedex_20digit():
+    """FedEx pattern should match 20-digit tracking numbers."""
+    text = "Tracking: 12345678901234567890"
+    result = extract_fedex_tracking_from_text(text)
+    assert "12345678901234567890" in result
+
+
+def test_extract_fedex_22digit():
+    """FedEx pattern should match 22-digit tracking numbers."""
+    text = "Tracking: 1234567890123456789012"
+    result = extract_fedex_tracking_from_text(text)
+    assert "1234567890123456789012" in result
+
+
+def test_deduplicate_empty():
+    """deduplicate_tracking_numbers should handle empty list."""
+    result = deduplicate_tracking_numbers([])
+    assert result == []
+
+
+def test_deduplicate_none_input():
+    """deduplicate_tracking_numbers should handle None-like input."""
+    result = deduplicate_tracking_numbers(None)
+    assert result == []
