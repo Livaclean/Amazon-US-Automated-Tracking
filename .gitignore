@@ -19,3 +19,7 @@ config.json
 # Screenshots
 *.png
 *.jpg
+
+# Test artifacts
+tests/test_logs/
+tests/fixtures/test_tracking_numbers.json

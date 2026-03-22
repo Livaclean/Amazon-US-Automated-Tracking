@@ -1,0 +1,10 @@
+{
+  "ups": "1Z999AA10123456784",
+  "ups_comment": "Replace with a currently-active multi-package UPS tracking number",
+  "fedex": "123456789012345",
+  "fedex_comment": "Replace with a currently-active multi-piece FedEx tracking number",
+  "fba_id": "FBA197HGGQXC",
+  "fba_id_comment": "Replace with a real FBA shipment ID for Amazon integration tests",
+  "awd_id": "STAR-ABC123",
+  "awd_id_comment": "Replace with a real AWD (STAR-) shipment ID"
+}

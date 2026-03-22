@@ -13,6 +13,9 @@ from parse_excel import (
     load_fc_prefixes,
     is_region_fc,
     parse_and_filter_by_region,
+    find_excel_files,
+    load_excel_file,
+    parse_and_filter,
 )
 
 
@@ -174,3 +177,108 @@ def test_parse_and_filter_by_region_returns_dict_keyed_by_region(tmp_path):
     assert "CA" in result
     assert result["US"] == {}
     assert result["CA"] == {}
+
+
+# ---------------------------------------------------------------------------
+# NEW: find_excel_files, load_excel_file, parse_and_filter pipeline
+# ---------------------------------------------------------------------------
+
+def test_find_excel_files_finds_both_types(tmp_path):
+    (tmp_path / "a.xlsx").write_text("")
+    (tmp_path / "b.xls").write_text("")
+    result = find_excel_files(str(tmp_path))
+    assert len(result) == 2
+    names = [Path(f).name for f in result]
+    assert "a.xlsx" in names
+    assert "b.xls" in names
+
+
+def test_find_excel_files_empty_folder(tmp_path):
+    assert find_excel_files(str(tmp_path)) == []
+
+
+def test_find_excel_files_ignores_csv(tmp_path):
+    (tmp_path / "data.csv").write_text("")
+    (tmp_path / "data.xlsx").write_text("")
+    result = find_excel_files(str(tmp_path))
+    assert len(result) == 1
+    assert result[0].endswith(".xlsx")
+
+
+def test_load_excel_file_xls_real(sample_xls):
+    config = {"column_fc_code": 3, "column_fba_id": 4,
+              "column_tracking": 7, "column_carrier": 8}
+    rows = load_excel_file(sample_xls, config)
+    assert len(rows) > 0
+    assert all("fba_id" in r for r in rows)
+
+
+def test_load_excel_file_xls_numeric_cells(sample_xls):
+    config = {"column_fc_code": 3, "column_fba_id": 4,
+              "column_tracking": 7, "column_carrier": 8}
+    rows = load_excel_file(sample_xls, config)
+    for r in rows:
+        if r["tracking_num"]:
+            assert ".0" not in r["tracking_num"], f"Found '.0' in tracking: {r['tracking_num']}"
+
+
+def test_load_excel_file_xlsx_multi_sheet(tmp_path):
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws1 = wb.active
+    ws1.title = "Sheet1"
+    ws1.append(["A", "B", "C", "D_fc", "E_fba", "F", "G", "H_tracking", "I_carrier"])
+    ws1.append([None, None, None, "BNA6", "FBA_S1", None, None, "1Z001", "UPS"])
+    ws2 = wb.create_sheet("Sheet2")
+    ws2.append(["A", "B", "C", "D_fc", "E_fba", "F", "G", "H_tracking", "I_carrier"])
+    ws2.append([None, None, None, "GYR3", "FBA_S2", None, None, "1Z002", "UPS"])
+    path = tmp_path / "multi.xlsx"
+    wb.save(path)
+    config = {"column_fc_code": 3, "column_fba_id": 4,
+              "column_tracking": 7, "column_carrier": 8}
+    rows = load_excel_file(str(path), config)
+    fba_ids = {r["fba_id"] for r in rows}
+    assert "FBA_S1" in fba_ids
+    assert "FBA_S2" in fba_ids
+
+
+def test_parse_and_filter_full_pipeline(tmp_config):
+    import openpyxl as xl
+    wb = xl.Workbook()
+    ws = wb.active
+    ws.append(["A", "B", "C", "D_fc", "E_fba", "F", "G", "H_tracking", "I_carrier"])
+    ws.append([None, None, None, "BNA6", "FBA_P1", None, None, "1ZTEST001", "UPS"])
+    ws.append([None, None, None, "YVR2", "FBA_P2", None, None, "1ZTEST002", "UPS"])
+    path = Path(tmp_config["input_folder"]) / "test.xlsx"
+    wb.save(path)
+    result = parse_and_filter(tmp_config)
+    assert "FBA_P1" in result
+    assert "FBA_P2" not in result
+
+
+def test_parse_and_filter_no_files(tmp_config):
+    result = parse_and_filter(tmp_config)
+    assert result == {}
+
+
+def test_parse_and_filter_by_region_with_data(tmp_config):
+    import openpyxl as xl
+    wb = xl.Workbook()
+    ws = wb.active
+    ws.append(["A", "B", "C", "D_fc", "E_fba", "F", "G", "H_tracking", "I_carrier"])
+    ws.append([None, None, None, "BNA6", "FBA_US1", None, None, "1Z001", "UPS"])
+    ws.append([None, None, None, "YVR2", "FBA_CA1", None, None, "1Z002", "UPS"])
+    path = Path(tmp_config["input_folder"]) / "regions.xlsx"
+    wb.save(path)
+    result = parse_and_filter_by_region(tmp_config)
+    assert "FBA_US1" in result.get("US", {})
+    assert "FBA_CA1" in result.get("CA", {})
+    assert "FBA_US1" not in result.get("CA", {})
+
+
+def test_group_by_fba_id_slash_split():
+    rows = [{"fba_id": "STAR-A/STAR-B", "tracking_num": "1Z001", "carrier": "UPS", "row_number": 2}]
+    result = group_by_fba_id(rows)
+    assert "STAR-A" in result
+    assert "STAR-B" in result
+    assert result["STAR-A"][0]["tracking"] == "1Z001"
