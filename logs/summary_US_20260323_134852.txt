@@ -1,0 +1,21 @@
+============================================================
+REGION: US — 2026-03-23 13:56:14
+============================================================
+Total FBA shipments: 10
+  Successful: 9
+  Partial:    0
+  Failed:     1
+  Skipped:    0
+
+DETAILS:
+  [OK]       FBA1994X2GQQ  - 4 added, 0 existed, 0 failed (of 4)
+  [OK]       FBA1994STMLD  - 1 added, 0 existed, 0 failed (of 1)
+  [OK]       FBA1994RFP1B  - 1 added, 0 existed, 0 failed (of 1)
+  [OK]       FBA1994T0HF5  - 1 added, 0 existed, 0 failed (of 1)
+  [NOTFOUND] FBA1994WF4SZ  - 0 added, 0 existed, 0 failed (of 3)
+  [OK]       FBA19951PZX7  - 3 added, 0 existed, 0 failed (of 3)
+  [OK]       FBA1994W44D1  - 4 added, 0 existed, 0 failed (of 4)
+  [OK]       FBA1994Z3N1G  - 1 added, 0 existed, 0 failed (of 1)
+  [OK]       FBA1994W71T8  - 1 added, 0 existed, 0 failed (of 1)
+  [OK]       FBA1994SLXTR  - 1 added, 0 existed, 0 failed (of 1)
+============================================================
