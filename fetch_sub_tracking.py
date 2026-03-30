@@ -221,20 +221,32 @@ def fetch_ups_sub_tracking(page, main_tracking: str, logs_folder: str = None) ->
 
     _handle_captcha(page)
 
-    # Click "Other Packages in this Shipment" to expand the list
+    # Scroll to bottom to trigger lazy-loading of the packages section
+    try:
+        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        page.wait_for_timeout(2000)
+        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+        page.wait_for_timeout(1000)
+    except Exception:
+        pass
+
+    # Click "Other Packages in this Shipment" button to expand the list
+    # Must target the BUTTON element specifically — the page also has an H2 with the
+    # same text which is not clickable and causes get_by_text().first to silently fail.
     section_found = False
     try:
-        el = page.get_by_text("Other Packages in this Shipment", exact=False).first
-        if el and el.is_visible():
-            el.click()
-            logger.debug("  Clicked 'Other Packages in this Shipment'")
-            page.wait_for_timeout(2000)
+        btn = page.query_selector("button:has-text('Other Packages in this Shipment')")
+        if btn and btn.is_visible():
+            btn.scroll_into_view_if_needed()
+            btn.click()
+            logger.debug("  Clicked 'Other Packages in this Shipment' button")
+            page.wait_for_timeout(5000)
             section_found = True
     except Exception:
         pass
 
     if not section_found:
-        logger.debug("  'Other Packages in this Shipment' section not found on page")
+        logger.debug("  'Other Packages in this Shipment' button not found on page")
 
     # Extract from the section across all pages
     try:

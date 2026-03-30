@@ -4,7 +4,8 @@
 # Logs and generated output
 logs/
 output/
-input/
+input/*
+!input/.gitkeep
 
 # Python cache
 __pycache__/
