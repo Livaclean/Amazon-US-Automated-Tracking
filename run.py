@@ -664,14 +664,45 @@ def main():
                     check_fedex_login(page)
 
                 print(f"\n[{region_name}] Fetching sub-package tracking IDs from UPS/FedEx...")
-                shipments_with_subs = {}
+                # Step 1: Fetch full pool per unique main tracking number
+                # (avoid hitting the same carrier URL twice for shared tracking)
+                pool_by_main = {}  # main_tracking -> [all IDs]
+                fba_to_main = {}   # fba_id -> main_tracking
                 for fba_id, entries in region_shipments_raw.items():
                     logger.info(f"\nFBA {fba_id}: {len(entries)} main tracking entries")
                     main_ids = [e["tracking"] for e in entries if e.get("tracking")]
-                    sub_ids = get_all_sub_tracking(page, entries, config["logs_folder"])
-                    all_ids = list(dict.fromkeys(main_ids + sub_ids))
-                    logger.info(f"  -> {len(all_ids)} total tracking IDs ({len(main_ids)} main + {len(sub_ids)} sub)")
-                    shipments_with_subs[fba_id] = all_ids
+                    main = main_ids[0] if main_ids else None
+                    fba_to_main[fba_id] = main
+                    if main and main not in pool_by_main:
+                        sub_ids = get_all_sub_tracking(page, entries, config["logs_folder"])
+                        all_ids = list(dict.fromkeys(main_ids + sub_ids))
+                        logger.info(f"  -> {len(all_ids)} total tracking IDs ({len(main_ids)} main + {len(sub_ids)} sub)")
+                        pool_by_main[main] = all_ids
+                    elif main:
+                        logger.info(f"  -> reusing already-fetched pool for shared tracking {main}")
+
+                # Step 2: Group FBAs that share the same main tracking
+                groups = {}  # main -> [fba_ids]
+                for fba_id, main in fba_to_main.items():
+                    groups.setdefault(main, []).append(fba_id)
+
+                # Step 3: Distribute pool across FBAs that share the same tracking
+                shipments_with_subs = {}
+                for main, fba_ids in groups.items():
+                    pool = pool_by_main.get(main, [])
+                    if len(fba_ids) == 1:
+                        shipments_with_subs[fba_ids[0]] = pool
+                    else:
+                        print(f"\n  Shared tracking {main}: {fba_ids} — checking Amazon slot counts to split pool of {len(pool)}...")
+                        pool_idx = 0
+                        for fba_id in fba_ids:
+                            n = get_slot_count(page, fba_id, region_config["amazon_base_url"])
+                            assigned = pool[pool_idx: pool_idx + n]
+                            pool_idx += n
+                            shipments_with_subs[fba_id] = assigned
+                            print(f"    {fba_id}: {n} slot(s) -> assigned {assigned}")
+                        if pool_idx < len(pool):
+                            logger.warning(f"  Pool has {len(pool)} IDs but only {pool_idx} slots — leftover: {pool[pool_idx:]}")
 
             # Save tracking IDs to JSON
             ts_ids = datetime.now().strftime("%Y%m%d_%H%M%S")
