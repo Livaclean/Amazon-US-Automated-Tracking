@@ -1,0 +1,15 @@
+2026-03-30 16:56:24,116 [INFO] Log file: logs\tracking_upload_2026-03-30_16-56-24.log
+2026-03-30 16:56:25,057 [INFO] Reading Excel file from input folder...
+2026-03-30 16:56:25,059 [INFO] Reading: input\shipments  details  26-3 (3).xls
+2026-03-30 16:56:25,172 [INFO] Loaded 256 total rows across 1 file(s)
+2026-03-30 16:56:25,178 [INFO] [US] 143 row(s) matched
+2026-03-30 16:56:25,180 [INFO] [CA] 10 row(s) matched
+2026-03-30 16:56:25,181 [INFO] [UK] 10 row(s) matched
+2026-03-30 16:56:25,183 [INFO] [EU] 16 row(s) matched
+2026-03-30 16:56:25,184 [INFO] [AWD] 15 row(s) matched
+2026-03-30 16:56:25,188 [INFO] Shipment records written:
+  With tracking (168): logs\shipments_with_tracking_20260330_165625.txt
+  Missing tracking (25): logs\shipments_missing_tracking_20260330_165625.txt
+2026-03-30 16:56:25,189 [INFO] Launching Chrome with your saved profile...
+2026-03-30 16:56:25,452 [DEBUG] Using proactor: IocpProactor
+2026-03-30 16:56:28,138 [INFO] Highlighted output saved: output\shipments  details  26-3 (3)_processed_20260330_165627.xlsx

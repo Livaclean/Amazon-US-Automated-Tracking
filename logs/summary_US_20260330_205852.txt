@@ -1,0 +1,13 @@
+============================================================
+REGION: US — 2026-03-30 20:59:46
+============================================================
+Total FBA shipments: 2
+  Successful: 2
+  Partial:    0
+  Failed:     0
+  Skipped:    0
+
+DETAILS:
+  [OK]       FBA199532MZ3  - 3 added, 0 existed, 0 failed (of 3)
+  [OK]       FBA1994VYMRC  - 1 added, 0 existed, 0 failed (of 1)
+============================================================

@@ -1,0 +1,25 @@
+2026-03-30 20:49:59,876 [INFO] Log file: logs\tracking_upload_2026-03-30_20-49-59.log
+2026-03-30 20:50:00,999 [INFO] Reading Excel file from input folder...
+2026-03-30 20:50:01,000 [INFO] Reading: input\shipments  details  26-3 (3).xls
+2026-03-30 20:50:01,041 [INFO] Loaded 256 total rows across 1 file(s)
+2026-03-30 20:50:01,050 [INFO] [US] 143 row(s) matched
+2026-03-30 20:50:01,057 [INFO] [CA] 10 row(s) matched
+2026-03-30 20:50:01,064 [INFO] [UK] 10 row(s) matched
+2026-03-30 20:50:01,072 [INFO] [EU] 16 row(s) matched
+2026-03-30 20:50:01,080 [INFO] [AWD] 15 row(s) matched
+2026-03-30 20:50:01,082 [INFO] Shipment records written:
+  With tracking (168): logs\shipments_with_tracking_20260330_205001.txt
+  Missing tracking (25): logs\shipments_missing_tracking_20260330_205001.txt
+2026-03-30 20:50:01,082 [INFO] Launching Chrome with your saved profile...
+2026-03-30 20:50:01,250 [DEBUG] Using proactor: IocpProactor
+2026-03-30 20:50:12,439 [INFO] [US] Already logged in at https://sellercentral.amazon.com
+2026-03-30 20:50:12,440 [INFO]   [1/2] Checking Amazon: FBA199532MZ3
+2026-03-30 20:50:12,440 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA199532MZ3/tracking
+2026-03-30 20:50:16,502 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA199532MZ3/tracking
+2026-03-30 20:50:17,560 [INFO]   -> Amazon status: complete
+2026-03-30 20:50:17,560 [INFO]   [2/2] Checking Amazon: FBA1994VYMRC
+2026-03-30 20:50:17,560 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994VYMRC/tracking
+2026-03-30 20:50:21,403 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994VYMRC/tracking
+2026-03-30 20:50:21,487 [INFO]   -> Amazon status: complete
+2026-03-30 20:50:21,488 [INFO] [US] Done cache updated: 128 total FBA(s) in completed_fba_US.txt
+2026-03-30 20:50:21,620 [INFO] Highlighted output saved: output\shipments  details  26-3 (3)_processed_20260330_205021.xlsx

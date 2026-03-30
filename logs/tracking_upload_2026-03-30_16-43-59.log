@@ -1,0 +1,40 @@
+2026-03-30 16:43:59,545 [INFO] Log file: logs\tracking_upload_2026-03-30_16-43-59.log
+2026-03-30 16:44:00,211 [INFO] Reading Excel file from input folder...
+2026-03-30 16:44:00,212 [INFO] Reading: input\shipments  details  26-3 (3).xls
+2026-03-30 16:44:00,319 [INFO] Loaded 256 total rows across 1 file(s)
+2026-03-30 16:44:00,323 [INFO] [US] 143 row(s) matched
+2026-03-30 16:44:00,325 [INFO] [CA] 10 row(s) matched
+2026-03-30 16:44:00,326 [INFO] [UK] 10 row(s) matched
+2026-03-30 16:44:00,328 [INFO] [EU] 16 row(s) matched
+2026-03-30 16:44:00,330 [INFO] [AWD] 15 row(s) matched
+2026-03-30 16:44:00,333 [INFO] Shipment records written:
+  With tracking (168): logs\shipments_with_tracking_20260330_164400.txt
+  Missing tracking (25): logs\shipments_missing_tracking_20260330_164400.txt
+2026-03-30 16:44:00,334 [INFO] Launching Chrome with your saved profile...
+2026-03-30 16:44:00,527 [DEBUG] Using proactor: IocpProactor
+2026-03-30 16:44:05,875 [INFO] [US] Already logged in at https://sellercentral.amazon.com
+2026-03-30 16:44:05,876 [INFO]   [1/1] Checking Amazon: FBA1994R6Y64
+2026-03-30 16:44:05,876 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994R6Y64/tracking
+2026-03-30 16:44:09,411 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994R6Y64/tracking
+2026-03-30 16:44:10,573 [INFO]   -> Amazon status: partial
+2026-03-30 16:44:10,573 [INFO] 
+FBA FBA1994R6Y64: 1 main tracking entries
+2026-03-30 16:44:10,573 [INFO]   Fetching sub-tracking for 1Z765YW90323546125 (UPS)
+2026-03-30 16:44:10,574 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90323546125&loc=en_US
+2026-03-30 16:44:27,056 [DEBUG]   Clicked 'Other Packages in this Shipment' button
+2026-03-30 16:44:32,071 [INFO]   Page 1: +2 sub-IDs (total 2)
+2026-03-30 16:44:32,126 [DEBUG]   No next-page button found — done at page 1
+2026-03-30 16:44:32,126 [INFO]   Total 2 unique sub-IDs across all pages
+2026-03-30 16:44:32,126 [INFO]   -> 3 total tracking IDs (1 main + 2 sub)
+2026-03-30 16:44:32,128 [INFO] Tracking IDs saved to: logs\tracking_ids_US_20260330_164432.json
+2026-03-30 16:44:32,128 [INFO] 
+FBA FBA1994R6Y64: 3 sub-tracking IDs
+2026-03-30 16:44:32,128 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994R6Y64/tracking
+2026-03-30 16:44:36,118 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994R6Y64/tracking
+2026-03-30 16:44:36,569 [INFO]   Found 3 empty tracking input(s), have 3 sub-IDs to fill
+2026-03-30 16:44:36,587 [DEBUG]   Box 1: already has value '1Z765YW90323546125' — skipping
+2026-03-30 16:44:37,831 [DEBUG]   Box 2: filled 1Z765YW90334134344
+2026-03-30 16:44:39,041 [DEBUG]   Box 3: filled 1Z765YW90338159730
+2026-03-30 16:44:39,690 [INFO]   Clicked 'Update all' — saving 2 tracking number(s)
+2026-03-30 16:44:45,702 [INFO] [US] Done cache updated after upload: 128 total FBA(s)
+2026-03-30 16:44:45,963 [INFO] Highlighted output saved: output\shipments  details  26-3 (3)_processed_20260330_164445.xlsx

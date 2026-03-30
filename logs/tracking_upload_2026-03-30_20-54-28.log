@@ -1,0 +1,1612 @@
+2026-03-30 20:54:28,266 [INFO] Log file: logs\tracking_upload_2026-03-30_20-54-28.log
+2026-03-30 20:54:28,529 [INFO] Reading Excel file from input folder...
+2026-03-30 20:54:28,530 [INFO] Reading: input\shipments  details  26-3 (3).xls
+2026-03-30 20:54:28,568 [INFO] Loaded 256 total rows across 1 file(s)
+2026-03-30 20:54:28,570 [INFO] [US] 143 row(s) matched
+2026-03-30 20:54:28,570 [INFO] [CA] 10 row(s) matched
+2026-03-30 20:54:28,571 [INFO] [UK] 10 row(s) matched
+2026-03-30 20:54:28,571 [INFO] [EU] 16 row(s) matched
+2026-03-30 20:54:28,572 [INFO] [AWD] 15 row(s) matched
+2026-03-30 20:54:28,574 [INFO] Shipment records written:
+  With tracking (168): logs\shipments_with_tracking_20260330_205428.txt
+  Missing tracking (25): logs\shipments_missing_tracking_20260330_205428.txt
+2026-03-30 20:54:28,575 [INFO] Launching Chrome with your saved profile...
+2026-03-30 20:54:28,662 [DEBUG] Using proactor: IocpProactor
+2026-03-30 20:54:32,293 [INFO] [US] Already logged in at https://sellercentral.amazon.com
+2026-03-30 20:54:36,440 [INFO] FedEx: not logged in — proceeding anyway (trkqual URLs work without login)
+2026-03-30 20:54:36,440 [INFO] 
+FBA FBA198MM4Q36: 1 main tracking entries
+2026-03-30 20:54:36,440 [INFO]   Fetching sub-tracking for 1ZK6B4420300436229 (UPS)
+2026-03-30 20:54:36,441 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZK6B4420300436229&loc=en_US
+2026-03-30 20:54:45,081 [DEBUG]   'Other Packages in this Shipment' button not found on page
+2026-03-30 20:54:45,084 [DEBUG]   No IDs from section — falling back to full page regex
+2026-03-30 20:54:45,088 [INFO]   Found 0 sub-IDs via regex fallback
+2026-03-30 20:54:45,088 [WARNING]   No sub-IDs found for 1ZK6B4420300436229 — check carrier website manually
+2026-03-30 20:54:45,088 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:54:45,088 [INFO] 
+FBA FBA195RR3M99: 1 main tracking entries
+2026-03-30 20:54:45,088 [INFO]   Fetching sub-tracking for 1Z035B4X0311217616 (UPS)
+2026-03-30 20:54:45,088 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z035B4X0311217616&loc=en_US
+2026-03-30 20:54:54,945 [DEBUG]   Clicked 'Other Packages in this Shipment' button
+2026-03-30 20:54:59,960 [INFO]   Page 1: +2 sub-IDs (total 2)
+2026-03-30 20:55:00,000 [DEBUG]   No next-page button found — done at page 1
+2026-03-30 20:55:00,001 [INFO]   Total 2 unique sub-IDs across all pages
+2026-03-30 20:55:00,001 [INFO]   -> 3 total tracking IDs (1 main + 2 sub)
+2026-03-30 20:55:00,001 [INFO] 
+FBA FBA1994TVYY9: 1 main tracking entries
+2026-03-30 20:55:00,001 [INFO]   Fetching sub-tracking for 870079319190 (FEDEX)
+2026-03-30 20:55:06,143 [INFO]   Trying 4 trkqual candidates for 870079319190
+2026-03-30 20:55:06,144 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870079319190&trkqual=12030~870079319190~FDEG
+2026-03-30 20:55:13,388 [INFO]   trkqual 12030~870079319190~FDEG loaded — piece indicator: True
+2026-03-30 20:55:14,415 [DEBUG]   Clicked 'View more details'
+2026-03-30 20:55:25,211 [DEBUG]   Clicked 'pieces'
+2026-03-30 20:55:27,224 [INFO]   Found 5 sub-IDs from 'Piece Shipment' section
+2026-03-30 20:55:27,224 [INFO]   -> 6 total tracking IDs (1 main + 5 sub)
+2026-03-30 20:55:27,224 [INFO] 
+FBA FBA197G30X63: 1 main tracking entries
+2026-03-30 20:55:27,225 [INFO]   Fetching sub-tracking for 888584455850 (FEDEX)
+2026-03-30 20:55:29,615 [INFO]   Trying 4 trkqual candidates for 888584455850
+2026-03-30 20:55:29,616 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584455850&trkqual=12030~888584455850~FDEG
+2026-03-30 20:55:29,619 [DEBUG]   trkqual 12030~888584455850~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,619 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584455850&trkqual=12029~888584455850~FDEG
+2026-03-30 20:55:29,621 [DEBUG]   trkqual 12029~888584455850~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,621 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584455850&trkqual=10800~888584455850~FDXE
+2026-03-30 20:55:29,622 [DEBUG]   trkqual 10800~888584455850~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,622 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584455850&trkqual=10800~888584455850~FXSP
+2026-03-30 20:55:29,624 [DEBUG]   trkqual 10800~888584455850~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,624 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 888584455850
+2026-03-30 20:55:29,626 [WARNING]   No sub-IDs found for 888584455850 — check carrier website manually
+2026-03-30 20:55:29,626 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,626 [INFO] 
+FBA FBA1994TK6H5: 1 main tracking entries
+2026-03-30 20:55:29,626 [INFO]   Fetching sub-tracking for 870079328779 (FEDEX)
+2026-03-30 20:55:29,628 [INFO]   Trying 4 trkqual candidates for 870079328779
+2026-03-30 20:55:29,628 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870079328779&trkqual=12030~870079328779~FDEG
+2026-03-30 20:55:29,630 [DEBUG]   trkqual 12030~870079328779~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,630 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870079328779&trkqual=12029~870079328779~FDEG
+2026-03-30 20:55:29,632 [DEBUG]   trkqual 12029~870079328779~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,632 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870079328779&trkqual=10800~870079328779~FDXE
+2026-03-30 20:55:29,634 [DEBUG]   trkqual 10800~870079328779~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,635 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870079328779&trkqual=10800~870079328779~FXSP
+2026-03-30 20:55:29,637 [DEBUG]   trkqual 10800~870079328779~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,637 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 870079328779
+2026-03-30 20:55:29,639 [WARNING]   No sub-IDs found for 870079328779 — check carrier website manually
+2026-03-30 20:55:29,639 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,639 [INFO] 
+FBA FBA197G1ZXPZ: 1 main tracking entries
+2026-03-30 20:55:29,639 [INFO]   Fetching sub-tracking for 888584496379 (FEDEX)
+2026-03-30 20:55:29,641 [INFO]   Trying 4 trkqual candidates for 888584496379
+2026-03-30 20:55:29,641 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584496379&trkqual=12030~888584496379~FDEG
+2026-03-30 20:55:29,643 [DEBUG]   trkqual 12030~888584496379~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,643 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584496379&trkqual=12029~888584496379~FDEG
+2026-03-30 20:55:29,645 [DEBUG]   trkqual 12029~888584496379~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,645 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584496379&trkqual=10800~888584496379~FDXE
+2026-03-30 20:55:29,648 [DEBUG]   trkqual 10800~888584496379~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,648 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584496379&trkqual=10800~888584496379~FXSP
+2026-03-30 20:55:29,650 [DEBUG]   trkqual 10800~888584496379~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,651 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 888584496379
+2026-03-30 20:55:29,653 [WARNING]   No sub-IDs found for 888584496379 — check carrier website manually
+2026-03-30 20:55:29,654 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,654 [INFO] 
+FBA FBA1974PGMNJ: 1 main tracking entries
+2026-03-30 20:55:29,654 [INFO]   Fetching sub-tracking for 1Z765YW90338493986 (UPS)
+2026-03-30 20:55:29,654 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90338493986&loc=en_US
+2026-03-30 20:55:29,656 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,656 [WARNING]   No sub-IDs found for 1Z765YW90338493986 — check carrier website manually
+2026-03-30 20:55:29,656 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,656 [INFO] 
+FBA FBA197G2Q92T: 1 main tracking entries
+2026-03-30 20:55:29,657 [INFO]   Fetching sub-tracking for 1Z53F19R0499002873 (UPS)
+2026-03-30 20:55:29,657 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z53F19R0499002873&loc=en_US
+2026-03-30 20:55:29,660 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,660 [WARNING]   No sub-IDs found for 1Z53F19R0499002873 — check carrier website manually
+2026-03-30 20:55:29,661 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,661 [INFO] 
+FBA FBA1974K3MSK: 1 main tracking entries
+2026-03-30 20:55:29,661 [INFO]   -> reusing already-fetched pool for shared tracking 888584455850
+2026-03-30 20:55:29,661 [INFO] 
+FBA FBA198B9GMJT: 1 main tracking entries
+2026-03-30 20:55:29,661 [INFO]   Fetching sub-tracking for 1Z036E5H0310265909 (UPS)
+2026-03-30 20:55:29,661 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z036E5H0310265909&loc=en_US
+2026-03-30 20:55:29,663 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,663 [WARNING]   No sub-IDs found for 1Z036E5H0310265909 — check carrier website manually
+2026-03-30 20:55:29,664 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,664 [INFO] 
+FBA FBA19692LS2Z: 1 main tracking entries
+2026-03-30 20:55:29,664 [INFO]   Fetching sub-tracking for 888584416154 (FEDEX)
+2026-03-30 20:55:29,668 [INFO]   Trying 4 trkqual candidates for 888584416154
+2026-03-30 20:55:29,668 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584416154&trkqual=12030~888584416154~FDEG
+2026-03-30 20:55:29,678 [DEBUG]   trkqual 12030~888584416154~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,679 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584416154&trkqual=12029~888584416154~FDEG
+2026-03-30 20:55:29,682 [DEBUG]   trkqual 12029~888584416154~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,682 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584416154&trkqual=10800~888584416154~FDXE
+2026-03-30 20:55:29,686 [DEBUG]   trkqual 10800~888584416154~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,686 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584416154&trkqual=10800~888584416154~FXSP
+2026-03-30 20:55:29,689 [DEBUG]   trkqual 10800~888584416154~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,689 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 888584416154
+2026-03-30 20:55:29,691 [WARNING]   No sub-IDs found for 888584416154 — check carrier website manually
+2026-03-30 20:55:29,692 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,692 [INFO] 
+FBA FBA1994Z3N1G: 1 main tracking entries
+2026-03-30 20:55:29,692 [INFO]   Fetching sub-tracking for 889841899440 (FEDEX)
+2026-03-30 20:55:29,697 [INFO]   Trying 4 trkqual candidates for 889841899440
+2026-03-30 20:55:29,697 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841899440&trkqual=12030~889841899440~FDEG
+2026-03-30 20:55:29,699 [DEBUG]   trkqual 12030~889841899440~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,700 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841899440&trkqual=12029~889841899440~FDEG
+2026-03-30 20:55:29,703 [DEBUG]   trkqual 12029~889841899440~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,703 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841899440&trkqual=10800~889841899440~FDXE
+2026-03-30 20:55:29,706 [DEBUG]   trkqual 10800~889841899440~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,706 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841899440&trkqual=10800~889841899440~FXSP
+2026-03-30 20:55:29,709 [DEBUG]   trkqual 10800~889841899440~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,709 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 889841899440
+2026-03-30 20:55:29,712 [WARNING]   No sub-IDs found for 889841899440 — check carrier website manually
+2026-03-30 20:55:29,712 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,712 [INFO] 
+FBA FBA1994PH4RT: 1 main tracking entries
+2026-03-30 20:55:29,712 [INFO]   Fetching sub-tracking for 1Z765YW90324193513 (UPS)
+2026-03-30 20:55:29,712 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90324193513&loc=en_US
+2026-03-30 20:55:29,713 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,713 [WARNING]   No sub-IDs found for 1Z765YW90324193513 — check carrier website manually
+2026-03-30 20:55:29,714 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,714 [INFO] 
+FBA FBA198MNVCDH: 1 main tracking entries
+2026-03-30 20:55:29,714 [INFO]   Fetching sub-tracking for 1ZK6B4420311769715 (UPS)
+2026-03-30 20:55:29,714 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZK6B4420311769715&loc=en_US
+2026-03-30 20:55:29,717 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,717 [WARNING]   No sub-IDs found for 1ZK6B4420311769715 — check carrier website manually
+2026-03-30 20:55:29,717 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,717 [INFO] 
+FBA FBA196Q7P4VT: 1 main tracking entries
+2026-03-30 20:55:29,717 [INFO]   Fetching sub-tracking for 1Z765YW90314651091 (UPS)
+2026-03-30 20:55:29,717 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90314651091&loc=en_US
+2026-03-30 20:55:29,720 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,720 [WARNING]   No sub-IDs found for 1Z765YW90314651091 — check carrier website manually
+2026-03-30 20:55:29,720 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,720 [INFO] 
+FBA FBA198B8Q91F: 1 main tracking entries
+2026-03-30 20:55:29,720 [INFO]   Fetching sub-tracking for 889391907844 (FEDEX)
+2026-03-30 20:55:29,723 [INFO]   Trying 4 trkqual candidates for 889391907844
+2026-03-30 20:55:29,723 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889391907844&trkqual=12030~889391907844~FDEG
+2026-03-30 20:55:29,725 [DEBUG]   trkqual 12030~889391907844~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,725 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889391907844&trkqual=12029~889391907844~FDEG
+2026-03-30 20:55:29,727 [DEBUG]   trkqual 12029~889391907844~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,727 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889391907844&trkqual=10800~889391907844~FDXE
+2026-03-30 20:55:29,729 [DEBUG]   trkqual 10800~889391907844~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,729 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889391907844&trkqual=10800~889391907844~FXSP
+2026-03-30 20:55:29,731 [DEBUG]   trkqual 10800~889391907844~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,731 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 889391907844
+2026-03-30 20:55:29,733 [WARNING]   No sub-IDs found for 889391907844 — check carrier website manually
+2026-03-30 20:55:29,733 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,733 [INFO] 
+FBA FBA195KGXQDF: 1 main tracking entries
+2026-03-30 20:55:29,733 [INFO]   Fetching sub-tracking for 1Z035B4X0331800519 (UPS)
+2026-03-30 20:55:29,733 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z035B4X0331800519&loc=en_US
+2026-03-30 20:55:29,734 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,734 [WARNING]   No sub-IDs found for 1Z035B4X0331800519 — check carrier website manually
+2026-03-30 20:55:29,734 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,734 [INFO] 
+FBA FBA197HGGQXC: 1 main tracking entries
+2026-03-30 20:55:29,734 [INFO]   Fetching sub-tracking for 1ZK6B4420314473065 (UPS)
+2026-03-30 20:55:29,734 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZK6B4420314473065&loc=en_US
+2026-03-30 20:55:29,737 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,737 [WARNING]   No sub-IDs found for 1ZK6B4420314473065 — check carrier website manually
+2026-03-30 20:55:29,737 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,737 [INFO] 
+FBA FBA1976WD9WR: 1 main tracking entries
+2026-03-30 20:55:29,737 [INFO]   Fetching sub-tracking for 888584816843 (FEDEX)
+2026-03-30 20:55:29,739 [INFO]   Trying 4 trkqual candidates for 888584816843
+2026-03-30 20:55:29,739 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584816843&trkqual=12030~888584816843~FDEG
+2026-03-30 20:55:29,741 [DEBUG]   trkqual 12030~888584816843~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,742 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584816843&trkqual=12029~888584816843~FDEG
+2026-03-30 20:55:29,744 [DEBUG]   trkqual 12029~888584816843~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,744 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584816843&trkqual=10800~888584816843~FDXE
+2026-03-30 20:55:29,747 [DEBUG]   trkqual 10800~888584816843~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,747 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584816843&trkqual=10800~888584816843~FXSP
+2026-03-30 20:55:29,749 [DEBUG]   trkqual 10800~888584816843~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,749 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 888584816843
+2026-03-30 20:55:29,751 [WARNING]   No sub-IDs found for 888584816843 — check carrier website manually
+2026-03-30 20:55:29,752 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,752 [INFO] 
+FBA FBA195RRK7L8: 1 main tracking entries
+2026-03-30 20:55:29,752 [INFO]   Fetching sub-tracking for 1Z53F19R0490508450 (UPS)
+2026-03-30 20:55:29,752 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z53F19R0490508450&loc=en_US
+2026-03-30 20:55:29,754 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,754 [WARNING]   No sub-IDs found for 1Z53F19R0490508450 — check carrier website manually
+2026-03-30 20:55:29,754 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,754 [INFO] 
+FBA FBA197D1SZ07: 1 main tracking entries
+2026-03-30 20:55:29,754 [INFO]   Fetching sub-tracking for 1Z036E5H0310686124 (UPS)
+2026-03-30 20:55:29,754 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z036E5H0310686124&loc=en_US
+2026-03-30 20:55:29,756 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,756 [WARNING]   No sub-IDs found for 1Z036E5H0310686124 — check carrier website manually
+2026-03-30 20:55:29,756 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,756 [INFO] 
+FBA FBA195KF35JQ: 1 main tracking entries
+2026-03-30 20:55:29,756 [INFO]   Fetching sub-tracking for 1ZHV29060408905247 (UPS)
+2026-03-30 20:55:29,756 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZHV29060408905247&loc=en_US
+2026-03-30 20:55:29,758 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,758 [WARNING]   No sub-IDs found for 1ZHV29060408905247 — check carrier website manually
+2026-03-30 20:55:29,758 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,759 [INFO] 
+FBA FBA196Q6QFV6: 1 main tracking entries
+2026-03-30 20:55:29,759 [INFO]   Fetching sub-tracking for 1Z765YW90306337384 (UPS)
+2026-03-30 20:55:29,759 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90306337384&loc=en_US
+2026-03-30 20:55:29,761 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,761 [WARNING]   No sub-IDs found for 1Z765YW90306337384 — check carrier website manually
+2026-03-30 20:55:29,761 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,761 [INFO] 
+FBA FBA197D0GZRT: 1 main tracking entries
+2026-03-30 20:55:29,761 [INFO]   Fetching sub-tracking for 888584511247 (FEDEX)
+2026-03-30 20:55:29,764 [INFO]   Trying 4 trkqual candidates for 888584511247
+2026-03-30 20:55:29,764 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584511247&trkqual=12030~888584511247~FDEG
+2026-03-30 20:55:29,766 [DEBUG]   trkqual 12030~888584511247~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,766 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584511247&trkqual=12029~888584511247~FDEG
+2026-03-30 20:55:29,768 [DEBUG]   trkqual 12029~888584511247~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,768 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584511247&trkqual=10800~888584511247~FDXE
+2026-03-30 20:55:29,771 [DEBUG]   trkqual 10800~888584511247~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,771 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584511247&trkqual=10800~888584511247~FXSP
+2026-03-30 20:55:29,774 [DEBUG]   trkqual 10800~888584511247~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,774 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 888584511247
+2026-03-30 20:55:29,777 [WARNING]   No sub-IDs found for 888584511247 — check carrier website manually
+2026-03-30 20:55:29,777 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,777 [INFO] 
+FBA FBA195W56JZ2: 1 main tracking entries
+2026-03-30 20:55:29,777 [INFO]   Fetching sub-tracking for 887795834529 (FedEx)
+2026-03-30 20:55:29,779 [INFO]   Trying 4 trkqual candidates for 887795834529
+2026-03-30 20:55:29,779 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887795834529&trkqual=12030~887795834529~FDEG
+2026-03-30 20:55:29,781 [DEBUG]   trkqual 12030~887795834529~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,781 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887795834529&trkqual=12029~887795834529~FDEG
+2026-03-30 20:55:29,782 [DEBUG]   trkqual 12029~887795834529~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,782 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887795834529&trkqual=10800~887795834529~FDXE
+2026-03-30 20:55:29,784 [DEBUG]   trkqual 10800~887795834529~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,784 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887795834529&trkqual=10800~887795834529~FXSP
+2026-03-30 20:55:29,786 [DEBUG]   trkqual 10800~887795834529~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,786 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 887795834529
+2026-03-30 20:55:29,789 [WARNING]   No sub-IDs found for 887795834529 — check carrier website manually
+2026-03-30 20:55:29,789 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,789 [INFO] 
+FBA FBA196S5FRT5: 1 main tracking entries
+2026-03-30 20:55:29,789 [INFO]   Fetching sub-tracking for 1Z765YW90336972257 (UPS)
+2026-03-30 20:55:29,789 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90336972257&loc=en_US
+2026-03-30 20:55:29,791 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,791 [WARNING]   No sub-IDs found for 1Z765YW90336972257 — check carrier website manually
+2026-03-30 20:55:29,791 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,791 [INFO] 
+FBA FBA197G1P0Y9: 1 main tracking entries
+2026-03-30 20:55:29,791 [INFO]   Fetching sub-tracking for 1Z036E5H0330060271 (UPS)
+2026-03-30 20:55:29,791 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z036E5H0330060271&loc=en_US
+2026-03-30 20:55:29,793 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,793 [WARNING]   No sub-IDs found for 1Z036E5H0330060271 — check carrier website manually
+2026-03-30 20:55:29,793 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,793 [INFO] 
+FBA FBA198B71ZZT: 1 main tracking entries
+2026-03-30 20:55:29,793 [INFO]   Fetching sub-tracking for 1Z53F19R0491882348 (UPS)
+2026-03-30 20:55:29,793 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z53F19R0491882348&loc=en_US
+2026-03-30 20:55:29,795 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,796 [WARNING]   No sub-IDs found for 1Z53F19R0491882348 — check carrier website manually
+2026-03-30 20:55:29,796 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,796 [INFO] 
+FBA FBA196Q8TVJ8: 1 main tracking entries
+2026-03-30 20:55:29,796 [INFO]   Fetching sub-tracking for 1Z765YW90311750613 (UPS)
+2026-03-30 20:55:29,796 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90311750613&loc=en_US
+2026-03-30 20:55:29,797 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,798 [WARNING]   No sub-IDs found for 1Z765YW90311750613 — check carrier website manually
+2026-03-30 20:55:29,798 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,798 [INFO] 
+FBA FBA19659KS5T: 1 main tracking entries
+2026-03-30 20:55:29,798 [INFO]   Fetching sub-tracking for 1ZK6B4420317696837 (ups)
+2026-03-30 20:55:29,798 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZK6B4420317696837&loc=en_US
+2026-03-30 20:55:29,800 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,800 [WARNING]   No sub-IDs found for 1ZK6B4420317696837 — check carrier website manually
+2026-03-30 20:55:29,801 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,801 [INFO] 
+FBA FBA198MN1D74: 1 main tracking entries
+2026-03-30 20:55:29,801 [INFO]   Fetching sub-tracking for 1ZK6B4420317731566 (UPS)
+2026-03-30 20:55:29,801 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZK6B4420317731566&loc=en_US
+2026-03-30 20:55:29,802 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,802 [WARNING]   No sub-IDs found for 1ZK6B4420317731566 — check carrier website manually
+2026-03-30 20:55:29,802 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,802 [INFO] 
+FBA FBA1978M390T: 1 main tracking entries
+2026-03-30 20:55:29,803 [INFO]   -> reusing already-fetched pool for shared tracking 888584416154
+2026-03-30 20:55:29,803 [INFO] 
+FBA FBA1972NVGYF: 1 main tracking entries
+2026-03-30 20:55:29,803 [INFO]   Fetching sub-tracking for 1Z036E5H0327080854 (UPS)
+2026-03-30 20:55:29,803 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z036E5H0327080854&loc=en_US
+2026-03-30 20:55:29,804 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,804 [WARNING]   No sub-IDs found for 1Z036E5H0327080854 — check carrier website manually
+2026-03-30 20:55:29,804 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,804 [INFO] 
+FBA FBA198MNQG7C: 1 main tracking entries
+2026-03-30 20:55:29,804 [INFO]   Fetching sub-tracking for 889615331920 (FEDEX)
+2026-03-30 20:55:29,806 [INFO]   Trying 4 trkqual candidates for 889615331920
+2026-03-30 20:55:29,807 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615331920&trkqual=12030~889615331920~FDEG
+2026-03-30 20:55:29,809 [DEBUG]   trkqual 12030~889615331920~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,809 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615331920&trkqual=12029~889615331920~FDEG
+2026-03-30 20:55:29,810 [DEBUG]   trkqual 12029~889615331920~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,810 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615331920&trkqual=10800~889615331920~FDXE
+2026-03-30 20:55:29,812 [DEBUG]   trkqual 10800~889615331920~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,813 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615331920&trkqual=10800~889615331920~FXSP
+2026-03-30 20:55:29,814 [DEBUG]   trkqual 10800~889615331920~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,815 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 889615331920
+2026-03-30 20:55:29,817 [WARNING]   No sub-IDs found for 889615331920 — check carrier website manually
+2026-03-30 20:55:29,817 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,817 [INFO] 
+FBA FBA195KDVJ3Q: 1 main tracking entries
+2026-03-30 20:55:29,817 [INFO]   Fetching sub-tracking for 1Z035B4X0331941411 (UPS)
+2026-03-30 20:55:29,818 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z035B4X0331941411&loc=en_US
+2026-03-30 20:55:29,820 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,820 [WARNING]   No sub-IDs found for 1Z035B4X0331941411 — check carrier website manually
+2026-03-30 20:55:29,820 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,820 [INFO] 
+FBA FBA198G5WK9P: 1 main tracking entries
+2026-03-30 20:55:29,820 [INFO]   Fetching sub-tracking for 1Z765YW90320107104 (UPS)
+2026-03-30 20:55:29,820 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90320107104&loc=en_US
+2026-03-30 20:55:29,822 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,822 [WARNING]   No sub-IDs found for 1Z765YW90320107104 — check carrier website manually
+2026-03-30 20:55:29,822 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,822 [INFO] 
+FBA FBA1994W5FVW: 1 main tracking entries
+2026-03-30 20:55:29,822 [INFO]   Fetching sub-tracking for 870079267199 (FEDEX)
+2026-03-30 20:55:29,823 [INFO]   Trying 4 trkqual candidates for 870079267199
+2026-03-30 20:55:29,823 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870079267199&trkqual=12030~870079267199~FDEG
+2026-03-30 20:55:29,825 [DEBUG]   trkqual 12030~870079267199~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,825 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870079267199&trkqual=12029~870079267199~FDEG
+2026-03-30 20:55:29,828 [DEBUG]   trkqual 12029~870079267199~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,828 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870079267199&trkqual=10800~870079267199~FDXE
+2026-03-30 20:55:29,831 [DEBUG]   trkqual 10800~870079267199~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,831 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870079267199&trkqual=10800~870079267199~FXSP
+2026-03-30 20:55:29,834 [DEBUG]   trkqual 10800~870079267199~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,834 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 870079267199
+2026-03-30 20:55:29,836 [WARNING]   No sub-IDs found for 870079267199 — check carrier website manually
+2026-03-30 20:55:29,837 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,837 [INFO] 
+FBA FBA198G6XCCF: 1 main tracking entries
+2026-03-30 20:55:29,837 [INFO]   Fetching sub-tracking for 1Z036E5H0321633795 (UPS)
+2026-03-30 20:55:29,837 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z036E5H0321633795&loc=en_US
+2026-03-30 20:55:29,839 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,840 [WARNING]   No sub-IDs found for 1Z036E5H0321633795 — check carrier website manually
+2026-03-30 20:55:29,840 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,840 [INFO] 
+FBA FBA1994RFP1B: 1 main tracking entries
+2026-03-30 20:55:29,840 [INFO]   Fetching sub-tracking for 1Z765YW90306845290 (UPS)
+2026-03-30 20:55:29,840 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90306845290&loc=en_US
+2026-03-30 20:55:29,842 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,843 [WARNING]   No sub-IDs found for 1Z765YW90306845290 — check carrier website manually
+2026-03-30 20:55:29,843 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,843 [INFO] 
+FBA FBA19657N0P2: 1 main tracking entries
+2026-03-30 20:55:29,843 [INFO]   Fetching sub-tracking for 1ZK6B4420310556296 (UPS)
+2026-03-30 20:55:29,843 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZK6B4420310556296&loc=en_US
+2026-03-30 20:55:29,845 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,845 [WARNING]   No sub-IDs found for 1ZK6B4420310556296 — check carrier website manually
+2026-03-30 20:55:29,845 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,845 [INFO] 
+FBA FBA198MP8FJ6: 1 main tracking entries
+2026-03-30 20:55:29,845 [INFO]   -> reusing already-fetched pool for shared tracking 1ZK6B4420311769715
+2026-03-30 20:55:29,846 [INFO] 
+FBA FBA1994WF4SZ: 1 main tracking entries
+2026-03-30 20:55:29,846 [INFO]   Fetching sub-tracking for 889841940257 (FEDEX)
+2026-03-30 20:55:29,848 [INFO]   Trying 4 trkqual candidates for 889841940257
+2026-03-30 20:55:29,848 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841940257&trkqual=12030~889841940257~FDEG
+2026-03-30 20:55:29,850 [DEBUG]   trkqual 12030~889841940257~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,850 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841940257&trkqual=12029~889841940257~FDEG
+2026-03-30 20:55:29,851 [DEBUG]   trkqual 12029~889841940257~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,851 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841940257&trkqual=10800~889841940257~FDXE
+2026-03-30 20:55:29,853 [DEBUG]   trkqual 10800~889841940257~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,853 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841940257&trkqual=10800~889841940257~FXSP
+2026-03-30 20:55:29,855 [DEBUG]   trkqual 10800~889841940257~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,855 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 889841940257
+2026-03-30 20:55:29,857 [WARNING]   No sub-IDs found for 889841940257 — check carrier website manually
+2026-03-30 20:55:29,857 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,857 [INFO] 
+FBA FBA195RQLSNM: 1 main tracking entries
+2026-03-30 20:55:29,857 [INFO]   -> reusing already-fetched pool for shared tracking 1Z035B4X0331800519
+2026-03-30 20:55:29,857 [INFO] 
+FBA FBA1953XC1SY: 1 main tracking entries
+2026-03-30 20:55:29,857 [INFO]   Fetching sub-tracking for 1ZG2E7070321931919 (UPS)
+2026-03-30 20:55:29,857 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZG2E7070321931919&loc=en_US
+2026-03-30 20:55:29,859 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,859 [WARNING]   No sub-IDs found for 1ZG2E7070321931919 — check carrier website manually
+2026-03-30 20:55:29,859 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,859 [INFO] 
+FBA FBA1972RSFFY: 1 main tracking entries
+2026-03-30 20:55:29,859 [INFO]   Fetching sub-tracking for 1Z036E5H0312300465 (UPS)
+2026-03-30 20:55:29,859 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z036E5H0312300465&loc=en_US
+2026-03-30 20:55:29,861 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,861 [WARNING]   No sub-IDs found for 1Z036E5H0312300465 — check carrier website manually
+2026-03-30 20:55:29,861 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,861 [INFO] 
+FBA FBA1978LLQNX: 1 main tracking entries
+2026-03-30 20:55:29,862 [INFO]   -> reusing already-fetched pool for shared tracking 888584455850
+2026-03-30 20:55:29,862 [INFO] 
+FBA FBA197HCJ4M9: 1 main tracking entries
+2026-03-30 20:55:29,862 [INFO]   Fetching sub-tracking for 888675709582 (FEDEX)
+2026-03-30 20:55:29,864 [INFO]   Trying 4 trkqual candidates for 888675709582
+2026-03-30 20:55:29,864 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888675709582&trkqual=12030~888675709582~FDEG
+2026-03-30 20:55:29,866 [DEBUG]   trkqual 12030~888675709582~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,866 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888675709582&trkqual=12029~888675709582~FDEG
+2026-03-30 20:55:29,868 [DEBUG]   trkqual 12029~888675709582~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,868 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888675709582&trkqual=10800~888675709582~FDXE
+2026-03-30 20:55:29,870 [DEBUG]   trkqual 10800~888675709582~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,870 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888675709582&trkqual=10800~888675709582~FXSP
+2026-03-30 20:55:29,872 [DEBUG]   trkqual 10800~888675709582~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,872 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 888675709582
+2026-03-30 20:55:29,874 [WARNING]   No sub-IDs found for 888675709582 — check carrier website manually
+2026-03-30 20:55:29,874 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,874 [INFO] 
+FBA FBA1978MKF7Z: 1 main tracking entries
+2026-03-30 20:55:29,874 [INFO]   -> reusing already-fetched pool for shared tracking 888584496379
+2026-03-30 20:55:29,874 [INFO] 
+FBA FBA197HFQKDT: 1 main tracking entries
+2026-03-30 20:55:29,874 [INFO]   Fetching sub-tracking for 1Z765YW90317617220 (UPS)
+2026-03-30 20:55:29,874 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90317617220&loc=en_US
+2026-03-30 20:55:29,876 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,876 [WARNING]   No sub-IDs found for 1Z765YW90317617220 — check carrier website manually
+2026-03-30 20:55:29,876 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,876 [INFO] 
+FBA FBA19690JXGL: 1 main tracking entries
+2026-03-30 20:55:29,876 [INFO]   Fetching sub-tracking for 1Z036E5H0316976167 (UPS)
+2026-03-30 20:55:29,876 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z036E5H0316976167&loc=en_US
+2026-03-30 20:55:29,878 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,878 [WARNING]   No sub-IDs found for 1Z036E5H0316976167 — check carrier website manually
+2026-03-30 20:55:29,879 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,879 [INFO] 
+FBA FBA198G7KNLW: 1 main tracking entries
+2026-03-30 20:55:29,879 [INFO]   Fetching sub-tracking for 1Z765YW90319543172 (UPS)
+2026-03-30 20:55:29,879 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90319543172&loc=en_US
+2026-03-30 20:55:29,880 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,881 [WARNING]   No sub-IDs found for 1Z765YW90319543172 — check carrier website manually
+2026-03-30 20:55:29,881 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,881 [INFO] 
+FBA FBA196916Q98: 1 main tracking entries
+2026-03-30 20:55:29,881 [INFO]   Fetching sub-tracking for 888584419988 (FEDEX)
+2026-03-30 20:55:29,883 [INFO]   Trying 4 trkqual candidates for 888584419988
+2026-03-30 20:55:29,883 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584419988&trkqual=12030~888584419988~FDEG
+2026-03-30 20:55:29,885 [DEBUG]   trkqual 12030~888584419988~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,885 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584419988&trkqual=12029~888584419988~FDEG
+2026-03-30 20:55:29,886 [DEBUG]   trkqual 12029~888584419988~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,886 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584419988&trkqual=10800~888584419988~FDXE
+2026-03-30 20:55:29,888 [DEBUG]   trkqual 10800~888584419988~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,888 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584419988&trkqual=10800~888584419988~FXSP
+2026-03-30 20:55:29,890 [DEBUG]   trkqual 10800~888584419988~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,890 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 888584419988
+2026-03-30 20:55:29,891 [WARNING]   No sub-IDs found for 888584419988 — check carrier website manually
+2026-03-30 20:55:29,892 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,892 [INFO] 
+FBA FBA196908BP7: 1 main tracking entries
+2026-03-30 20:55:29,892 [INFO]   Fetching sub-tracking for 1Z88F19Y0352370595 (UPS)
+2026-03-30 20:55:29,892 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z88F19Y0352370595&loc=en_US
+2026-03-30 20:55:29,894 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,894 [WARNING]   No sub-IDs found for 1Z88F19Y0352370595 — check carrier website manually
+2026-03-30 20:55:29,894 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,894 [INFO] 
+FBA FBA198B9K8NM: 1 main tracking entries
+2026-03-30 20:55:29,894 [INFO]   Fetching sub-tracking for 1Z036E5H0320533627 (UPS)
+2026-03-30 20:55:29,894 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z036E5H0320533627&loc=en_US
+2026-03-30 20:55:29,896 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,896 [WARNING]   No sub-IDs found for 1Z036E5H0320533627 — check carrier website manually
+2026-03-30 20:55:29,896 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,897 [INFO] 
+FBA FBA19691WY6R: 1 main tracking entries
+2026-03-30 20:55:29,897 [INFO]   Fetching sub-tracking for 1Z036E5H0326651935 (UPS)
+2026-03-30 20:55:29,897 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z036E5H0326651935&loc=en_US
+2026-03-30 20:55:29,898 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,898 [WARNING]   No sub-IDs found for 1Z036E5H0326651935 — check carrier website manually
+2026-03-30 20:55:29,899 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,899 [INFO] 
+FBA FBA197D0R9QL: 1 main tracking entries
+2026-03-30 20:55:29,899 [INFO]   Fetching sub-tracking for 1Z036E5H0316737540 (UPS)
+2026-03-30 20:55:29,899 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z036E5H0316737540&loc=en_US
+2026-03-30 20:55:29,900 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,900 [WARNING]   No sub-IDs found for 1Z036E5H0316737540 — check carrier website manually
+2026-03-30 20:55:29,900 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,900 [INFO] 
+FBA FBA1972N97WY: 1 main tracking entries
+2026-03-30 20:55:29,900 [INFO]   -> reusing already-fetched pool for shared tracking 1Z036E5H0326651935
+2026-03-30 20:55:29,900 [INFO] 
+FBA FBA198G682TX: 1 main tracking entries
+2026-03-30 20:55:29,900 [INFO]   -> reusing already-fetched pool for shared tracking 1Z53F19R0491882348
+2026-03-30 20:55:29,900 [INFO] 
+FBA FBA1994W71T8: 1 main tracking entries
+2026-03-30 20:55:29,900 [INFO]   Fetching sub-tracking for 1Z765YW90309947488 (UPS)
+2026-03-30 20:55:29,900 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90309947488&loc=en_US
+2026-03-30 20:55:29,902 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,902 [WARNING]   No sub-IDs found for 1Z765YW90309947488 — check carrier website manually
+2026-03-30 20:55:29,902 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,902 [INFO] 
+FBA FBA198MN2JXL: 1 main tracking entries
+2026-03-30 20:55:29,902 [INFO]   -> reusing already-fetched pool for shared tracking 889615331920
+2026-03-30 20:55:29,902 [INFO] 
+FBA FBA198KZ9P9K: 1 main tracking entries
+2026-03-30 20:55:29,902 [INFO]   -> reusing already-fetched pool for shared tracking 889391907844
+2026-03-30 20:55:29,902 [INFO] 
+FBA FBA196Q71BN5: 1 main tracking entries
+2026-03-30 20:55:29,902 [INFO]   Fetching sub-tracking for 1Z035B4X0335458151 (UPS)
+2026-03-30 20:55:29,902 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z035B4X0335458151&loc=en_US
+2026-03-30 20:55:29,904 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,904 [WARNING]   No sub-IDs found for 1Z035B4X0335458151 — check carrier website manually
+2026-03-30 20:55:29,904 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,904 [INFO] 
+FBA FBA1972Q2S5Y: 1 main tracking entries
+2026-03-30 20:55:29,904 [INFO]   Fetching sub-tracking for 1Z036E5H0326481066 (UPS)
+2026-03-30 20:55:29,904 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z036E5H0326481066&loc=en_US
+2026-03-30 20:55:29,906 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,906 [WARNING]   No sub-IDs found for 1Z036E5H0326481066 — check carrier website manually
+2026-03-30 20:55:29,906 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,906 [INFO] 
+FBA FBA198MP8HT5: 1 main tracking entries
+2026-03-30 20:55:29,906 [INFO]   -> reusing already-fetched pool for shared tracking 1ZK6B4420300436229
+2026-03-30 20:55:29,906 [INFO] 
+FBA FBA195W5SLF9: 1 main tracking entries
+2026-03-30 20:55:29,906 [INFO]   Fetching sub-tracking for 1Z035B4X0311189415 (UPS)
+2026-03-30 20:55:29,906 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z035B4X0311189415&loc=en_US
+2026-03-30 20:55:29,908 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,908 [WARNING]   No sub-IDs found for 1Z035B4X0311189415 — check carrier website manually
+2026-03-30 20:55:29,908 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,909 [INFO] 
+FBA FBA1994R6Y64: 1 main tracking entries
+2026-03-30 20:55:29,909 [INFO]   Fetching sub-tracking for 1Z765YW90323546125 (UPS)
+2026-03-30 20:55:29,909 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90323546125&loc=en_US
+2026-03-30 20:55:29,910 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,911 [WARNING]   No sub-IDs found for 1Z765YW90323546125 — check carrier website manually
+2026-03-30 20:55:29,911 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,911 [INFO] 
+FBA FBA1994VYMRC: 1 main tracking entries
+2026-03-30 20:55:29,911 [INFO]   Fetching sub-tracking for 1Z765YW90330931043 (UPS)
+2026-03-30 20:55:29,911 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90330931043&loc=en_US
+2026-03-30 20:55:29,916 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,916 [WARNING]   No sub-IDs found for 1Z765YW90330931043 — check carrier website manually
+2026-03-30 20:55:29,916 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,917 [INFO] 
+FBA FBA198L0HB5T: 1 main tracking entries
+2026-03-30 20:55:29,917 [INFO]   Fetching sub-tracking for 1ZK6B4420338722410 (UPS)
+2026-03-30 20:55:29,917 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZK6B4420338722410&loc=en_US
+2026-03-30 20:55:29,918 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,918 [WARNING]   No sub-IDs found for 1ZK6B4420338722410 — check carrier website manually
+2026-03-30 20:55:29,919 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,919 [INFO] 
+FBA FBA1968Z317V: 1 main tracking entries
+2026-03-30 20:55:29,919 [INFO]   Fetching sub-tracking for 1Z0JH5420312590454 (UPS)
+2026-03-30 20:55:29,919 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z0JH5420312590454&loc=en_US
+2026-03-30 20:55:29,920 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,920 [WARNING]   No sub-IDs found for 1Z0JH5420312590454 — check carrier website manually
+2026-03-30 20:55:29,920 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,920 [INFO] 
+FBA FBA1994T0HF5: 1 main tracking entries
+2026-03-30 20:55:29,920 [INFO]   Fetching sub-tracking for 889841866449 (FEDEX)
+2026-03-30 20:55:29,921 [INFO]   Trying 4 trkqual candidates for 889841866449
+2026-03-30 20:55:29,921 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841866449&trkqual=12030~889841866449~FDEG
+2026-03-30 20:55:29,923 [DEBUG]   trkqual 12030~889841866449~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,923 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841866449&trkqual=12029~889841866449~FDEG
+2026-03-30 20:55:29,924 [DEBUG]   trkqual 12029~889841866449~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,924 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841866449&trkqual=10800~889841866449~FDXE
+2026-03-30 20:55:29,925 [DEBUG]   trkqual 10800~889841866449~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,925 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841866449&trkqual=10800~889841866449~FXSP
+2026-03-30 20:55:29,927 [DEBUG]   trkqual 10800~889841866449~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,927 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 889841866449
+2026-03-30 20:55:29,928 [WARNING]   No sub-IDs found for 889841866449 — check carrier website manually
+2026-03-30 20:55:29,928 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,928 [INFO] 
+FBA FBA198MNFVNH: 1 main tracking entries
+2026-03-30 20:55:29,928 [INFO]   Fetching sub-tracking for 889615380608 (FEDEX)
+2026-03-30 20:55:29,929 [INFO]   Trying 4 trkqual candidates for 889615380608
+2026-03-30 20:55:29,929 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615380608&trkqual=12030~889615380608~FDEG
+2026-03-30 20:55:29,931 [DEBUG]   trkqual 12030~889615380608~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,931 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615380608&trkqual=12029~889615380608~FDEG
+2026-03-30 20:55:29,932 [DEBUG]   trkqual 12029~889615380608~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,932 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615380608&trkqual=10800~889615380608~FDXE
+2026-03-30 20:55:29,933 [DEBUG]   trkqual 10800~889615380608~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,933 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889615380608&trkqual=10800~889615380608~FXSP
+2026-03-30 20:55:29,934 [DEBUG]   trkqual 10800~889615380608~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,934 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 889615380608
+2026-03-30 20:55:29,935 [WARNING]   No sub-IDs found for 889615380608 — check carrier website manually
+2026-03-30 20:55:29,935 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,935 [INFO] 
+FBA FBA1994W8NZR: 1 main tracking entries
+2026-03-30 20:55:29,935 [INFO]   Fetching sub-tracking for 870080398573 (FEDEX)
+2026-03-30 20:55:29,936 [INFO]   Trying 4 trkqual candidates for 870080398573
+2026-03-30 20:55:29,937 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870080398573&trkqual=12030~870080398573~FDEG
+2026-03-30 20:55:29,938 [DEBUG]   trkqual 12030~870080398573~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,938 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870080398573&trkqual=12029~870080398573~FDEG
+2026-03-30 20:55:29,939 [DEBUG]   trkqual 12029~870080398573~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,939 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870080398573&trkqual=10800~870080398573~FDXE
+2026-03-30 20:55:29,941 [DEBUG]   trkqual 10800~870080398573~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,941 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870080398573&trkqual=10800~870080398573~FXSP
+2026-03-30 20:55:29,942 [DEBUG]   trkqual 10800~870080398573~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,942 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 870080398573
+2026-03-30 20:55:29,943 [WARNING]   No sub-IDs found for 870080398573 — check carrier website manually
+2026-03-30 20:55:29,943 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,943 [INFO] 
+FBA FBA197HFQ6Y9: 1 main tracking entries
+2026-03-30 20:55:29,943 [INFO]   Fetching sub-tracking for 1Z765YW90337913756 (UPS)
+2026-03-30 20:55:29,943 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90337913756&loc=en_US
+2026-03-30 20:55:29,945 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,945 [WARNING]   No sub-IDs found for 1Z765YW90337913756 — check carrier website manually
+2026-03-30 20:55:29,945 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,945 [INFO] 
+FBA FBA1994WJJM0: 1 main tracking entries
+2026-03-30 20:55:29,945 [INFO]   -> reusing already-fetched pool for shared tracking 870079319190
+2026-03-30 20:55:29,945 [INFO] 
+FBA FBA195W4HTHN: 1 main tracking entries
+2026-03-30 20:55:29,945 [INFO]   Fetching sub-tracking for 1Z035B4X0320636914 (UPS)
+2026-03-30 20:55:29,945 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z035B4X0320636914&loc=en_US
+2026-03-30 20:55:29,947 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,947 [WARNING]   No sub-IDs found for 1Z035B4X0320636914 — check carrier website manually
+2026-03-30 20:55:29,947 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,947 [INFO] 
+FBA FBA1994W44D1: 1 main tracking entries
+2026-03-30 20:55:29,947 [INFO]   Fetching sub-tracking for 1Z765YW90328207447 (UPS)
+2026-03-30 20:55:29,947 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90328207447&loc=en_US
+2026-03-30 20:55:29,949 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,949 [WARNING]   No sub-IDs found for 1Z765YW90328207447 — check carrier website manually
+2026-03-30 20:55:29,949 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,949 [INFO] 
+FBA FBA1976XBL9F: 1 main tracking entries
+2026-03-30 20:55:29,949 [INFO]   Fetching sub-tracking for 1Z765YW90332058387 (UPS)
+2026-03-30 20:55:29,949 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90332058387&loc=en_US
+2026-03-30 20:55:29,951 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,951 [WARNING]   No sub-IDs found for 1Z765YW90332058387 — check carrier website manually
+2026-03-30 20:55:29,951 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,951 [INFO] 
+FBA FBA198MN5NHS: 1 main tracking entries
+2026-03-30 20:55:29,951 [INFO]   -> reusing already-fetched pool for shared tracking 889615380608
+2026-03-30 20:55:29,951 [INFO] 
+FBA FBA198MNS2RT: 1 main tracking entries
+2026-03-30 20:55:29,951 [INFO]   -> reusing already-fetched pool for shared tracking 889615331920
+2026-03-30 20:55:29,951 [INFO] 
+FBA FBA1924FWPYT: 1 main tracking entries
+2026-03-30 20:55:29,951 [INFO]   Fetching sub-tracking for 1ZA6D7510412465060 (UPS)
+2026-03-30 20:55:29,952 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZA6D7510412465060&loc=en_US
+2026-03-30 20:55:29,954 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,954 [WARNING]   No sub-IDs found for 1ZA6D7510412465060 — check carrier website manually
+2026-03-30 20:55:29,954 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,954 [INFO] 
+FBA FBA196GJL5C1: 1 main tracking entries
+2026-03-30 20:55:29,954 [INFO]   Fetching sub-tracking for 888178034340 (FEDEX)
+2026-03-30 20:55:29,956 [INFO]   Trying 4 trkqual candidates for 888178034340
+2026-03-30 20:55:29,956 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888178034340&trkqual=12030~888178034340~FDEG
+2026-03-30 20:55:29,958 [DEBUG]   trkqual 12030~888178034340~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,958 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888178034340&trkqual=12029~888178034340~FDEG
+2026-03-30 20:55:29,959 [DEBUG]   trkqual 12029~888178034340~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,959 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888178034340&trkqual=10800~888178034340~FDXE
+2026-03-30 20:55:29,961 [DEBUG]   trkqual 10800~888178034340~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,961 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888178034340&trkqual=10800~888178034340~FXSP
+2026-03-30 20:55:29,963 [DEBUG]   trkqual 10800~888178034340~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,963 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 888178034340
+2026-03-30 20:55:29,964 [WARNING]   No sub-IDs found for 888178034340 — check carrier website manually
+2026-03-30 20:55:29,964 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,965 [INFO] 
+FBA FBA195KFDJQ6: 1 main tracking entries
+2026-03-30 20:55:29,965 [INFO]   Fetching sub-tracking for 1ZG2E7070301444706 (UPS)
+2026-03-30 20:55:29,965 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZG2E7070301444706&loc=en_US
+2026-03-30 20:55:29,966 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,966 [WARNING]   No sub-IDs found for 1ZG2E7070301444706 — check carrier website manually
+2026-03-30 20:55:29,966 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,966 [INFO] 
+FBA FBA1968XYYNC: 1 main tracking entries
+2026-03-30 20:55:29,966 [INFO]   Fetching sub-tracking for 1Z88F19Y0349041250 (UPS)
+2026-03-30 20:55:29,966 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z88F19Y0349041250&loc=en_US
+2026-03-30 20:55:29,968 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,968 [WARNING]   No sub-IDs found for 1Z88F19Y0349041250 — check carrier website manually
+2026-03-30 20:55:29,968 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,968 [INFO] 
+FBA FBA1978NH5R3: 1 main tracking entries
+2026-03-30 20:55:29,968 [INFO]   Fetching sub-tracking for 1Z765YW90313954337 (UPS)
+2026-03-30 20:55:29,968 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90313954337&loc=en_US
+2026-03-30 20:55:29,969 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,970 [WARNING]   No sub-IDs found for 1Z765YW90313954337 — check carrier website manually
+2026-03-30 20:55:29,970 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,970 [INFO] 
+FBA FBA1972MKJNZ: 1 main tracking entries
+2026-03-30 20:55:29,970 [INFO]   Fetching sub-tracking for 888584646050 (FEDEX)
+2026-03-30 20:55:29,971 [INFO]   Trying 4 trkqual candidates for 888584646050
+2026-03-30 20:55:29,971 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584646050&trkqual=12030~888584646050~FDEG
+2026-03-30 20:55:29,973 [DEBUG]   trkqual 12030~888584646050~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,974 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584646050&trkqual=12029~888584646050~FDEG
+2026-03-30 20:55:29,975 [DEBUG]   trkqual 12029~888584646050~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,975 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584646050&trkqual=10800~888584646050~FDXE
+2026-03-30 20:55:29,977 [DEBUG]   trkqual 10800~888584646050~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,977 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584646050&trkqual=10800~888584646050~FXSP
+2026-03-30 20:55:29,979 [DEBUG]   trkqual 10800~888584646050~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,979 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 888584646050
+2026-03-30 20:55:29,981 [WARNING]   No sub-IDs found for 888584646050 — check carrier website manually
+2026-03-30 20:55:29,981 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,981 [INFO] 
+FBA FBA19659Y3RJ: 1 main tracking entries
+2026-03-30 20:55:29,981 [INFO]   Fetching sub-tracking for 1Z53F19R0491226208 (UPS)
+2026-03-30 20:55:29,981 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z53F19R0491226208&loc=en_US
+2026-03-30 20:55:29,983 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,983 [WARNING]   No sub-IDs found for 1Z53F19R0491226208 — check carrier website manually
+2026-03-30 20:55:29,983 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,983 [INFO] 
+FBA FBA197HCLBGJ: 1 main tracking entries
+2026-03-30 20:55:29,983 [INFO]   Fetching sub-tracking for 888675460056 (FEDEX)
+2026-03-30 20:55:29,989 [INFO]   Trying 4 trkqual candidates for 888675460056
+2026-03-30 20:55:29,989 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888675460056&trkqual=12030~888675460056~FDEG
+2026-03-30 20:55:29,990 [DEBUG]   trkqual 12030~888675460056~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,990 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888675460056&trkqual=12029~888675460056~FDEG
+2026-03-30 20:55:29,992 [DEBUG]   trkqual 12029~888675460056~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,992 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888675460056&trkqual=10800~888675460056~FDXE
+2026-03-30 20:55:29,994 [DEBUG]   trkqual 10800~888675460056~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,994 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888675460056&trkqual=10800~888675460056~FXSP
+2026-03-30 20:55:29,995 [DEBUG]   trkqual 10800~888675460056~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,995 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 888675460056
+2026-03-30 20:55:29,996 [WARNING]   No sub-IDs found for 888675460056 — check carrier website manually
+2026-03-30 20:55:29,996 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,996 [INFO] 
+FBA FBA195KFXXLQ: 1 main tracking entries
+2026-03-30 20:55:29,996 [INFO]   Fetching sub-tracking for 1ZR1H5150328780539 (UPS)
+2026-03-30 20:55:29,996 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZR1H5150328780539&loc=en_US
+2026-03-30 20:55:29,997 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,998 [WARNING]   No sub-IDs found for 1ZR1H5150328780539 — check carrier website manually
+2026-03-30 20:55:29,998 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,998 [INFO] 
+FBA FBA1994XHX7Z: 1 main tracking entries
+2026-03-30 20:55:29,998 [INFO]   Fetching sub-tracking for 1Z035B4X0320686192 (UPS)
+2026-03-30 20:55:29,998 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z035B4X0320686192&loc=en_US
+2026-03-30 20:55:29,999 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:29,999 [WARNING]   No sub-IDs found for 1Z035B4X0320686192 — check carrier website manually
+2026-03-30 20:55:29,999 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:29,999 [INFO] 
+FBA FBA198B9GG6N: 1 main tracking entries
+2026-03-30 20:55:30,000 [INFO]   -> reusing already-fetched pool for shared tracking 1Z036E5H0321633795
+2026-03-30 20:55:30,000 [INFO] 
+FBA FBA19659DXNC: 1 main tracking entries
+2026-03-30 20:55:30,000 [INFO]   Fetching sub-tracking for 887989105762 (FEDEX)
+2026-03-30 20:55:30,001 [INFO]   Trying 4 trkqual candidates for 887989105762
+2026-03-30 20:55:30,001 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887989105762&trkqual=12030~887989105762~FDEG
+2026-03-30 20:55:30,002 [DEBUG]   trkqual 12030~887989105762~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,002 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887989105762&trkqual=12029~887989105762~FDEG
+2026-03-30 20:55:30,004 [DEBUG]   trkqual 12029~887989105762~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,004 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887989105762&trkqual=10800~887989105762~FDXE
+2026-03-30 20:55:30,005 [DEBUG]   trkqual 10800~887989105762~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,005 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887989105762&trkqual=10800~887989105762~FXSP
+2026-03-30 20:55:30,006 [DEBUG]   trkqual 10800~887989105762~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,006 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 887989105762
+2026-03-30 20:55:30,008 [WARNING]   No sub-IDs found for 887989105762 — check carrier website manually
+2026-03-30 20:55:30,008 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,008 [INFO] 
+FBA FBA197G2V41K: 1 main tracking entries
+2026-03-30 20:55:30,008 [INFO]   Fetching sub-tracking for 888584715763 (FEDEX)
+2026-03-30 20:55:30,009 [INFO]   Trying 4 trkqual candidates for 888584715763
+2026-03-30 20:55:30,009 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584715763&trkqual=12030~888584715763~FDEG
+2026-03-30 20:55:30,011 [DEBUG]   trkqual 12030~888584715763~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,011 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584715763&trkqual=12029~888584715763~FDEG
+2026-03-30 20:55:30,012 [DEBUG]   trkqual 12029~888584715763~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,012 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584715763&trkqual=10800~888584715763~FDXE
+2026-03-30 20:55:30,013 [DEBUG]   trkqual 10800~888584715763~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,013 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584715763&trkqual=10800~888584715763~FXSP
+2026-03-30 20:55:30,014 [DEBUG]   trkqual 10800~888584715763~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,014 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 888584715763
+2026-03-30 20:55:30,016 [WARNING]   No sub-IDs found for 888584715763 — check carrier website manually
+2026-03-30 20:55:30,016 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,016 [INFO] 
+FBA FBA196S3D07M: 1 main tracking entries
+2026-03-30 20:55:30,016 [INFO]   -> reusing already-fetched pool for shared tracking 1Z036E5H0316737540
+2026-03-30 20:55:30,016 [INFO] 
+FBA FBA1994STMLD: 1 main tracking entries
+2026-03-30 20:55:30,016 [INFO]   Fetching sub-tracking for 1Z765YW90318779509 (UPS)
+2026-03-30 20:55:30,016 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90318779509&loc=en_US
+2026-03-30 20:55:30,017 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,017 [WARNING]   No sub-IDs found for 1Z765YW90318779509 — check carrier website manually
+2026-03-30 20:55:30,017 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,017 [INFO] 
+FBA FBA196Q8M55J: 1 main tracking entries
+2026-03-30 20:55:30,017 [INFO]   Fetching sub-tracking for 1Z765YW90301555915 (UPS)
+2026-03-30 20:55:30,018 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90301555915&loc=en_US
+2026-03-30 20:55:30,019 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,019 [WARNING]   No sub-IDs found for 1Z765YW90301555915 — check carrier website manually
+2026-03-30 20:55:30,019 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,019 [INFO] 
+FBA FBA196S4XTYH: 1 main tracking entries
+2026-03-30 20:55:30,019 [INFO]   -> reusing already-fetched pool for shared tracking 1Z765YW90338493986
+2026-03-30 20:55:30,019 [INFO] 
+FBA FBA1978MZ07N: 1 main tracking entries
+2026-03-30 20:55:30,019 [INFO]   -> reusing already-fetched pool for shared tracking 1Z036E5H0330060271
+2026-03-30 20:55:30,020 [INFO] 
+FBA FBA196GJK92W: 1 main tracking entries
+2026-03-30 20:55:30,020 [INFO]   Fetching sub-tracking for 888178043790 (FEDEX)
+2026-03-30 20:55:30,021 [INFO]   Trying 4 trkqual candidates for 888178043790
+2026-03-30 20:55:30,021 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888178043790&trkqual=12030~888178043790~FDEG
+2026-03-30 20:55:30,022 [DEBUG]   trkqual 12030~888178043790~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,022 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888178043790&trkqual=12029~888178043790~FDEG
+2026-03-30 20:55:30,024 [DEBUG]   trkqual 12029~888178043790~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,024 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888178043790&trkqual=10800~888178043790~FDXE
+2026-03-30 20:55:30,025 [DEBUG]   trkqual 10800~888178043790~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,025 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888178043790&trkqual=10800~888178043790~FXSP
+2026-03-30 20:55:30,026 [DEBUG]   trkqual 10800~888178043790~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,026 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 888178043790
+2026-03-30 20:55:30,027 [WARNING]   No sub-IDs found for 888178043790 — check carrier website manually
+2026-03-30 20:55:30,027 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,027 [INFO] 
+FBA FBA1968ZKT05: 1 main tracking entries
+2026-03-30 20:55:30,028 [INFO]   Fetching sub-tracking for 887989782517 (FEDEX)
+2026-03-30 20:55:30,029 [INFO]   Trying 4 trkqual candidates for 887989782517
+2026-03-30 20:55:30,029 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887989782517&trkqual=12030~887989782517~FDEG
+2026-03-30 20:55:30,030 [DEBUG]   trkqual 12030~887989782517~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,030 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887989782517&trkqual=12029~887989782517~FDEG
+2026-03-30 20:55:30,031 [DEBUG]   trkqual 12029~887989782517~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,031 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887989782517&trkqual=10800~887989782517~FDXE
+2026-03-30 20:55:30,032 [DEBUG]   trkqual 10800~887989782517~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,032 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887989782517&trkqual=10800~887989782517~FXSP
+2026-03-30 20:55:30,034 [DEBUG]   trkqual 10800~887989782517~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,034 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 887989782517
+2026-03-30 20:55:30,035 [WARNING]   No sub-IDs found for 887989782517 — check carrier website manually
+2026-03-30 20:55:30,036 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,036 [INFO] 
+FBA FBA196S4SMHM: 1 main tracking entries
+2026-03-30 20:55:30,036 [INFO]   Fetching sub-tracking for 888584476804 (FEDEX)
+2026-03-30 20:55:30,037 [INFO]   Trying 4 trkqual candidates for 888584476804
+2026-03-30 20:55:30,037 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584476804&trkqual=12030~888584476804~FDEG
+2026-03-30 20:55:30,038 [DEBUG]   trkqual 12030~888584476804~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,038 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584476804&trkqual=12029~888584476804~FDEG
+2026-03-30 20:55:30,039 [DEBUG]   trkqual 12029~888584476804~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,040 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584476804&trkqual=10800~888584476804~FDXE
+2026-03-30 20:55:30,041 [DEBUG]   trkqual 10800~888584476804~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,041 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584476804&trkqual=10800~888584476804~FXSP
+2026-03-30 20:55:30,043 [DEBUG]   trkqual 10800~888584476804~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,043 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 888584476804
+2026-03-30 20:55:30,044 [WARNING]   No sub-IDs found for 888584476804 — check carrier website manually
+2026-03-30 20:55:30,044 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,044 [INFO] 
+FBA FBA198L0S8BF: 1 main tracking entries
+2026-03-30 20:55:30,044 [INFO]   -> reusing already-fetched pool for shared tracking 1Z036E5H0310265909
+2026-03-30 20:55:30,044 [INFO] 
+FBA FBA199532MZ3: 1 main tracking entries
+2026-03-30 20:55:30,044 [INFO]   -> reusing already-fetched pool for shared tracking 1Z765YW90330931043
+2026-03-30 20:55:30,044 [INFO] 
+FBA FBA196598GYB: 1 main tracking entries
+2026-03-30 20:55:30,044 [INFO]   Fetching sub-tracking for 1ZK6B4420305889366 (UPS)
+2026-03-30 20:55:30,044 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZK6B4420305889366&loc=en_US
+2026-03-30 20:55:30,045 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,045 [WARNING]   No sub-IDs found for 1ZK6B4420305889366 — check carrier website manually
+2026-03-30 20:55:30,046 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,046 [INFO] 
+FBA FBA1994SLXTR: 1 main tracking entries
+2026-03-30 20:55:30,046 [INFO]   Fetching sub-tracking for 1Z765YW90307269027 (UPS)
+2026-03-30 20:55:30,046 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90307269027&loc=en_US
+2026-03-30 20:55:30,047 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,047 [WARNING]   No sub-IDs found for 1Z765YW90307269027 — check carrier website manually
+2026-03-30 20:55:30,047 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,047 [INFO] 
+FBA FBA198L0VZDW: 1 main tracking entries
+2026-03-30 20:55:30,047 [INFO]   Fetching sub-tracking for 1Z036E5H0322550346 (UPS)
+2026-03-30 20:55:30,047 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z036E5H0322550346&loc=en_US
+2026-03-30 20:55:30,049 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,049 [WARNING]   No sub-IDs found for 1Z036E5H0322550346 — check carrier website manually
+2026-03-30 20:55:30,049 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,049 [INFO] 
+FBA FBA195W5TZJF: 1 main tracking entries
+2026-03-30 20:55:30,049 [INFO]   Fetching sub-tracking for 1Z035B4X0300188991 (UPS)
+2026-03-30 20:55:30,049 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z035B4X0300188991&loc=en_US
+2026-03-30 20:55:30,051 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,051 [WARNING]   No sub-IDs found for 1Z035B4X0300188991 — check carrier website manually
+2026-03-30 20:55:30,051 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,051 [INFO] 
+FBA FBA1974M4SY4: 1 main tracking entries
+2026-03-30 20:55:30,051 [INFO]   Fetching sub-tracking for 1Z765YW90320907231 (UPS)
+2026-03-30 20:55:30,051 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90320907231&loc=en_US
+2026-03-30 20:55:30,052 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,052 [WARNING]   No sub-IDs found for 1Z765YW90320907231 — check carrier website manually
+2026-03-30 20:55:30,052 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,052 [INFO] 
+FBA FBA1974P91HS: 1 main tracking entries
+2026-03-30 20:55:30,052 [INFO]   Fetching sub-tracking for 1Z765YW90312369258 (UPS)
+2026-03-30 20:55:30,052 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90312369258&loc=en_US
+2026-03-30 20:55:30,053 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,053 [WARNING]   No sub-IDs found for 1Z765YW90312369258 — check carrier website manually
+2026-03-30 20:55:30,054 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,054 [INFO] 
+FBA FBA1968YG6M9: 1 main tracking entries
+2026-03-30 20:55:30,054 [INFO]   Fetching sub-tracking for 887989782860 (FEDEX)
+2026-03-30 20:55:30,055 [INFO]   Trying 4 trkqual candidates for 887989782860
+2026-03-30 20:55:30,055 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887989782860&trkqual=12030~887989782860~FDEG
+2026-03-30 20:55:30,057 [DEBUG]   trkqual 12030~887989782860~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,057 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887989782860&trkqual=12029~887989782860~FDEG
+2026-03-30 20:55:30,058 [DEBUG]   trkqual 12029~887989782860~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,058 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887989782860&trkqual=10800~887989782860~FDXE
+2026-03-30 20:55:30,059 [DEBUG]   trkqual 10800~887989782860~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,059 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887989782860&trkqual=10800~887989782860~FXSP
+2026-03-30 20:55:30,061 [DEBUG]   trkqual 10800~887989782860~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,061 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 887989782860
+2026-03-30 20:55:30,062 [WARNING]   No sub-IDs found for 887989782860 — check carrier website manually
+2026-03-30 20:55:30,062 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,062 [INFO] 
+FBA FBA196S4P3NF: 1 main tracking entries
+2026-03-30 20:55:30,062 [INFO]   Fetching sub-tracking for 1Z036E5H0320270616 (UPS)
+2026-03-30 20:55:30,062 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z036E5H0320270616&loc=en_US
+2026-03-30 20:55:30,063 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,063 [WARNING]   No sub-IDs found for 1Z036E5H0320270616 — check carrier website manually
+2026-03-30 20:55:30,063 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,063 [INFO] 
+FBA FBA19953X8YM: 1 main tracking entries
+2026-03-30 20:55:30,063 [INFO]   Fetching sub-tracking for 1ZC8389W0321313220 (UPS)
+2026-03-30 20:55:30,063 [INFO]   Loading: https://www.ups.com/track?tracknum=1ZC8389W0321313220&loc=en_US
+2026-03-30 20:55:30,065 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,065 [WARNING]   No sub-IDs found for 1ZC8389W0321313220 — check carrier website manually
+2026-03-30 20:55:30,065 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,065 [INFO] 
+FBA FBA198G7HFTM: 1 main tracking entries
+2026-03-30 20:55:30,065 [INFO]   Fetching sub-tracking for 889391933705 (FEDEX)
+2026-03-30 20:55:30,066 [INFO]   Trying 4 trkqual candidates for 889391933705
+2026-03-30 20:55:30,066 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889391933705&trkqual=12030~889391933705~FDEG
+2026-03-30 20:55:30,067 [DEBUG]   trkqual 12030~889391933705~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,067 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889391933705&trkqual=12029~889391933705~FDEG
+2026-03-30 20:55:30,069 [DEBUG]   trkqual 12029~889391933705~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,069 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889391933705&trkqual=10800~889391933705~FDXE
+2026-03-30 20:55:30,070 [DEBUG]   trkqual 10800~889391933705~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,070 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889391933705&trkqual=10800~889391933705~FXSP
+2026-03-30 20:55:30,071 [DEBUG]   trkqual 10800~889391933705~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,071 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 889391933705
+2026-03-30 20:55:30,073 [WARNING]   No sub-IDs found for 889391933705 — check carrier website manually
+2026-03-30 20:55:30,073 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,073 [INFO] 
+FBA FBA1976WTG48: 1 main tracking entries
+2026-03-30 20:55:30,073 [INFO]   Fetching sub-tracking for 888584831924 (FEDEX)
+2026-03-30 20:55:30,074 [INFO]   Trying 4 trkqual candidates for 888584831924
+2026-03-30 20:55:30,074 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584831924&trkqual=12030~888584831924~FDEG
+2026-03-30 20:55:30,075 [DEBUG]   trkqual 12030~888584831924~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,075 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584831924&trkqual=12029~888584831924~FDEG
+2026-03-30 20:55:30,077 [DEBUG]   trkqual 12029~888584831924~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,077 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584831924&trkqual=10800~888584831924~FDXE
+2026-03-30 20:55:30,078 [DEBUG]   trkqual 10800~888584831924~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,078 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584831924&trkqual=10800~888584831924~FXSP
+2026-03-30 20:55:30,079 [DEBUG]   trkqual 10800~888584831924~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,079 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 888584831924
+2026-03-30 20:55:30,080 [WARNING]   No sub-IDs found for 888584831924 — check carrier website manually
+2026-03-30 20:55:30,080 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,080 [INFO] 
+FBA FBA1994VN2FK: 1 main tracking entries
+2026-03-30 20:55:30,080 [INFO]   Fetching sub-tracking for 1Z035B4X0333205347 (UPS)
+2026-03-30 20:55:30,080 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z035B4X0333205347&loc=en_US
+2026-03-30 20:55:30,081 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,081 [WARNING]   No sub-IDs found for 1Z035B4X0333205347 — check carrier website manually
+2026-03-30 20:55:30,081 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,081 [INFO] 
+FBA FBA195KDPZ15: 1 main tracking entries
+2026-03-30 20:55:30,081 [INFO]   Fetching sub-tracking for 1Z53F19R0497470808 (UPS)
+2026-03-30 20:55:30,081 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z53F19R0497470808&loc=en_US
+2026-03-30 20:55:30,083 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,083 [WARNING]   No sub-IDs found for 1Z53F19R0497470808 — check carrier website manually
+2026-03-30 20:55:30,083 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,083 [INFO] 
+FBA FBA197D2ZS2S: 1 main tracking entries
+2026-03-30 20:55:30,083 [INFO]   -> reusing already-fetched pool for shared tracking 888584419988
+2026-03-30 20:55:30,083 [INFO] 
+FBA FBA1974NGD95: 1 main tracking entries
+2026-03-30 20:55:30,083 [INFO]   Fetching sub-tracking for 888584427493 (FEDEX)
+2026-03-30 20:55:30,084 [INFO]   Trying 4 trkqual candidates for 888584427493
+2026-03-30 20:55:30,084 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584427493&trkqual=12030~888584427493~FDEG
+2026-03-30 20:55:30,085 [DEBUG]   trkqual 12030~888584427493~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,085 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584427493&trkqual=12029~888584427493~FDEG
+2026-03-30 20:55:30,086 [DEBUG]   trkqual 12029~888584427493~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,086 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584427493&trkqual=10800~888584427493~FDXE
+2026-03-30 20:55:30,087 [DEBUG]   trkqual 10800~888584427493~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,087 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=888584427493&trkqual=10800~888584427493~FXSP
+2026-03-30 20:55:30,088 [DEBUG]   trkqual 10800~888584427493~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,088 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 888584427493
+2026-03-30 20:55:30,089 [WARNING]   No sub-IDs found for 888584427493 — check carrier website manually
+2026-03-30 20:55:30,089 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,089 [INFO] 
+FBA FBA19691M6ZB: 1 main tracking entries
+2026-03-30 20:55:30,089 [INFO]   -> reusing already-fetched pool for shared tracking 1Z765YW90320907231
+2026-03-30 20:55:30,090 [INFO] 
+FBA FBA19952VV03: 1 main tracking entries
+2026-03-30 20:55:30,090 [INFO]   Fetching sub-tracking for 870080398698 (FEDEX)
+2026-03-30 20:55:30,091 [INFO]   Trying 4 trkqual candidates for 870080398698
+2026-03-30 20:55:30,091 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870080398698&trkqual=12030~870080398698~FDEG
+2026-03-30 20:55:30,092 [DEBUG]   trkqual 12030~870080398698~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,092 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870080398698&trkqual=12029~870080398698~FDEG
+2026-03-30 20:55:30,093 [DEBUG]   trkqual 12029~870080398698~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,093 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870080398698&trkqual=10800~870080398698~FDXE
+2026-03-30 20:55:30,094 [DEBUG]   trkqual 10800~870080398698~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,094 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=870080398698&trkqual=10800~870080398698~FXSP
+2026-03-30 20:55:30,096 [DEBUG]   trkqual 10800~870080398698~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,096 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 870080398698
+2026-03-30 20:55:30,097 [WARNING]   No sub-IDs found for 870080398698 — check carrier website manually
+2026-03-30 20:55:30,097 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,097 [INFO] 
+FBA FBA1976Y23ZS: 1 main tracking entries
+2026-03-30 20:55:30,097 [INFO]   Fetching sub-tracking for 1Z765YW90335559705 (UPS)
+2026-03-30 20:55:30,097 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90335559705&loc=en_US
+2026-03-30 20:55:30,098 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,098 [WARNING]   No sub-IDs found for 1Z765YW90335559705 — check carrier website manually
+2026-03-30 20:55:30,098 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,099 [INFO] 
+FBA FBA1994X2GQQ: 1 main tracking entries
+2026-03-30 20:55:30,099 [INFO]   Fetching sub-tracking for 1Z036E5H0332417383 (UPS)
+2026-03-30 20:55:30,099 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z036E5H0332417383&loc=en_US
+2026-03-30 20:55:30,100 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,100 [WARNING]   No sub-IDs found for 1Z036E5H0332417383 — check carrier website manually
+2026-03-30 20:55:30,100 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,100 [INFO] 
+FBA FBA195W4S5L8: 1 main tracking entries
+2026-03-30 20:55:30,100 [INFO]   Fetching sub-tracking for 887795808473 (FedEx)
+2026-03-30 20:55:30,101 [INFO]   Trying 4 trkqual candidates for 887795808473
+2026-03-30 20:55:30,101 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887795808473&trkqual=12030~887795808473~FDEG
+2026-03-30 20:55:30,102 [DEBUG]   trkqual 12030~887795808473~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,102 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887795808473&trkqual=12029~887795808473~FDEG
+2026-03-30 20:55:30,104 [DEBUG]   trkqual 12029~887795808473~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,104 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887795808473&trkqual=10800~887795808473~FDXE
+2026-03-30 20:55:30,105 [DEBUG]   trkqual 10800~887795808473~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,105 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=887795808473&trkqual=10800~887795808473~FXSP
+2026-03-30 20:55:30,106 [DEBUG]   trkqual 10800~887795808473~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,106 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 887795808473
+2026-03-30 20:55:30,108 [WARNING]   No sub-IDs found for 887795808473 — check carrier website manually
+2026-03-30 20:55:30,108 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,108 [INFO] 
+FBA FBA198L0JGRD: 1 main tracking entries
+2026-03-30 20:55:30,108 [INFO]   -> reusing already-fetched pool for shared tracking 1Z036E5H0320533627
+2026-03-30 20:55:30,108 [INFO] 
+FBA FBA195RTL58W: 1 main tracking entries
+2026-03-30 20:55:30,108 [INFO]   -> reusing already-fetched pool for shared tracking 887795834529
+2026-03-30 20:55:30,108 [INFO] 
+FBA FBA195RQWLVN: 1 main tracking entries
+2026-03-30 20:55:30,108 [INFO]   -> reusing already-fetched pool for shared tracking 1ZG2E7070301444706
+2026-03-30 20:55:30,108 [INFO] 
+FBA FBA197D1329W: 1 main tracking entries
+2026-03-30 20:55:30,108 [INFO]   -> reusing already-fetched pool for shared tracking 1Z036E5H0330060271
+2026-03-30 20:55:30,108 [INFO] 
+FBA FBA1976WX5LB: 1 main tracking entries
+2026-03-30 20:55:30,108 [INFO]   Fetching sub-tracking for 1Z765YW90331845028 (UPS)
+2026-03-30 20:55:30,108 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90331845028&loc=en_US
+2026-03-30 20:55:30,109 [ERROR]   Failed to load page: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,109 [WARNING]   No sub-IDs found for 1Z765YW90331845028 — check carrier website manually
+2026-03-30 20:55:30,109 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,109 [INFO] 
+FBA FBA19951PZX7: 1 main tracking entries
+2026-03-30 20:55:30,110 [INFO]   Fetching sub-tracking for 889841955661 (FEDEX)
+2026-03-30 20:55:30,111 [INFO]   Trying 4 trkqual candidates for 889841955661
+2026-03-30 20:55:30,111 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841955661&trkqual=12030~889841955661~FDEG
+2026-03-30 20:55:30,112 [DEBUG]   trkqual 12030~889841955661~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,112 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841955661&trkqual=12029~889841955661~FDEG
+2026-03-30 20:55:30,113 [DEBUG]   trkqual 12029~889841955661~FDEG load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,113 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841955661&trkqual=10800~889841955661~FDXE
+2026-03-30 20:55:30,114 [DEBUG]   trkqual 10800~889841955661~FDXE load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,114 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841955661&trkqual=10800~889841955661~FXSP
+2026-03-30 20:55:30,116 [DEBUG]   trkqual 10800~889841955661~FXSP load error: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,116 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 889841955661
+2026-03-30 20:55:30,117 [WARNING]   No sub-IDs found for 889841955661 — check carrier website manually
+2026-03-30 20:55:30,118 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-30 20:55:30,118 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MM4Q36/tracking
+2026-03-30 20:55:30,119 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,119 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MP8HT5/tracking
+2026-03-30 20:55:30,121 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,121 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['1ZK6B4420300436229']
+2026-03-30 20:55:30,121 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994TVYY9/tracking
+2026-03-30 20:55:30,122 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,122 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994WJJM0/tracking
+2026-03-30 20:55:30,123 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,124 [WARNING]   Pool has 6 IDs but only 0 slots — leftover: ['870079319190', '870079319204', '870079319215', '870079319226', '870079319237', '870079319248']
+2026-03-30 20:55:30,124 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197G30X63/tracking
+2026-03-30 20:55:30,125 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,125 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1974K3MSK/tracking
+2026-03-30 20:55:30,126 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,126 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1978LLQNX/tracking
+2026-03-30 20:55:30,128 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,128 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['888584455850']
+2026-03-30 20:55:30,128 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197G1ZXPZ/tracking
+2026-03-30 20:55:30,129 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,129 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1978MKF7Z/tracking
+2026-03-30 20:55:30,130 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,130 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['888584496379']
+2026-03-30 20:55:30,131 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1974PGMNJ/tracking
+2026-03-30 20:55:30,132 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,132 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196S4XTYH/tracking
+2026-03-30 20:55:30,133 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,133 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['1Z765YW90338493986']
+2026-03-30 20:55:30,133 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198B9GMJT/tracking
+2026-03-30 20:55:30,135 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,135 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198L0S8BF/tracking
+2026-03-30 20:55:30,136 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,136 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['1Z036E5H0310265909']
+2026-03-30 20:55:30,136 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19692LS2Z/tracking
+2026-03-30 20:55:30,138 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,138 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1978M390T/tracking
+2026-03-30 20:55:30,139 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,139 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['888584416154']
+2026-03-30 20:55:30,139 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNVCDH/tracking
+2026-03-30 20:55:30,140 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,141 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MP8FJ6/tracking
+2026-03-30 20:55:30,142 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,142 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['1ZK6B4420311769715']
+2026-03-30 20:55:30,142 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198B8Q91F/tracking
+2026-03-30 20:55:30,143 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,143 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198KZ9P9K/tracking
+2026-03-30 20:55:30,145 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,145 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['889391907844']
+2026-03-30 20:55:30,145 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KGXQDF/tracking
+2026-03-30 20:55:30,146 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,146 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195RQLSNM/tracking
+2026-03-30 20:55:30,147 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,148 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['1Z035B4X0331800519']
+2026-03-30 20:55:30,148 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195W56JZ2/tracking
+2026-03-30 20:55:30,149 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,149 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195RTL58W/tracking
+2026-03-30 20:55:30,150 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,150 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['887795834529']
+2026-03-30 20:55:30,150 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197G1P0Y9/tracking
+2026-03-30 20:55:30,152 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,152 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1978MZ07N/tracking
+2026-03-30 20:55:30,153 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,153 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197D1329W/tracking
+2026-03-30 20:55:30,155 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,155 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['1Z036E5H0330060271']
+2026-03-30 20:55:30,155 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198B71ZZT/tracking
+2026-03-30 20:55:30,156 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,156 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198G682TX/tracking
+2026-03-30 20:55:30,157 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,157 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['1Z53F19R0491882348']
+2026-03-30 20:55:30,157 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNQG7C/tracking
+2026-03-30 20:55:30,159 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,159 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MN2JXL/tracking
+2026-03-30 20:55:30,160 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,160 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNS2RT/tracking
+2026-03-30 20:55:30,165 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,165 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['889615331920']
+2026-03-30 20:55:30,165 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198G6XCCF/tracking
+2026-03-30 20:55:30,168 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,168 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198B9GG6N/tracking
+2026-03-30 20:55:30,170 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,170 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['1Z036E5H0321633795']
+2026-03-30 20:55:30,170 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196916Q98/tracking
+2026-03-30 20:55:30,173 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,173 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197D2ZS2S/tracking
+2026-03-30 20:55:30,175 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,175 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['888584419988']
+2026-03-30 20:55:30,175 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198B9K8NM/tracking
+2026-03-30 20:55:30,177 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,177 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198L0JGRD/tracking
+2026-03-30 20:55:30,180 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,180 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['1Z036E5H0320533627']
+2026-03-30 20:55:30,180 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19691WY6R/tracking
+2026-03-30 20:55:30,182 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,182 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1972N97WY/tracking
+2026-03-30 20:55:30,183 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,183 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['1Z036E5H0326651935']
+2026-03-30 20:55:30,184 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197D0R9QL/tracking
+2026-03-30 20:55:30,185 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,185 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196S3D07M/tracking
+2026-03-30 20:55:30,187 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,187 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['1Z036E5H0316737540']
+2026-03-30 20:55:30,187 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994VYMRC/tracking
+2026-03-30 20:55:30,190 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,190 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA199532MZ3/tracking
+2026-03-30 20:55:30,201 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,201 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['1Z765YW90330931043']
+2026-03-30 20:55:30,202 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MNFVNH/tracking
+2026-03-30 20:55:30,205 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,205 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MN5NHS/tracking
+2026-03-30 20:55:30,209 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,209 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['889615380608']
+2026-03-30 20:55:30,209 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KFDJQ6/tracking
+2026-03-30 20:55:30,211 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,211 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195RQWLVN/tracking
+2026-03-30 20:55:30,215 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,215 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['1ZG2E7070301444706']
+2026-03-30 20:55:30,216 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1974M4SY4/tracking
+2026-03-30 20:55:30,218 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,219 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19691M6ZB/tracking
+2026-03-30 20:55:30,222 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,223 [WARNING]   Pool has 1 IDs but only 0 slots — leftover: ['1Z765YW90320907231']
+2026-03-30 20:55:30,226 [INFO] Tracking IDs saved to: logs\tracking_ids_US_20260330_205530.json
+2026-03-30 20:55:30,226 [INFO] 
+FBA FBA198MM4Q36: 0 sub-tracking IDs
+2026-03-30 20:55:30,226 [INFO] 
+FBA FBA198MP8HT5: 0 sub-tracking IDs
+2026-03-30 20:55:30,226 [INFO] 
+FBA FBA195RR3M99: 3 sub-tracking IDs
+2026-03-30 20:55:30,226 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195RR3M99/tracking
+2026-03-30 20:55:30,228 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,228 [INFO] 
+FBA FBA1994TVYY9: 0 sub-tracking IDs
+2026-03-30 20:55:30,229 [INFO] 
+FBA FBA1994WJJM0: 0 sub-tracking IDs
+2026-03-30 20:55:30,229 [INFO] 
+FBA FBA197G30X63: 0 sub-tracking IDs
+2026-03-30 20:55:30,229 [INFO] 
+FBA FBA1974K3MSK: 0 sub-tracking IDs
+2026-03-30 20:55:30,229 [INFO] 
+FBA FBA1978LLQNX: 0 sub-tracking IDs
+2026-03-30 20:55:30,229 [INFO] 
+FBA FBA1994TK6H5: 1 sub-tracking IDs
+2026-03-30 20:55:30,229 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994TK6H5/tracking
+2026-03-30 20:55:30,231 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,231 [INFO] 
+FBA FBA197G1ZXPZ: 0 sub-tracking IDs
+2026-03-30 20:55:30,231 [INFO] 
+FBA FBA1978MKF7Z: 0 sub-tracking IDs
+2026-03-30 20:55:30,231 [INFO] 
+FBA FBA1974PGMNJ: 0 sub-tracking IDs
+2026-03-30 20:55:30,232 [INFO] 
+FBA FBA196S4XTYH: 0 sub-tracking IDs
+2026-03-30 20:55:30,232 [INFO] 
+FBA FBA197G2Q92T: 1 sub-tracking IDs
+2026-03-30 20:55:30,232 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197G2Q92T/tracking
+2026-03-30 20:55:30,235 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,236 [INFO] 
+FBA FBA198B9GMJT: 0 sub-tracking IDs
+2026-03-30 20:55:30,236 [INFO] 
+FBA FBA198L0S8BF: 0 sub-tracking IDs
+2026-03-30 20:55:30,236 [INFO] 
+FBA FBA19692LS2Z: 0 sub-tracking IDs
+2026-03-30 20:55:30,236 [INFO] 
+FBA FBA1978M390T: 0 sub-tracking IDs
+2026-03-30 20:55:30,236 [INFO] 
+FBA FBA1994Z3N1G: 1 sub-tracking IDs
+2026-03-30 20:55:30,236 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994Z3N1G/tracking
+2026-03-30 20:55:30,239 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,239 [INFO] 
+FBA FBA1994PH4RT: 1 sub-tracking IDs
+2026-03-30 20:55:30,239 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994PH4RT/tracking
+2026-03-30 20:55:30,241 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,241 [INFO] 
+FBA FBA198MNVCDH: 0 sub-tracking IDs
+2026-03-30 20:55:30,241 [INFO] 
+FBA FBA198MP8FJ6: 0 sub-tracking IDs
+2026-03-30 20:55:30,241 [INFO] 
+FBA FBA196Q7P4VT: 1 sub-tracking IDs
+2026-03-30 20:55:30,241 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196Q7P4VT/tracking
+2026-03-30 20:55:30,244 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,244 [INFO] 
+FBA FBA198B8Q91F: 0 sub-tracking IDs
+2026-03-30 20:55:30,244 [INFO] 
+FBA FBA198KZ9P9K: 0 sub-tracking IDs
+2026-03-30 20:55:30,244 [INFO] 
+FBA FBA195KGXQDF: 0 sub-tracking IDs
+2026-03-30 20:55:30,245 [INFO] 
+FBA FBA195RQLSNM: 0 sub-tracking IDs
+2026-03-30 20:55:30,245 [INFO] 
+FBA FBA197HGGQXC: 1 sub-tracking IDs
+2026-03-30 20:55:30,245 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197HGGQXC/tracking
+2026-03-30 20:55:30,247 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,248 [INFO] 
+FBA FBA1976WD9WR: 1 sub-tracking IDs
+2026-03-30 20:55:30,248 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1976WD9WR/tracking
+2026-03-30 20:55:30,251 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,251 [INFO] 
+FBA FBA195RRK7L8: 1 sub-tracking IDs
+2026-03-30 20:55:30,251 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195RRK7L8/tracking
+2026-03-30 20:55:30,253 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,253 [INFO] 
+FBA FBA197D1SZ07: 1 sub-tracking IDs
+2026-03-30 20:55:30,253 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197D1SZ07/tracking
+2026-03-30 20:55:30,256 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,256 [INFO] 
+FBA FBA195KF35JQ: 1 sub-tracking IDs
+2026-03-30 20:55:30,256 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KF35JQ/tracking
+2026-03-30 20:55:30,259 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,259 [INFO] 
+FBA FBA196Q6QFV6: 1 sub-tracking IDs
+2026-03-30 20:55:30,259 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196Q6QFV6/tracking
+2026-03-30 20:55:30,261 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,261 [INFO] 
+FBA FBA197D0GZRT: 1 sub-tracking IDs
+2026-03-30 20:55:30,261 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197D0GZRT/tracking
+2026-03-30 20:55:30,262 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,262 [INFO] 
+FBA FBA195W56JZ2: 0 sub-tracking IDs
+2026-03-30 20:55:30,262 [INFO] 
+FBA FBA195RTL58W: 0 sub-tracking IDs
+2026-03-30 20:55:30,262 [INFO] 
+FBA FBA196S5FRT5: 1 sub-tracking IDs
+2026-03-30 20:55:30,262 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196S5FRT5/tracking
+2026-03-30 20:55:30,264 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,264 [INFO] 
+FBA FBA197G1P0Y9: 0 sub-tracking IDs
+2026-03-30 20:55:30,264 [INFO] 
+FBA FBA1978MZ07N: 0 sub-tracking IDs
+2026-03-30 20:55:30,264 [INFO] 
+FBA FBA197D1329W: 0 sub-tracking IDs
+2026-03-30 20:55:30,264 [INFO] 
+FBA FBA198B71ZZT: 0 sub-tracking IDs
+2026-03-30 20:55:30,264 [INFO] 
+FBA FBA198G682TX: 0 sub-tracking IDs
+2026-03-30 20:55:30,264 [INFO] 
+FBA FBA196Q8TVJ8: 1 sub-tracking IDs
+2026-03-30 20:55:30,264 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196Q8TVJ8/tracking
+2026-03-30 20:55:30,266 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,266 [INFO] 
+FBA FBA19659KS5T: 1 sub-tracking IDs
+2026-03-30 20:55:30,266 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19659KS5T/tracking
+2026-03-30 20:55:30,267 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,267 [INFO] 
+FBA FBA198MN1D74: 1 sub-tracking IDs
+2026-03-30 20:55:30,267 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198MN1D74/tracking
+2026-03-30 20:55:30,268 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,269 [INFO] 
+FBA FBA1972NVGYF: 1 sub-tracking IDs
+2026-03-30 20:55:30,269 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1972NVGYF/tracking
+2026-03-30 20:55:30,271 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,271 [INFO] 
+FBA FBA198MNQG7C: 0 sub-tracking IDs
+2026-03-30 20:55:30,271 [INFO] 
+FBA FBA198MN2JXL: 0 sub-tracking IDs
+2026-03-30 20:55:30,271 [INFO] 
+FBA FBA198MNS2RT: 0 sub-tracking IDs
+2026-03-30 20:55:30,271 [INFO] 
+FBA FBA195KDVJ3Q: 1 sub-tracking IDs
+2026-03-30 20:55:30,271 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KDVJ3Q/tracking
+2026-03-30 20:55:30,272 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,272 [INFO] 
+FBA FBA198G5WK9P: 1 sub-tracking IDs
+2026-03-30 20:55:30,272 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198G5WK9P/tracking
+2026-03-30 20:55:30,274 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,274 [INFO] 
+FBA FBA1994W5FVW: 1 sub-tracking IDs
+2026-03-30 20:55:30,274 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994W5FVW/tracking
+2026-03-30 20:55:30,275 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,275 [INFO] 
+FBA FBA198G6XCCF: 0 sub-tracking IDs
+2026-03-30 20:55:30,275 [INFO] 
+FBA FBA198B9GG6N: 0 sub-tracking IDs
+2026-03-30 20:55:30,275 [INFO] 
+FBA FBA1994RFP1B: 1 sub-tracking IDs
+2026-03-30 20:55:30,275 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994RFP1B/tracking
+2026-03-30 20:55:30,277 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,277 [INFO] 
+FBA FBA19657N0P2: 1 sub-tracking IDs
+2026-03-30 20:55:30,277 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19657N0P2/tracking
+2026-03-30 20:55:30,278 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,278 [INFO] 
+FBA FBA1994WF4SZ: 1 sub-tracking IDs
+2026-03-30 20:55:30,278 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994WF4SZ/tracking
+2026-03-30 20:55:30,280 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,280 [INFO] 
+FBA FBA1953XC1SY: 1 sub-tracking IDs
+2026-03-30 20:55:30,280 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1953XC1SY/tracking
+2026-03-30 20:55:30,281 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,281 [INFO] 
+FBA FBA1972RSFFY: 1 sub-tracking IDs
+2026-03-30 20:55:30,281 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1972RSFFY/tracking
+2026-03-30 20:55:30,282 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,282 [INFO] 
+FBA FBA197HCJ4M9: 1 sub-tracking IDs
+2026-03-30 20:55:30,282 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197HCJ4M9/tracking
+2026-03-30 20:55:30,284 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,285 [INFO] 
+FBA FBA197HFQKDT: 1 sub-tracking IDs
+2026-03-30 20:55:30,285 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197HFQKDT/tracking
+2026-03-30 20:55:30,286 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,287 [INFO] 
+FBA FBA19690JXGL: 1 sub-tracking IDs
+2026-03-30 20:55:30,287 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19690JXGL/tracking
+2026-03-30 20:55:30,288 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,289 [INFO] 
+FBA FBA198G7KNLW: 1 sub-tracking IDs
+2026-03-30 20:55:30,289 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198G7KNLW/tracking
+2026-03-30 20:55:30,291 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,291 [INFO] 
+FBA FBA196916Q98: 0 sub-tracking IDs
+2026-03-30 20:55:30,291 [INFO] 
+FBA FBA197D2ZS2S: 0 sub-tracking IDs
+2026-03-30 20:55:30,291 [INFO] 
+FBA FBA196908BP7: 1 sub-tracking IDs
+2026-03-30 20:55:30,291 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196908BP7/tracking
+2026-03-30 20:55:30,292 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,292 [INFO] 
+FBA FBA198B9K8NM: 0 sub-tracking IDs
+2026-03-30 20:55:30,293 [INFO] 
+FBA FBA198L0JGRD: 0 sub-tracking IDs
+2026-03-30 20:55:30,293 [INFO] 
+FBA FBA19691WY6R: 0 sub-tracking IDs
+2026-03-30 20:55:30,293 [INFO] 
+FBA FBA1972N97WY: 0 sub-tracking IDs
+2026-03-30 20:55:30,293 [INFO] 
+FBA FBA197D0R9QL: 0 sub-tracking IDs
+2026-03-30 20:55:30,293 [INFO] 
+FBA FBA196S3D07M: 0 sub-tracking IDs
+2026-03-30 20:55:30,293 [INFO] 
+FBA FBA1994W71T8: 1 sub-tracking IDs
+2026-03-30 20:55:30,293 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994W71T8/tracking
+2026-03-30 20:55:30,294 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,294 [INFO] 
+FBA FBA196Q71BN5: 1 sub-tracking IDs
+2026-03-30 20:55:30,294 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196Q71BN5/tracking
+2026-03-30 20:55:30,296 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,296 [INFO] 
+FBA FBA1972Q2S5Y: 1 sub-tracking IDs
+2026-03-30 20:55:30,296 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1972Q2S5Y/tracking
+2026-03-30 20:55:30,297 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,297 [INFO] 
+FBA FBA195W5SLF9: 1 sub-tracking IDs
+2026-03-30 20:55:30,297 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195W5SLF9/tracking
+2026-03-30 20:55:30,298 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,298 [INFO] 
+FBA FBA1994R6Y64: 1 sub-tracking IDs
+2026-03-30 20:55:30,298 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994R6Y64/tracking
+2026-03-30 20:55:30,300 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,300 [INFO] 
+FBA FBA1994VYMRC: 0 sub-tracking IDs
+2026-03-30 20:55:30,300 [INFO] 
+FBA FBA199532MZ3: 0 sub-tracking IDs
+2026-03-30 20:55:30,300 [INFO] 
+FBA FBA198L0HB5T: 1 sub-tracking IDs
+2026-03-30 20:55:30,300 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198L0HB5T/tracking
+2026-03-30 20:55:30,301 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,301 [INFO] 
+FBA FBA1968Z317V: 1 sub-tracking IDs
+2026-03-30 20:55:30,301 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1968Z317V/tracking
+2026-03-30 20:55:30,302 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,302 [INFO] 
+FBA FBA1994T0HF5: 1 sub-tracking IDs
+2026-03-30 20:55:30,302 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994T0HF5/tracking
+2026-03-30 20:55:30,304 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,304 [INFO] 
+FBA FBA198MNFVNH: 0 sub-tracking IDs
+2026-03-30 20:55:30,304 [INFO] 
+FBA FBA198MN5NHS: 0 sub-tracking IDs
+2026-03-30 20:55:30,304 [INFO] 
+FBA FBA1994W8NZR: 1 sub-tracking IDs
+2026-03-30 20:55:30,304 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994W8NZR/tracking
+2026-03-30 20:55:30,305 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,305 [INFO] 
+FBA FBA197HFQ6Y9: 1 sub-tracking IDs
+2026-03-30 20:55:30,305 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197HFQ6Y9/tracking
+2026-03-30 20:55:30,306 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,306 [INFO] 
+FBA FBA195W4HTHN: 1 sub-tracking IDs
+2026-03-30 20:55:30,306 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195W4HTHN/tracking
+2026-03-30 20:55:30,308 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,308 [INFO] 
+FBA FBA1994W44D1: 1 sub-tracking IDs
+2026-03-30 20:55:30,308 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994W44D1/tracking
+2026-03-30 20:55:30,309 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,309 [INFO] 
+FBA FBA1976XBL9F: 1 sub-tracking IDs
+2026-03-30 20:55:30,309 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1976XBL9F/tracking
+2026-03-30 20:55:30,310 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,311 [INFO] 
+FBA FBA1924FWPYT: 1 sub-tracking IDs
+2026-03-30 20:55:30,311 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1924FWPYT/tracking
+2026-03-30 20:55:30,312 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,313 [INFO] 
+FBA FBA196GJL5C1: 1 sub-tracking IDs
+2026-03-30 20:55:30,313 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196GJL5C1/tracking
+2026-03-30 20:55:30,314 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,314 [INFO] 
+FBA FBA195KFDJQ6: 0 sub-tracking IDs
+2026-03-30 20:55:30,314 [INFO] 
+FBA FBA195RQWLVN: 0 sub-tracking IDs
+2026-03-30 20:55:30,314 [INFO] 
+FBA FBA1968XYYNC: 1 sub-tracking IDs
+2026-03-30 20:55:30,314 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1968XYYNC/tracking
+2026-03-30 20:55:30,315 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,315 [INFO] 
+FBA FBA1978NH5R3: 1 sub-tracking IDs
+2026-03-30 20:55:30,315 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1978NH5R3/tracking
+2026-03-30 20:55:30,317 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,317 [INFO] 
+FBA FBA1972MKJNZ: 1 sub-tracking IDs
+2026-03-30 20:55:30,317 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1972MKJNZ/tracking
+2026-03-30 20:55:30,318 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,318 [INFO] 
+FBA FBA19659Y3RJ: 1 sub-tracking IDs
+2026-03-30 20:55:30,318 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19659Y3RJ/tracking
+2026-03-30 20:55:30,319 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,320 [INFO] 
+FBA FBA197HCLBGJ: 1 sub-tracking IDs
+2026-03-30 20:55:30,320 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197HCLBGJ/tracking
+2026-03-30 20:55:30,321 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,321 [INFO] 
+FBA FBA195KFXXLQ: 1 sub-tracking IDs
+2026-03-30 20:55:30,321 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KFXXLQ/tracking
+2026-03-30 20:55:30,322 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,322 [INFO] 
+FBA FBA1994XHX7Z: 1 sub-tracking IDs
+2026-03-30 20:55:30,323 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994XHX7Z/tracking
+2026-03-30 20:55:30,324 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,324 [INFO] 
+FBA FBA19659DXNC: 1 sub-tracking IDs
+2026-03-30 20:55:30,324 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19659DXNC/tracking
+2026-03-30 20:55:30,325 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,325 [INFO] 
+FBA FBA197G2V41K: 1 sub-tracking IDs
+2026-03-30 20:55:30,325 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA197G2V41K/tracking
+2026-03-30 20:55:30,327 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,327 [INFO] 
+FBA FBA1994STMLD: 1 sub-tracking IDs
+2026-03-30 20:55:30,327 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994STMLD/tracking
+2026-03-30 20:55:30,328 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,328 [INFO] 
+FBA FBA196Q8M55J: 1 sub-tracking IDs
+2026-03-30 20:55:30,328 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196Q8M55J/tracking
+2026-03-30 20:55:30,329 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,329 [INFO] 
+FBA FBA196GJK92W: 1 sub-tracking IDs
+2026-03-30 20:55:30,329 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196GJK92W/tracking
+2026-03-30 20:55:30,330 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,331 [INFO] 
+FBA FBA1968ZKT05: 1 sub-tracking IDs
+2026-03-30 20:55:30,331 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1968ZKT05/tracking
+2026-03-30 20:55:30,332 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,332 [INFO] 
+FBA FBA196S4SMHM: 1 sub-tracking IDs
+2026-03-30 20:55:30,332 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196S4SMHM/tracking
+2026-03-30 20:55:30,333 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,333 [INFO] 
+FBA FBA196598GYB: 1 sub-tracking IDs
+2026-03-30 20:55:30,334 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196598GYB/tracking
+2026-03-30 20:55:30,335 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,335 [INFO] 
+FBA FBA1994SLXTR: 1 sub-tracking IDs
+2026-03-30 20:55:30,335 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994SLXTR/tracking
+2026-03-30 20:55:30,336 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,337 [INFO] 
+FBA FBA198L0VZDW: 1 sub-tracking IDs
+2026-03-30 20:55:30,337 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198L0VZDW/tracking
+2026-03-30 20:55:30,338 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,338 [INFO] 
+FBA FBA195W5TZJF: 1 sub-tracking IDs
+2026-03-30 20:55:30,338 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195W5TZJF/tracking
+2026-03-30 20:55:30,339 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,339 [INFO] 
+FBA FBA1974M4SY4: 0 sub-tracking IDs
+2026-03-30 20:55:30,339 [INFO] 
+FBA FBA19691M6ZB: 0 sub-tracking IDs
+2026-03-30 20:55:30,340 [INFO] 
+FBA FBA1974P91HS: 1 sub-tracking IDs
+2026-03-30 20:55:30,340 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1974P91HS/tracking
+2026-03-30 20:55:30,341 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,341 [INFO] 
+FBA FBA1968YG6M9: 1 sub-tracking IDs
+2026-03-30 20:55:30,341 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1968YG6M9/tracking
+2026-03-30 20:55:30,342 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,342 [INFO] 
+FBA FBA196S4P3NF: 1 sub-tracking IDs
+2026-03-30 20:55:30,342 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA196S4P3NF/tracking
+2026-03-30 20:55:30,343 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,344 [INFO] 
+FBA FBA19953X8YM: 1 sub-tracking IDs
+2026-03-30 20:55:30,344 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19953X8YM/tracking
+2026-03-30 20:55:30,345 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,345 [INFO] 
+FBA FBA198G7HFTM: 1 sub-tracking IDs
+2026-03-30 20:55:30,345 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA198G7HFTM/tracking
+2026-03-30 20:55:30,346 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,346 [INFO] 
+FBA FBA1976WTG48: 1 sub-tracking IDs
+2026-03-30 20:55:30,346 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1976WTG48/tracking
+2026-03-30 20:55:30,347 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,347 [INFO] 
+FBA FBA1994VN2FK: 1 sub-tracking IDs
+2026-03-30 20:55:30,348 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994VN2FK/tracking
+2026-03-30 20:55:30,349 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,349 [INFO] 
+FBA FBA195KDPZ15: 1 sub-tracking IDs
+2026-03-30 20:55:30,349 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195KDPZ15/tracking
+2026-03-30 20:55:30,350 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,350 [INFO] 
+FBA FBA1974NGD95: 1 sub-tracking IDs
+2026-03-30 20:55:30,350 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1974NGD95/tracking
+2026-03-30 20:55:30,352 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,352 [INFO] 
+FBA FBA19952VV03: 1 sub-tracking IDs
+2026-03-30 20:55:30,352 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19952VV03/tracking
+2026-03-30 20:55:30,353 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,353 [INFO] 
+FBA FBA1976Y23ZS: 1 sub-tracking IDs
+2026-03-30 20:55:30,353 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1976Y23ZS/tracking
+2026-03-30 20:55:30,354 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,355 [INFO] 
+FBA FBA1994X2GQQ: 1 sub-tracking IDs
+2026-03-30 20:55:30,355 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994X2GQQ/tracking
+2026-03-30 20:55:30,356 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,356 [INFO] 
+FBA FBA195W4S5L8: 1 sub-tracking IDs
+2026-03-30 20:55:30,356 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA195W4S5L8/tracking
+2026-03-30 20:55:30,357 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,357 [INFO] 
+FBA FBA1976WX5LB: 1 sub-tracking IDs
+2026-03-30 20:55:30,358 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1976WX5LB/tracking
+2026-03-30 20:55:30,359 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,359 [INFO] 
+FBA FBA19951PZX7: 1 sub-tracking IDs
+2026-03-30 20:55:30,359 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19951PZX7/tracking
+2026-03-30 20:55:30,360 [ERROR]   Navigation failed (attempt 1): Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,362 [WARNING] [CA] Failed to navigate to https://sellercentral.amazon.ca: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,364 [WARNING] [UK] Failed to navigate to https://sellercentral.amazon.co.uk: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,365 [WARNING] [EU] Failed to navigate to https://sellercentral.amazon.de: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,367 [WARNING] [AWD] Failed to navigate to https://sellercentral.amazon.com: Page.goto: Target page, context or browser has been closed
+2026-03-30 20:55:30,424 [INFO] Highlighted output saved: output\shipments  details  26-3 (3)_processed_20260330_205530.xlsx

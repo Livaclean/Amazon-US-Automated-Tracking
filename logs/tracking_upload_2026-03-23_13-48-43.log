@@ -1,0 +1,254 @@
+2026-03-23 13:48:43,151 [INFO] Log file: logs\tracking_upload_2026-03-23_13-48-43.log
+2026-03-23 13:48:44,593 [INFO] Reading Excel file from input folder...
+2026-03-23 13:48:44,593 [INFO] Reading: input\shipments  details  26-3 (2).xls
+2026-03-23 13:48:44,642 [INFO] Loaded 224 total rows across 1 file(s)
+2026-03-23 13:48:44,651 [INFO] [US] 126 row(s) matched
+2026-03-23 13:48:44,658 [INFO] [CA] 9 row(s) matched
+2026-03-23 13:48:44,666 [INFO] [UK] 10 row(s) matched
+2026-03-23 13:48:44,674 [INFO] [EU] 16 row(s) matched
+2026-03-23 13:48:44,682 [INFO] [AWD] 13 row(s) matched
+2026-03-23 13:48:44,683 [INFO] Shipment records written:
+  With tracking (153): logs\shipments_with_tracking_20260323_134844.txt
+  Missing tracking (20): logs\shipments_missing_tracking_20260323_134844.txt
+2026-03-23 13:48:44,684 [INFO] Launching Chrome with your saved profile...
+2026-03-23 13:48:45,078 [DEBUG] Using proactor: IocpProactor
+2026-03-23 13:48:55,981 [INFO] [US] Already logged in at https://sellercentral.amazon.com
+2026-03-23 13:48:55,981 [INFO]   [1/10] Checking Amazon: FBA1994X2GQQ
+2026-03-23 13:48:55,982 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994X2GQQ/tracking
+2026-03-23 13:48:59,817 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994X2GQQ/tracking
+2026-03-23 13:49:00,788 [INFO]   -> Amazon status: empty
+2026-03-23 13:49:00,788 [INFO]   [2/10] Checking Amazon: FBA1994STMLD
+2026-03-23 13:49:00,788 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994STMLD/tracking
+2026-03-23 13:49:04,628 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994STMLD/tracking
+2026-03-23 13:49:04,692 [INFO]   -> Amazon status: empty
+2026-03-23 13:49:04,692 [INFO]   [3/10] Checking Amazon: FBA1994RFP1B
+2026-03-23 13:49:04,692 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994RFP1B/tracking
+2026-03-23 13:49:09,059 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994RFP1B/tracking
+2026-03-23 13:49:09,323 [INFO]   -> Amazon status: empty
+2026-03-23 13:49:09,323 [INFO]   [4/10] Checking Amazon: FBA1994T0HF5
+2026-03-23 13:49:09,323 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994T0HF5/tracking
+2026-03-23 13:49:12,826 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994T0HF5/tracking
+2026-03-23 13:49:13,721 [INFO]   -> Amazon status: empty
+2026-03-23 13:49:13,722 [INFO]   [5/10] Checking Amazon: FBA1994WF4SZ
+2026-03-23 13:49:13,722 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994WF4SZ/tracking
+2026-03-23 13:49:17,760 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994WF4SZ/tracking
+2026-03-23 13:49:18,177 [INFO]   -> Amazon status: empty
+2026-03-23 13:49:18,177 [INFO]   [6/10] Checking Amazon: FBA19951PZX7
+2026-03-23 13:49:18,178 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19951PZX7/tracking
+2026-03-23 13:49:22,245 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19951PZX7/tracking
+2026-03-23 13:49:22,420 [INFO]   -> Amazon status: empty
+2026-03-23 13:49:22,420 [INFO]   [7/10] Checking Amazon: FBA1994W44D1
+2026-03-23 13:49:22,420 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994W44D1/tracking
+2026-03-23 13:49:26,230 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994W44D1/tracking
+2026-03-23 13:49:26,656 [INFO]   -> Amazon status: empty
+2026-03-23 13:49:26,656 [INFO]   [8/10] Checking Amazon: FBA1994Z3N1G
+2026-03-23 13:49:26,657 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994Z3N1G/tracking
+2026-03-23 13:49:30,696 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994Z3N1G/tracking
+2026-03-23 13:49:30,777 [INFO]   -> Amazon status: empty
+2026-03-23 13:49:30,777 [INFO]   [9/10] Checking Amazon: FBA1994W71T8
+2026-03-23 13:49:30,777 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994W71T8/tracking
+2026-03-23 13:49:35,233 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994W71T8/tracking
+2026-03-23 13:49:35,320 [INFO]   -> Amazon status: empty
+2026-03-23 13:49:35,320 [INFO]   [10/10] Checking Amazon: FBA1994SLXTR
+2026-03-23 13:49:35,320 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994SLXTR/tracking
+2026-03-23 13:49:39,135 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994SLXTR/tracking
+2026-03-23 13:49:39,229 [INFO]   -> Amazon status: empty
+2026-03-23 13:49:44,796 [INFO] FedEx: not logged in — proceeding anyway (trkqual URLs work without login)
+2026-03-23 13:49:44,796 [INFO] 
+FBA FBA1994X2GQQ: 1 main tracking entries
+2026-03-23 13:49:44,796 [INFO]   Fetching sub-tracking for 1Z036E5H0332417383 (UPS)
+2026-03-23 13:49:44,796 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z036E5H0332417383&loc=en_US
+2026-03-23 13:49:57,946 [DEBUG]   Clicked 'Other Packages in this Shipment'
+2026-03-23 13:50:00,025 [INFO]   Page 1: +3 sub-IDs (total 3)
+2026-03-23 13:50:00,096 [DEBUG]   No next-page button found — done at page 1
+2026-03-23 13:50:00,096 [INFO]   Total 3 unique sub-IDs across all pages
+2026-03-23 13:50:00,096 [INFO]   -> 4 total tracking IDs (1 main + 3 sub)
+2026-03-23 13:50:00,096 [INFO] 
+FBA FBA1994STMLD: 1 main tracking entries
+2026-03-23 13:50:00,096 [INFO]   Fetching sub-tracking for 1Z765YW90318779509 (UPS)
+2026-03-23 13:50:00,096 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90318779509&loc=en_US
+2026-03-23 13:50:06,189 [DEBUG]   'Other Packages in this Shipment' section not found on page
+2026-03-23 13:50:06,194 [DEBUG]   No IDs from section — falling back to full page regex
+2026-03-23 13:50:06,199 [INFO]   Found 0 sub-IDs via regex fallback
+2026-03-23 13:50:06,200 [WARNING]   No sub-IDs found for 1Z765YW90318779509 — check carrier website manually
+2026-03-23 13:50:06,200 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-23 13:50:06,200 [INFO] 
+FBA FBA1994RFP1B: 1 main tracking entries
+2026-03-23 13:50:06,200 [INFO]   Fetching sub-tracking for 1Z765YW90306845290 (UPS)
+2026-03-23 13:50:06,200 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90306845290&loc=en_US
+2026-03-23 13:50:19,340 [DEBUG]   'Other Packages in this Shipment' section not found on page
+2026-03-23 13:50:19,345 [DEBUG]   No IDs from section — falling back to full page regex
+2026-03-23 13:50:19,351 [INFO]   Found 0 sub-IDs via regex fallback
+2026-03-23 13:50:19,352 [WARNING]   No sub-IDs found for 1Z765YW90306845290 — check carrier website manually
+2026-03-23 13:50:19,352 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-23 13:50:19,352 [INFO] 
+FBA FBA1994T0HF5: 1 main tracking entries
+2026-03-23 13:50:19,352 [INFO]   Fetching sub-tracking for 889841866449 (FEDEX)
+2026-03-23 13:50:23,117 [INFO]   Trying 4 trkqual candidates for 889841866449
+2026-03-23 13:50:23,117 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841866449&trkqual=12030~889841866449~FDEG
+2026-03-23 13:50:32,520 [INFO]   trkqual 12030~889841866449~FDEG loaded — piece indicator: False
+2026-03-23 13:50:33,511 [DEBUG]   Clicked 'View more details'
+2026-03-23 13:50:44,237 [DEBUG]   Clicked 'pieces'
+2026-03-23 13:50:46,263 [INFO]   Found 0 sub-IDs via regex (trkqual 12030~889841866449~FDEG)
+2026-03-23 13:50:46,263 [DEBUG]   trkqual 12030~889841866449~FDEG gave 0 sub-IDs — trying next candidate
+2026-03-23 13:50:46,264 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841866449&trkqual=12029~889841866449~FDEG
+2026-03-23 13:50:54,373 [INFO]   trkqual 12029~889841866449~FDEG loaded — piece indicator: False
+2026-03-23 13:50:54,509 [INFO]   Found 0 sub-IDs via regex (trkqual 12029~889841866449~FDEG)
+2026-03-23 13:50:54,509 [DEBUG]   trkqual 12029~889841866449~FDEG gave 0 sub-IDs — trying next candidate
+2026-03-23 13:50:54,509 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841866449&trkqual=10800~889841866449~FDXE
+2026-03-23 13:51:02,715 [INFO]   trkqual 10800~889841866449~FDXE loaded — piece indicator: False
+2026-03-23 13:51:02,873 [INFO]   Found 0 sub-IDs via regex (trkqual 10800~889841866449~FDXE)
+2026-03-23 13:51:02,873 [DEBUG]   trkqual 10800~889841866449~FDXE gave 0 sub-IDs — trying next candidate
+2026-03-23 13:51:02,873 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841866449&trkqual=10800~889841866449~FXSP
+2026-03-23 13:51:12,640 [INFO]   trkqual 10800~889841866449~FXSP loaded — piece indicator: False
+2026-03-23 13:51:13,608 [DEBUG]   Clicked 'View more details'
+2026-03-23 13:51:23,761 [INFO]   Found 0 sub-IDs via regex (trkqual 10800~889841866449~FXSP)
+2026-03-23 13:51:23,761 [DEBUG]   trkqual 10800~889841866449~FXSP gave 0 sub-IDs — trying next candidate
+2026-03-23 13:51:23,761 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 889841866449
+2026-03-23 13:51:23,770 [INFO]   Found 0 sub-IDs via regex fallback
+2026-03-23 13:51:23,770 [WARNING]   No sub-IDs found for 889841866449 — check carrier website manually
+2026-03-23 13:51:23,770 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-23 13:51:23,770 [INFO] 
+FBA FBA1994WF4SZ: 1 main tracking entries
+2026-03-23 13:51:23,770 [INFO]   Fetching sub-tracking for 889841940257 (FEDEX)
+2026-03-23 13:51:28,598 [INFO]   Trying 4 trkqual candidates for 889841940257
+2026-03-23 13:51:28,598 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841940257&trkqual=12030~889841940257~FDEG
+2026-03-23 13:51:37,025 [INFO]   trkqual 12030~889841940257~FDEG loaded — piece indicator: True
+2026-03-23 13:51:38,340 [DEBUG]   Clicked 'View more details'
+2026-03-23 13:51:49,196 [DEBUG]   Clicked 'pieces'
+2026-03-23 13:51:51,214 [INFO]   Found 2 sub-IDs from 'Piece Shipment' section
+2026-03-23 13:51:51,214 [INFO]   -> 3 total tracking IDs (1 main + 2 sub)
+2026-03-23 13:51:51,215 [INFO] 
+FBA FBA19951PZX7: 1 main tracking entries
+2026-03-23 13:51:51,215 [INFO]   Fetching sub-tracking for 889841955661 (FEDEX)
+2026-03-23 13:51:56,010 [INFO]   Trying 4 trkqual candidates for 889841955661
+2026-03-23 13:51:56,011 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841955661&trkqual=12030~889841955661~FDEG
+2026-03-23 13:52:04,586 [INFO]   trkqual 12030~889841955661~FDEG loaded — piece indicator: True
+2026-03-23 13:52:05,876 [DEBUG]   Clicked 'View more details'
+2026-03-23 13:52:16,666 [DEBUG]   Clicked 'pieces'
+2026-03-23 13:52:18,680 [INFO]   Found 2 sub-IDs from 'Piece Shipment' section
+2026-03-23 13:52:18,681 [INFO]   -> 3 total tracking IDs (1 main + 2 sub)
+2026-03-23 13:52:18,681 [INFO] 
+FBA FBA1994W44D1: 1 main tracking entries
+2026-03-23 13:52:18,681 [INFO]   Fetching sub-tracking for 1Z765YW90328207447 (UPS)
+2026-03-23 13:52:18,681 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90328207447&loc=en_US
+2026-03-23 13:52:28,877 [DEBUG]   Clicked 'Other Packages in this Shipment'
+2026-03-23 13:52:30,900 [INFO]   Page 1: +3 sub-IDs (total 3)
+2026-03-23 13:52:30,937 [DEBUG]   No next-page button found — done at page 1
+2026-03-23 13:52:30,937 [INFO]   Total 3 unique sub-IDs across all pages
+2026-03-23 13:52:30,937 [INFO]   -> 4 total tracking IDs (1 main + 3 sub)
+2026-03-23 13:52:30,938 [INFO] 
+FBA FBA1994Z3N1G: 1 main tracking entries
+2026-03-23 13:52:30,938 [INFO]   Fetching sub-tracking for 889841899440 (FEDEX)
+2026-03-23 13:52:34,625 [INFO]   Trying 4 trkqual candidates for 889841899440
+2026-03-23 13:52:34,625 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841899440&trkqual=12030~889841899440~FDEG
+2026-03-23 13:52:43,624 [DEBUG]   trkqual 12030~889841899440~FDEG — error page, trying next
+2026-03-23 13:52:43,625 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841899440&trkqual=12029~889841899440~FDEG
+2026-03-23 13:52:51,899 [DEBUG]   trkqual 12029~889841899440~FDEG — error page, trying next
+2026-03-23 13:52:51,899 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841899440&trkqual=10800~889841899440~FDXE
+2026-03-23 13:53:00,287 [DEBUG]   trkqual 10800~889841899440~FDXE — error page, trying next
+2026-03-23 13:53:00,287 [INFO]   Loading: https://www.fedex.com/fedextrack/?trknbr=889841899440&trkqual=10800~889841899440~FXSP
+2026-03-23 13:53:08,632 [DEBUG]   trkqual 10800~889841899440~FXSP — error page, trying next
+2026-03-23 13:53:08,632 [WARNING]   All trkqual candidates tried — 0 sub-IDs found for 889841899440
+2026-03-23 13:53:08,641 [INFO]   Found 0 sub-IDs via regex fallback
+2026-03-23 13:53:08,642 [WARNING]   No sub-IDs found for 889841899440 — check carrier website manually
+2026-03-23 13:53:08,642 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-23 13:53:08,642 [INFO] 
+FBA FBA1994W71T8: 1 main tracking entries
+2026-03-23 13:53:08,642 [INFO]   Fetching sub-tracking for 1Z765YW90309947488 (UPS)
+2026-03-23 13:53:08,642 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90309947488&loc=en_US
+2026-03-23 13:53:32,386 [DEBUG]   'Other Packages in this Shipment' section not found on page
+2026-03-23 13:53:32,392 [DEBUG]   No IDs from section — falling back to full page regex
+2026-03-23 13:53:32,399 [INFO]   Found 0 sub-IDs via regex fallback
+2026-03-23 13:53:32,399 [WARNING]   No sub-IDs found for 1Z765YW90309947488 — check carrier website manually
+2026-03-23 13:53:32,399 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-23 13:53:32,399 [INFO] 
+FBA FBA1994SLXTR: 1 main tracking entries
+2026-03-23 13:53:32,399 [INFO]   Fetching sub-tracking for 1Z765YW90307269027 (UPS)
+2026-03-23 13:53:32,400 [INFO]   Loading: https://www.ups.com/track?tracknum=1Z765YW90307269027&loc=en_US
+2026-03-23 13:53:40,030 [DEBUG]   'Other Packages in this Shipment' section not found on page
+2026-03-23 13:53:40,034 [DEBUG]   No IDs from section — falling back to full page regex
+2026-03-23 13:53:40,040 [INFO]   Found 0 sub-IDs via regex fallback
+2026-03-23 13:53:40,040 [WARNING]   No sub-IDs found for 1Z765YW90307269027 — check carrier website manually
+2026-03-23 13:53:40,040 [INFO]   -> 1 total tracking IDs (1 main + 0 sub)
+2026-03-23 13:53:40,042 [INFO] Tracking IDs saved to: logs\tracking_ids_US_20260323_135340.json
+2026-03-23 13:53:40,043 [INFO] 
+FBA FBA1994X2GQQ: 4 sub-tracking IDs
+2026-03-23 13:53:40,043 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994X2GQQ/tracking
+2026-03-23 13:53:44,429 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994X2GQQ/tracking
+2026-03-23 13:53:45,361 [INFO]   Found 4 empty tracking input(s), have 4 sub-IDs to fill
+2026-03-23 13:53:46,557 [DEBUG]   Box 1: filled 1Z036E5H0332417383
+2026-03-23 13:53:47,691 [DEBUG]   Box 2: filled 1Z036E5H0321009013
+2026-03-23 13:53:48,839 [DEBUG]   Box 3: filled 1Z036E5H0324244398
+2026-03-23 13:53:49,970 [DEBUG]   Box 4: filled 1Z036E5H0338013601
+2026-03-23 13:53:50,559 [INFO]   Clicked 'Update all' — saving 4 tracking number(s)
+2026-03-23 13:53:56,566 [INFO] 
+FBA FBA1994STMLD: 1 sub-tracking IDs
+2026-03-23 13:53:56,566 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994STMLD/tracking
+2026-03-23 13:54:07,634 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994STMLD/tracking
+2026-03-23 13:54:08,523 [INFO]   Found 1 empty tracking input(s), have 1 sub-IDs to fill
+2026-03-23 13:54:09,678 [DEBUG]   Box 1: filled 1Z765YW90318779509
+2026-03-23 13:54:10,268 [INFO]   Clicked 'Update all' — saving 1 tracking number(s)
+2026-03-23 13:54:16,272 [INFO] 
+FBA FBA1994RFP1B: 1 sub-tracking IDs
+2026-03-23 13:54:16,272 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994RFP1B/tracking
+2026-03-23 13:54:23,288 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994RFP1B/tracking
+2026-03-23 13:54:23,467 [INFO]   Found 1 empty tracking input(s), have 1 sub-IDs to fill
+2026-03-23 13:54:24,660 [DEBUG]   Box 1: filled 1Z765YW90306845290
+2026-03-23 13:54:25,268 [INFO]   Clicked 'Update all' — saving 1 tracking number(s)
+2026-03-23 13:54:31,281 [INFO] 
+FBA FBA1994T0HF5: 1 sub-tracking IDs
+2026-03-23 13:54:31,281 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994T0HF5/tracking
+2026-03-23 13:54:38,204 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994T0HF5/tracking
+2026-03-23 13:54:38,371 [INFO]   Found 1 empty tracking input(s), have 1 sub-IDs to fill
+2026-03-23 13:54:39,531 [DEBUG]   Box 1: filled 889841866449
+2026-03-23 13:54:40,117 [INFO]   Clicked 'Update all' — saving 1 tracking number(s)
+2026-03-23 13:54:46,121 [INFO] 
+FBA FBA1994WF4SZ: 3 sub-tracking IDs
+2026-03-23 13:54:46,122 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994WF4SZ/tracking
+2026-03-23 13:55:06,655 [ERROR]   Navigation failed (attempt 1): Page.goto: Timeout 20000ms exceeded.
+Call log:
+  - navigating to "https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994WF4SZ/tracking", waiting until "load"
+
+2026-03-23 13:55:06,656 [INFO] 
+FBA FBA19951PZX7: 3 sub-tracking IDs
+2026-03-23 13:55:06,656 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19951PZX7/tracking
+2026-03-23 13:55:10,972 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA19951PZX7/tracking
+2026-03-23 13:55:11,178 [INFO]   Found 3 empty tracking input(s), have 3 sub-IDs to fill
+2026-03-23 13:55:12,332 [DEBUG]   Box 1: filled 889841955661
+2026-03-23 13:55:13,452 [DEBUG]   Box 2: filled 889841955672
+2026-03-23 13:55:14,584 [DEBUG]   Box 3: filled 889841955683
+2026-03-23 13:55:15,167 [INFO]   Clicked 'Update all' — saving 3 tracking number(s)
+2026-03-23 13:55:21,182 [INFO] 
+FBA FBA1994W44D1: 4 sub-tracking IDs
+2026-03-23 13:55:21,183 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994W44D1/tracking
+2026-03-23 13:55:25,425 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994W44D1/tracking
+2026-03-23 13:55:25,565 [INFO]   Found 4 empty tracking input(s), have 4 sub-IDs to fill
+2026-03-23 13:55:26,729 [DEBUG]   Box 1: filled 1Z765YW90328207447
+2026-03-23 13:55:27,844 [DEBUG]   Box 2: filled 1Z765YW90324259667
+2026-03-23 13:55:28,997 [DEBUG]   Box 3: filled 1Z765YW90328953051
+2026-03-23 13:55:30,147 [DEBUG]   Box 4: filled 1Z765YW90330227279
+2026-03-23 13:55:30,737 [INFO]   Clicked 'Update all' — saving 4 tracking number(s)
+2026-03-23 13:55:36,743 [INFO] 
+FBA FBA1994Z3N1G: 1 sub-tracking IDs
+2026-03-23 13:55:36,743 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994Z3N1G/tracking
+2026-03-23 13:55:40,904 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994Z3N1G/tracking
+2026-03-23 13:55:41,199 [INFO]   Found 3 empty tracking input(s), have 1 sub-IDs to fill
+2026-03-23 13:55:42,360 [DEBUG]   Box 1: filled 889841899440
+2026-03-23 13:55:42,950 [INFO]   Clicked 'Update all' — saving 1 tracking number(s)
+2026-03-23 13:55:48,956 [INFO] 
+FBA FBA1994W71T8: 1 sub-tracking IDs
+2026-03-23 13:55:48,957 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994W71T8/tracking
+2026-03-23 13:55:54,091 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994W71T8/tracking
+2026-03-23 13:55:54,161 [INFO]   Found 1 empty tracking input(s), have 1 sub-IDs to fill
+2026-03-23 13:55:55,487 [DEBUG]   Box 1: filled 1Z765YW90309947488
+2026-03-23 13:55:56,068 [INFO]   Clicked 'Update all' — saving 1 tracking number(s)
+2026-03-23 13:56:02,077 [INFO] 
+FBA FBA1994SLXTR: 1 sub-tracking IDs
+2026-03-23 13:56:02,078 [INFO]   -> https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994SLXTR/tracking
+2026-03-23 13:56:06,317 [DEBUG]   URL after navigation: https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA1994SLXTR/tracking
+2026-03-23 13:56:06,399 [INFO]   Found 1 empty tracking input(s), have 1 sub-IDs to fill
+2026-03-23 13:56:07,572 [DEBUG]   Box 1: filled 1Z765YW90307269027
+2026-03-23 13:56:08,151 [INFO]   Clicked 'Update all' — saving 1 tracking number(s)
+2026-03-23 13:56:14,170 [INFO] [US] Done cache updated after upload: 114 total FBA(s)
+2026-03-23 13:56:14,339 [INFO] Highlighted output saved: output\shipments  details  26-3 (2)_processed_20260323_135614.xlsx
