@@ -65,7 +65,10 @@ def group_by_fba_id(rows: list) -> dict:
         parts = [p.strip() for p in fba_id_raw.split("/") if p.strip()]
         if not parts:
             continue  # pure "/" or empty — skip
-        fba_ids = parts
+        # Skip Walmart shipment IDs (end with "WFA") — not Amazon FBA
+        fba_ids = [fba for fba in parts if not fba.upper().endswith("WFA")]
+        if not fba_ids:
+            continue
 
         entry = {
             "tracking": str(row.get("tracking_num", "")).strip(),
