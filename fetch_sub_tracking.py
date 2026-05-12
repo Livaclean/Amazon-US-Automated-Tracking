@@ -181,6 +181,8 @@ def _click_ups_next_page(page) -> bool:
     Returns True if a next-page button was found and clicked, False otherwise.
     """
     next_candidates = [
+        "#stApp_pagination_nextBtn",   # UPS new layout specific ID
+        "button[aria-label='next']",   # UPS new layout aria-label
         "button:has-text('Next')",
         "a:has-text('Next')",
         "[aria-label*='Next' i]",
@@ -194,7 +196,6 @@ def _click_ups_next_page(page) -> bool:
             el = page.query_selector(selector)
             if el and el.is_visible() and el.is_enabled():
                 el.click()
-                page.wait_for_timeout(2000)
                 logger.debug(f"  Clicked next-page button: {selector}")
                 return True
         except Exception:
@@ -202,11 +203,61 @@ def _click_ups_next_page(page) -> bool:
     return False
 
 
+def _wait_for_ups_drawer_content(page, known_ids: set, timeout_ms: int = 15000) -> None:
+    """Waits until the UPS sub-packages drawer contains at least one new tracking ID."""
+    known_upper = {t.upper() for t in known_ids}
+    try:
+        page.wait_for_function(
+            """(knownIds) => {
+                const drawer = document.getElementById('stApp_multiPieceShipmentContent');
+                if (!drawer) return false;
+                const text = drawer.innerText || '';
+                const matches = text.match(/\\b(1Z[0-9A-Z]{16})\\b/gi) || [];
+                return matches.some(id => !knownIds.includes(id.toUpperCase()));
+            }""",
+            arg=list(known_upper),
+            timeout=timeout_ms,
+        )
+    except Exception:
+        pass  # Timed out — proceed with whatever is loaded
+
+
+def _ups_click_drawer_button(page) -> bool:
+    """Finds and clicks the 'Other Packages in this Shipment' drawer button. Returns True if clicked."""
+    try:
+        btn = page.query_selector("button.custom-title-button")
+        if not btn:
+            btn = page.query_selector("button:has-text('Other Packages in this Shipment')")
+        if btn and btn.is_visible():
+            btn.scroll_into_view_if_needed()
+            btn.click()
+            logger.debug("  Clicked 'Other Packages in this Shipment' button")
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _ups_extract_from_api(data: dict, main_tracking: str) -> list:
+    """Extracts sub-tracking IDs from a GetAdditionalPackages API response."""
+    packages = data.get("trackDetail", {}).get("additionalPackages", [])
+    numbers = []
+    for pkg in packages:
+        tid = pkg.get("trackingNumber", "").strip().upper()
+        if tid and tid != main_tracking.upper():
+            numbers.append(tid)
+    return deduplicate_tracking_numbers(numbers)
+
+
 def fetch_ups_sub_tracking(page, main_tracking: str, logs_folder: str = None) -> list:
     """
-    Opens UPS tracking page, clicks 'Other Packages in this Shipment',
-    and extracts sub-package tracking IDs from that section across all pages.
-    Falls back to full page regex if the section is not found.
+    Opens UPS tracking page and retrieves sub-package tracking IDs.
+
+    Primary path: intercepts the GetAdditionalPackages JSON API response triggered
+    by clicking the 'Other Packages in this Shipment' drawer — returns all IDs in
+    one call with no pagination and no HTML parsing.
+
+    Fallback: reads directly from the drawer DOM element across paginated pages.
     """
     url = UPS_TRACK_URL.format(tracking=main_tracking)
     logger.info(f"  Loading: {url}")
@@ -214,74 +265,118 @@ def fetch_ups_sub_tracking(page, main_tracking: str, logs_folder: str = None) ->
     try:
         page.goto(url, timeout=30000)
         page.wait_for_load_state("load", timeout=30000)
-        page.wait_for_timeout(4000)
+        # UPS uses Angular — wait for the app to finish rendering before querying
+        try:
+            page.wait_for_selector("button.custom-title-button", timeout=15000)
+        except Exception:
+            page.wait_for_timeout(6000)
     except Exception as e:
         logger.error(f"  Failed to load page: {e}")
         return []
 
     _handle_captcha(page)
 
-    # Scroll to bottom to trigger lazy-loading of the packages section
+    # Scroll to trigger lazy-loading of the packages section
     try:
         page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
         page.wait_for_timeout(2000)
-        page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        page.wait_for_timeout(1000)
     except Exception:
         pass
 
-    # Click "Other Packages in this Shipment" button to expand the list
-    # Must target the BUTTON element specifically — the page also has an H2 with the
-    # same text which is not clickable and causes get_by_text().first to silently fail.
-    section_found = False
+    # --- Primary path: intercept GetAdditionalPackages API responses ---
+    # Clicking the drawer button triggers a JSON API call per page. Intercept each
+    # response to get clean structured data — no HTML parsing, no regex.
     try:
-        btn = page.query_selector("button:has-text('Other Packages in this Shipment')")
-        if btn and btn.is_visible():
-            btn.scroll_into_view_if_needed()
-            btn.click()
-            logger.debug("  Clicked 'Other Packages in this Shipment' button")
-            page.wait_for_timeout(5000)
-            section_found = True
-    except Exception:
-        pass
+        all_api_numbers = []
 
-    if not section_found:
+        # Page 1: click drawer and capture first API response
+        with page.expect_response(
+            lambda r: "GetAdditionalPackages" in r.url and r.status == 200,
+            timeout=20000,
+        ) as resp_ctx:
+            clicked = _ups_click_drawer_button(page)
+
+        if not clicked:
+            raise Exception("Drawer button not found")
+
+        page_ids = _ups_extract_from_api(resp_ctx.value.json(), main_tracking)
+        all_api_numbers.extend(page_ids)
+        logger.info(f"  API page 1: +{len(page_ids)} sub-IDs (total {len(all_api_numbers)})")
+
+        # Subsequent pages: check for enabled Next button and intercept each response
+        for api_page in range(2, 20):
+            next_btn = page.query_selector("#stApp_pagination_nextBtn")
+            if not next_btn or not next_btn.is_visible() or not next_btn.is_enabled():
+                break
+            try:
+                with page.expect_response(
+                    lambda r: "GetAdditionalPackages" in r.url and r.status == 200,
+                    timeout=10000,
+                ) as resp_ctx:
+                    next_btn.click()
+                page_ids = _ups_extract_from_api(resp_ctx.value.json(), main_tracking)
+                if not page_ids:
+                    break
+                all_api_numbers.extend(page_ids)
+                logger.info(f"  API page {api_page}: +{len(page_ids)} sub-IDs (total {len(all_api_numbers)})")
+            except Exception:
+                break
+
+        result = deduplicate_tracking_numbers(all_api_numbers)
+        logger.info(f"  Found {len(result)} sub-IDs via API (GetAdditionalPackages)")
+        return result
+    except Exception as e:
+        logger.debug(f"  API interception failed: {e} — falling back to DOM")
+
+    # --- Fallback: DOM-based extraction from drawer across paginated pages ---
+    logger.debug("  Using DOM fallback for sub-tracking extraction")
+
+    # If the button wasn't clicked by the API path, click it now
+    if not _ups_click_drawer_button(page):
         logger.debug("  'Other Packages in this Shipment' button not found on page")
+    else:
+        try:
+            page.wait_for_selector(
+                "button.custom-title-button[aria-expanded='true']", timeout=10000
+            )
+        except Exception:
+            pass
+        _wait_for_ups_drawer_content(page, {main_tracking}, timeout_ms=20000)
 
-    # Extract from the section across all pages
     try:
         all_numbers = []
-        marker = "Other Packages in this Shipment"
 
-        for page_num in range(1, 20):  # up to 20 pages
-            page_text = page.inner_text("body")
-            idx = page_text.find(marker)
-            if idx >= 0:
-                section = page_text[idx:idx + 5000]
-                numbers = extract_ups_tracking_from_text(section, exclude=main_tracking)
-                new = [n for n in numbers if n not in all_numbers]
-                if new:
-                    all_numbers.extend(new)
-                    logger.info(f"  Page {page_num}: +{len(new)} sub-IDs (total {len(all_numbers)})")
-                else:
-                    logger.debug(f"  Page {page_num}: no new IDs found")
-
-                # Try to go to next page
-                if not _click_ups_next_page(page):
-                    logger.debug(f"  No next-page button found — done at page {page_num}")
-                    break
+        for page_num in range(1, 20):
+            drawer = page.query_selector("#stApp_multiPieceShipmentContent")
+            if drawer:
+                section = drawer.inner_text()
             else:
-                # Section not visible on this page — stop
+                page_text = page.inner_text("body")
+                marker = "Other Packages in this Shipment"
+                idx = page_text.find(marker)
+                if idx < 0:
+                    break
+                section = page_text[idx:idx + 5000]
+
+            numbers = extract_ups_tracking_from_text(section, exclude=main_tracking)
+            new = [n for n in numbers if n not in all_numbers]
+            if new:
+                all_numbers.extend(new)
+                logger.info(f"  Page {page_num}: +{len(new)} sub-IDs (total {len(all_numbers)})")
+            else:
+                logger.debug(f"  Page {page_num}: no new IDs found")
+
+            if not _click_ups_next_page(page):
+                logger.debug(f"  No next-page button found — done at page {page_num}")
                 break
+            _wait_for_ups_drawer_content(page, set(all_numbers) | {main_tracking}, timeout_ms=10000)
 
         if all_numbers:
             result = deduplicate_tracking_numbers(all_numbers)
             logger.info(f"  Total {len(result)} unique sub-IDs across all pages")
             return result
 
-        logger.debug("  No IDs from section — falling back to full page regex")
-
-        # Fallback: full page regex
+        # Last resort: full page regex
         page_text = page.inner_text("body")
         if logs_folder:
             Path(logs_folder).joinpath(f"ups_page_{main_tracking}.txt").write_text(
