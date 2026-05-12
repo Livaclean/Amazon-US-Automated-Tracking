@@ -736,9 +736,20 @@ def main():
             all_results.extend(region_results)
             write_region_summary(region_name, region_results, config["logs_folder"], ts_run)
 
-            # Add successfully uploaded FBAs to done cache
+            # Add successfully uploaded FBAs to done cache.
+            # Exclude FBAs with unfilled slots — they need a re-check when UPS scans remaining packages.
             if not args.rewrite:
-                newly_done = {r["fba_id"] for r in region_results if r["status"] in ("success", "skipped")}
+                newly_done = {
+                    r["fba_id"] for r in region_results
+                    if r["status"] in ("success", "skipped")
+                    and r.get("empty_slots_remaining", 0) == 0
+                }
+                partial_done = {r["fba_id"] for r in region_results if r.get("empty_slots_remaining", 0) > 0}
+                if partial_done:
+                    logger.warning(
+                        f"[{region_name}] {len(partial_done)} FBA(s) have unfilled slots — excluded from done cache "
+                        f"(will retry next run): {sorted(partial_done)}"
+                    )
                 if newly_done:
                     all_done = cached_done | set(already_complete) | newly_done
                     done_cache_file.write_text("\n".join(sorted(all_done)), encoding="utf-8")

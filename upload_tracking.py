@@ -350,6 +350,8 @@ def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict, 
 
     # Fill inputs: one tracking ID per box row (as many as we have inputs or IDs)
     fill_count = min(len(inputs), len(sub_ids))
+    # Track unfilled slots — positive when pool is smaller than available Amazon slots
+    result["empty_slots_remaining"] = max(0, len(inputs) - fill_count)
     filled = 0
     for i in range(fill_count):
         tid = sub_ids[i]
