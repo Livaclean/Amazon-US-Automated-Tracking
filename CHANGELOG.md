@@ -1,0 +1,23 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+Format based on [Keep a Changelog](https://keepachangelog.com/).
+
+## [0.1.0] - 2026-05-12
+
+### Added
+- UPS sub-tracking now intercepts the `GetAdditionalPackages` JSON API response directly — no HTML parsing, no regex, immune to UI layout changes
+- Condition-based waiting for UPS Angular app render (`wait_for_selector("button.custom-title-button")`) instead of flat timeout
+- `_ups_click_drawer_button` and `_ups_extract_from_api` helpers to cleanly separate drawer interaction from data extraction
+- `_wait_for_ups_drawer_content` for condition-based DOM fallback waiting
+- `empty_slots_remaining` field in `upload_tracking_to_shipment` result — tracks how many Amazon slots couldn't be filled due to pool being smaller than slot count
+
+### Changed
+- UPS API pagination now handled via `page.expect_response` per page click, replacing DOM text slice + flat sleep approach
+- `#stApp_pagination_nextBtn` added as first-priority Next button selector (UPS new layout specific)
+- Done cache in `run.py` now excludes FBAs where `empty_slots_remaining > 0` — these re-enter the queue next run when UPS scans remaining packages
+- DOM-based extraction retained as fallback behind API interception (reads `#stApp_multiPieceShipmentContent` directly, then full-page regex)
+
+### Fixed
+- UPS tracking page timeout on first load — Angular app was not fully rendered within old 4s wait
+- FBAs with shared tracking pools and fewer IDs than Amazon slots were incorrectly marked as done in cache, preventing the missing slots from being filled on subsequent runs
