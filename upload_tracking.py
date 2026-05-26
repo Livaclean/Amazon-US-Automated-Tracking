@@ -332,6 +332,24 @@ def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict, 
     except Exception:
         logger.warning(f"  Timed out waiting for tracking inputs in iframe for {fba_id}")
 
+    # Scroll the iframe to the bottom repeatedly to force virtual-scroll items to render.
+    # Amazon renders only ~20 rows at a time; scrolling reveals the rest.
+    try:
+        prev_count = 0
+        for _ in range(15):
+            tracking_frame.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            page.wait_for_timeout(400)
+            cur_count = len(tracking_frame.query_selector_all(
+                "input[placeholder*='auto fill'], input[placeholder*='Enter tracking']"
+            ))
+            if cur_count == prev_count:
+                break
+            prev_count = cur_count
+        tracking_frame.evaluate("window.scrollTo(0, 0)")  # scroll back to top for filling
+        page.wait_for_timeout(300)
+    except Exception as e:
+        logger.debug(f"  Iframe scroll failed (non-fatal): {e}")
+
     # Find all tracking input fields in the iframe
     try:
         all_inputs = tracking_frame.query_selector_all("input[placeholder*='auto fill'], input[placeholder*='Enter tracking']")
@@ -363,20 +381,43 @@ def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict, 
             except Exception:
                 inputs.append(inp)
 
+    # Collect IDs already present in filled slots across all visible inputs.
+    # This prevents uploading duplicates when re-running after a partial run:
+    # empty slots may appear at the bottom (revealed by scroll) while the
+    # top slots already hold IDs from a previous pass.
+    already_uploaded: set = set()
+    if not force:
+        for inp in all_inputs:
+            try:
+                val = (inp.get_attribute("value") or inp.evaluate("e => e.value") or "").strip()
+                if val:
+                    already_uploaded.add(val)
+            except Exception:
+                pass
+
+    # Only upload IDs genuinely missing from Amazon
+    new_ids = [tid for tid in sub_ids if tid not in already_uploaded]
+    result["already_existed"] = len(sub_ids) - len(new_ids)
+
     if not inputs:
         logger.info(f"  All {len(all_inputs)} tracking inputs already filled for {fba_id}")
         result["status"] = "skipped"
-        result["already_existed"] = len(all_inputs)
         return result
 
-    logger.info(f"  Found {len(inputs)} empty tracking input(s), have {len(sub_ids)} sub-IDs to fill")
+    if not new_ids:
+        logger.info(f"  All {len(sub_ids)} tracking IDs already in Amazon for {fba_id} — skipping")
+        result["status"] = "skipped"
+        return result
+
+    logger.info(f"  Found {len(inputs)} empty tracking input(s), {len(new_ids)} new IDs to fill (of {len(sub_ids)} total)")
 
     # Track unfilled slots — positive when pool is smaller than available Amazon slots
-    fill_count = min(len(inputs), len(sub_ids))
+    fill_count = min(len(inputs), len(new_ids))
     result["empty_slots_remaining"] = max(0, len(inputs) - fill_count)
     filled = 0
+    uploaded_ids = []
     for i in range(fill_count):
-        tid = sub_ids[i]
+        tid = new_ids[i]
         inp = inputs[i]
         try:
             inp.click()
@@ -384,6 +425,7 @@ def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict, 
                 inp.evaluate("e => { e.select(); }")
             inp.fill(tid)
             filled += 1
+            uploaded_ids.append(tid)
             logger.debug(f"  Slot {i+1}: filled {tid}")
             result["tracking_results"].append({
                 "tracking_number": tid, "status": "success", "message": f"Filled in slot {i+1}"
@@ -394,6 +436,8 @@ def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict, 
                 "tracking_number": tid, "status": "error", "message": str(e)
             })
             result["failed"] += 1
+
+    result["uploaded_ids"] = uploaded_ids
 
     if filled == 0 and result["already_existed"] == 0:
         logger.error(f"  Could not fill any tracking inputs for {fba_id}")
@@ -635,6 +679,21 @@ def check_amazon_tracking_status(page, fba_id: str, config: dict) -> str:
     except Exception:
         logger.warning(f"  [check] Timed out waiting for inputs for {fba_id}")
 
+    # Scroll to reveal all virtual-scroll rows before checking fill state
+    try:
+        prev_count = 0
+        for _ in range(15):
+            tracking_frame.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            page.wait_for_timeout(400)
+            cur_count = len(tracking_frame.query_selector_all(
+                "input[placeholder*='auto fill'], input[placeholder*='Enter tracking']"
+            ))
+            if cur_count == prev_count:
+                break
+            prev_count = cur_count
+    except Exception:
+        pass
+
     try:
         inputs = tracking_frame.query_selector_all("input[placeholder*='auto fill'], input[placeholder*='Enter tracking']")
     except Exception as e:
@@ -680,6 +739,17 @@ def get_slot_count(page, fba_id: str, base_url: str) -> int:
         return 0
     try:
         tracking_frame.wait_for_selector("input[placeholder*='auto fill'], input[placeholder*='Enter tracking']", timeout=10000)
+        # Scroll to reveal all virtual-scroll rows before counting
+        prev_count = 0
+        for _ in range(15):
+            tracking_frame.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            page.wait_for_timeout(400)
+            cur_count = len(tracking_frame.query_selector_all(
+                "input[placeholder*='auto fill'], input[placeholder*='Enter tracking']"
+            ))
+            if cur_count == prev_count:
+                break
+            prev_count = cur_count
         inputs = tracking_frame.query_selector_all("input[placeholder*='auto fill'], input[placeholder*='Enter tracking']")
         return len(inputs)
     except Exception:
@@ -773,7 +843,11 @@ def upload_all_shipments(shipments: dict, config: dict, page, force: bool = Fals
             if filled_this_pass == 0:
                 break  # No progress — no empty slots left or all skipped
 
-            remaining_ids = remaining_ids[filled_this_pass:]
+            # Remove specifically-uploaded IDs (not a naive front-slice) so that
+            # when empty slots appear at the bottom after scrolling, we fill them
+            # with the IDs that are genuinely missing, not duplicates from the front.
+            uploaded_this_pass = set(last_result.get("uploaded_ids", []))
+            remaining_ids = [tid for tid in remaining_ids if tid not in uploaded_this_pass]
             if pass_num > 1:
                 logger.info(
                     f"  [Pass {pass_num}] Filled {filled_this_pass} more. "

@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.1.2] - 2026-05-27
+
+### Fixed
+- Uploading to newly-added Amazon slots no longer duplicates already-uploaded IDs — script now reads which IDs are already in filled slots and only fills empty slots with genuinely missing IDs
+- Multi-pass loop now tracks specifically-uploaded IDs (set subtraction) rather than a naive front-slice, so remaining IDs are correctly computed when empty slots appear at arbitrary positions
+- `check_amazon_tracking_status` and `get_slot_count` now scroll the tracking iframe before querying inputs, ensuring dynamically-added slots are visible before counting
+
 ## [0.1.1] - 2026-05-27
 
 ### Fixed
