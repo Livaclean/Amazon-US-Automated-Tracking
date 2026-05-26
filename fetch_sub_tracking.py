@@ -42,6 +42,16 @@ def normalize_carrier(carrier_name) -> str:
     return "unknown"
 
 
+def _detect_carrier_from_tracking(tracking: str) -> str:
+    """Infer carrier from tracking number format when the carrier field is blank."""
+    t = tracking.strip().upper()
+    if re.match(r"^1Z[0-9A-Z]{16}$", t):
+        return "ups"
+    if re.match(r"^\d{12}$|^\d{15}$|^\d{20}$|^\d{22}$", t):
+        return "fedex"
+    return "unknown"
+
+
 def extract_ups_tracking_from_text(text: str, exclude: str = None) -> list:
     """Extracts all 1Z-format UPS tracking numbers from text."""
     if not text:
@@ -519,8 +529,24 @@ def fetch_fedex_sub_tracking(page, main_tracking: str, logs_folder: str = None) 
             if el and el.is_visible():
                 el.click()
                 logger.debug("  Clicked 'View more details'")
-                page.wait_for_load_state("load", timeout=15000)
-                page.wait_for_timeout(10000)
+                # Use domcontentloaded — FedEx is an SPA so 'load' fires before XHR data
+                try:
+                    page.wait_for_load_state("domcontentloaded", timeout=15000)
+                except Exception:
+                    pass
+                # Scroll to trigger lazy-loading of the piece table
+                try:
+                    page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                except Exception:
+                    pass
+                # Wait up to 25s for a piece-related element to appear in the DOM
+                try:
+                    page.wait_for_selector(
+                        "text=/piece|pieces|Piece Shipment|shipment pieces/i",
+                        timeout=25000,
+                    )
+                except Exception:
+                    page.wait_for_timeout(25000)
         except Exception:
             pass
 
@@ -531,7 +557,7 @@ def fetch_fedex_sub_tracking(page, main_tracking: str, logs_folder: str = None) 
                 if el and el.is_visible():
                     el.click()
                     logger.debug(f"  Clicked '{btn_text}'")
-                    page.wait_for_timeout(2000)
+                    page.wait_for_timeout(3000)
                     break
             except Exception:
                 pass
@@ -545,13 +571,19 @@ def fetch_fedex_sub_tracking(page, main_tracking: str, logs_folder: str = None) 
         for marker in section_markers:
             idx = page_text.lower().find(marker.lower())
             if idx >= 0:
-                section = page_text[idx:idx + 3000]
+                # Search to end of page (not just 3000 chars) to catch large piece tables
+                section = page_text[idx:]
                 numbers = deduplicate_tracking_numbers(
                     extract_fedex_tracking_from_text(section, exclude=main_tracking)
                 )
                 logger.info(f"  Found {len(numbers)} sub-IDs from '{marker}' section")
                 if numbers:
                     return numbers
+                # Section found but 0 IDs — save page text for debugging before trying next trkqual
+                if has_piece_indicator and logs_folder:
+                    debug_path = Path(logs_folder) / f"fedex_piece_debug_{main_tracking}_{trkqual.replace('~', '_')}.txt"
+                    debug_path.write_text(page_text[:_LOG_PAGE_TEXT_LIMIT], encoding="utf-8")
+                    logger.debug(f"  Saved piece debug page: {debug_path.name}")
                 logger.debug(f"  Section '{marker}' found but no IDs — trying next trkqual")
                 break
 
@@ -591,6 +623,11 @@ def fetch_sub_tracking_ids(page, main_tracking: str, carrier: str,
                             logs_folder: str = None) -> list:
     """Dispatches to UPS or FedEx scraper based on carrier string."""
     normalized = normalize_carrier(carrier)
+    if normalized == "unknown":
+        detected = _detect_carrier_from_tracking(main_tracking)
+        if detected != "unknown":
+            logger.info(f"  Carrier not specified — auto-detected '{detected}' from tracking number format")
+            normalized = detected
     if normalized == "ups":
         return fetch_ups_sub_tracking(page, main_tracking, logs_folder)
     elif normalized == "fedex":

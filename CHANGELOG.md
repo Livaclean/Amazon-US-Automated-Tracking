@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.1.1] - 2026-05-27
+
+### Fixed
+- Blank carrier column in Excel no longer silently skips sub-tracking fetch — UPS tracking numbers (`1Z...` format) and FedEx numbers are now auto-detected from the tracking ID itself
+- Amazon's 20-slot per-page cap no longer causes incomplete uploads — uploader now loops across multiple passes until all available slots are filled
+- FedEx "Piece Shipment" detail section failing to load — extended wait from 10s to 25s and added explicit scroll + selector-based confirmation before reading sub-IDs
+
 ## [0.1.0] - 2026-05-12
 
 ### Added
