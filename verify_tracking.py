@@ -270,63 +270,27 @@ def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
     logger.info("  Step 1: clicking Status dropdown...")
     status_clicked = False
 
-    # Try kat-dropdown with label/value Status, or the second kat-button in toolbar
-    for selector in [
-        "kat-dropdown[label='Status']",
-        "kat-dropdown[value='Status']",
-        ".popover-inline-filter-container kat-popover",
-        "kat-button:nth-of-type(3)",  # third kat-button: Filters, Last updated, Status
-    ]:
-        try:
-            el = page.wait_for_selector(selector, timeout=3000, state="visible")
-            el.click()
-            status_clicked = True
-            logger.debug(f"  Status dropdown clicked via: {selector}")
-            break
-        except Exception:
-            continue
+    # Confirmed from debug: Status is the 2nd kat-popover in .popover-inline-filter-container
+    # (index 1, 0-based). The first one (index 0) is "Last updated".
+    # Status kat-popover is at x=403, y=428, text contains 'Select all'.
+    try:
+        # Use Playwright's nth() to select the 2nd kat-popover in the inline filter container
+        el = page.locator(".popover-inline-filter-container kat-popover").nth(1)
+        el.wait_for(timeout=8000, state="visible")
+        el.click()
+        status_clicked = True
+        logger.debug("  Status dropdown clicked via nth(1) locator")
+    except Exception as e:
+        logger.debug(f"  nth(1) locator failed: {e}")
 
-    # JS fallback: find KAT-BUTTON or kat-dropdown to the right of the Filters button
+    # Fallback: click by confirmed page coordinates (x=403+113=516, y=428+31=459)
     if not status_clicked:
         try:
-            result = page.evaluate("""
-                () => {
-                    // The toolbar has Filters, Last updated, Status buttons
-                    // Status is the one with text containing 'Status' in the toolbar
-                    var kats = document.querySelectorAll('kat-dropdown, kat-button');
-                    for (var i = 0; i < kats.length; i++) {
-                        var el = kats[i];
-                        var b = el.getBoundingClientRect();
-                        var txt = el.textContent.trim() + ' ' + (el.getAttribute('label') || '') + ' ' + (el.getAttribute('value') || '');
-                        if (b.width > 0 && txt.toLowerCase().includes('status')) {
-                            el.click();
-                            return 'clicked: ' + el.tagName + ' text=' + txt.substring(0, 30);
-                        }
-                    }
-                    // Fallback: click third visible toolbar button (Filters=1, Last updated=2, Status=3)
-                    var toolbarBtns = [];
-                    var allKats = document.querySelectorAll('kat-button');
-                    for (var j = 0; j < allKats.length; j++) {
-                        var b2 = allKats[j].getBoundingClientRect();
-                        if (b2.width > 0 && b2.y > 400 && b2.y < 460) {
-                            toolbarBtns.push(allKats[j]);
-                        }
-                    }
-                    if (toolbarBtns.length >= 3) {
-                        toolbarBtns[2].click();
-                        return 'clicked 3rd toolbar button';
-                    } else if (toolbarBtns.length >= 2) {
-                        toolbarBtns[1].click();
-                        return 'clicked 2nd toolbar button';
-                    }
-                    return null;
-                }
-            """)
-            if result:
-                status_clicked = True
-                logger.info(f"  Status via JS: {result}")
+            page.mouse.click(516, 459)
+            status_clicked = True
+            logger.debug("  Status dropdown clicked by coordinates (516, 459)")
         except Exception as e:
-            logger.debug(f"  JS Status click failed: {e}")
+            logger.debug(f"  Coordinate click failed: {e}")
 
     if not status_clicked:
         logger.warning("  Status dropdown not found")
