@@ -424,7 +424,14 @@ def main():
             shipments_all.update(region_data)
         print(f"\nFiltered to {len(shipments_all)} FBA(s) from list: {fba_list_path.name}")
 
-    if not shipments_all:
+    # Discovery and standalone verify modes don't require an Excel file
+    no_excel_needed = args.discover or getattr(args, 'discover_queue', False) or (
+        getattr(args, 'verify', False) and not any([
+            args.collect_only, args.check_only, args.from_json,
+        ])
+    )
+
+    if not shipments_all and not no_excel_needed:
         print(f"\nNo FBA shipments found in any configured region.")
         print(f"  - Drop your Excel file in:  {config['input_folder']}")
         print(f"  - Check column D has FC codes matching your regions")
