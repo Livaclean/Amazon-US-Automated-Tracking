@@ -265,35 +265,86 @@ def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
     """
     logger.info(f"_apply_ready_to_ship_filter: current URL = {page.url}")
 
-    # Step 1: Click the "Filters" button (kat-button.popover-filter-button)
-    # Confirmed from debug: KAT-BUTTON.popover-filter-button at x=51, y=428
-    logger.info("  Step 1: clicking Filters button...")
-    filters_clicked = False
-    for selector in ["kat-button.popover-filter-button", "kat-button:has-text('Filters')"]:
+    # Step 1: Click the "Status" dropdown in the toolbar
+    # The toolbar has: [Filters] [Last updated] [Status ▼] — we need the Status dropdown
+    logger.info("  Step 1: clicking Status dropdown...")
+    status_clicked = False
+
+    # Try kat-dropdown with label/value Status, or the second kat-button in toolbar
+    for selector in [
+        "kat-dropdown[label='Status']",
+        "kat-dropdown[value='Status']",
+        ".popover-inline-filter-container kat-popover",
+        "kat-button:nth-of-type(3)",  # third kat-button: Filters, Last updated, Status
+    ]:
         try:
-            el = page.wait_for_selector(selector, timeout=8000, state="visible")
+            el = page.wait_for_selector(selector, timeout=3000, state="visible")
             el.click()
-            filters_clicked = True
-            logger.debug(f"  Filters button clicked via: {selector}")
+            status_clicked = True
+            logger.debug(f"  Status dropdown clicked via: {selector}")
             break
         except Exception:
             continue
 
-    if not filters_clicked:
-        logger.warning("  Filters button not found")
-        _take_screenshot(page, logs_folder, "verify_filters_btn_not_found")
+    # JS fallback: find KAT-BUTTON or kat-dropdown to the right of the Filters button
+    if not status_clicked:
+        try:
+            result = page.evaluate("""
+                () => {
+                    // The toolbar has Filters, Last updated, Status buttons
+                    // Status is the one with text containing 'Status' in the toolbar
+                    var kats = document.querySelectorAll('kat-dropdown, kat-button');
+                    for (var i = 0; i < kats.length; i++) {
+                        var el = kats[i];
+                        var b = el.getBoundingClientRect();
+                        var txt = el.textContent.trim() + ' ' + (el.getAttribute('label') || '') + ' ' + (el.getAttribute('value') || '');
+                        if (b.width > 0 && txt.toLowerCase().includes('status')) {
+                            el.click();
+                            return 'clicked: ' + el.tagName + ' text=' + txt.substring(0, 30);
+                        }
+                    }
+                    // Fallback: click third visible toolbar button (Filters=1, Last updated=2, Status=3)
+                    var toolbarBtns = [];
+                    var allKats = document.querySelectorAll('kat-button');
+                    for (var j = 0; j < allKats.length; j++) {
+                        var b2 = allKats[j].getBoundingClientRect();
+                        if (b2.width > 0 && b2.y > 400 && b2.y < 460) {
+                            toolbarBtns.push(allKats[j]);
+                        }
+                    }
+                    if (toolbarBtns.length >= 3) {
+                        toolbarBtns[2].click();
+                        return 'clicked 3rd toolbar button';
+                    } else if (toolbarBtns.length >= 2) {
+                        toolbarBtns[1].click();
+                        return 'clicked 2nd toolbar button';
+                    }
+                    return null;
+                }
+            """)
+            if result:
+                status_clicked = True
+                logger.info(f"  Status via JS: {result}")
+        except Exception as e:
+            logger.debug(f"  JS Status click failed: {e}")
+
+    if not status_clicked:
+        logger.warning("  Status dropdown not found")
+        _take_screenshot(page, logs_folder, "verify_status_not_found")
         return False
 
     page.wait_for_timeout(2000)
-    _take_screenshot(page, logs_folder, "verify_after_filters_click")
-    logger.info("  Filters panel opened")
+    _take_screenshot(page, logs_folder, "verify_after_status_click")
 
-    # Step 2: Select "Ready to ship" — now visible inside the filter panel
+    # Step 2: Select "Ready to ship" from the opened Status dropdown
     logger.info("  Step 2: selecting 'Ready to ship'...")
     rts_clicked = False
-    # Try Playwright selector first (element should now be visible in open panel)
-    for selector in ["span:has-text('Ready to ship')", "label:has-text('Ready to ship')",
-                     "kat-checkbox:has-text('Ready to ship')"]:
+    for selector in [
+        "span:has-text('Ready to ship')",
+        "label:has-text('Ready to ship')",
+        "kat-checkbox:has-text('Ready to ship')",
+        "li:has-text('Ready to ship')",
+    ]:
         try:
             el = page.wait_for_selector(selector, timeout=5000, state="visible")
             el.click()
@@ -304,7 +355,7 @@ def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
             continue
 
     if not rts_clicked:
-        logger.warning("  'Ready to ship' option not found in filter panel")
+        logger.warning("  'Ready to ship' option not found")
         _take_screenshot(page, logs_folder, "verify_rts_not_found")
         return False
 
