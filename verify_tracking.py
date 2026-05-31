@@ -301,22 +301,51 @@ def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
     _take_screenshot(page, logs_folder, "verify_after_status_click")
 
     # Step 2: Select "Ready to ship" from the opened Status dropdown
+    # The options render inside kat-popover shadow DOM — use get_by_text() or JS traversal
     logger.info("  Step 2: selecting 'Ready to ship'...")
     rts_clicked = False
-    for selector in [
-        "span:has-text('Ready to ship')",
-        "label:has-text('Ready to ship')",
-        "kat-checkbox:has-text('Ready to ship')",
-        "li:has-text('Ready to ship')",
-    ]:
+
+    # Playwright's get_by_text pierces shadow DOM
+    try:
+        el = page.get_by_text("Ready to ship", exact=True).first
+        el.wait_for(timeout=5000, state="visible")
+        el.click()
+        rts_clicked = True
+        logger.debug("  'Ready to ship' clicked via get_by_text()")
+    except Exception as e:
+        logger.debug(f"  get_by_text failed: {e}")
+
+    # JS fallback: traverse shadow DOM to find and click 'Ready to ship'
+    if not rts_clicked:
         try:
-            el = page.wait_for_selector(selector, timeout=5000, state="visible")
-            el.click()
-            rts_clicked = True
-            logger.debug(f"  'Ready to ship' clicked via: {selector}")
-            break
-        except Exception:
-            continue
+            result = page.evaluate("""
+                () => {
+                    function findText(root, text) {
+                        if (!root) return null;
+                        if (root.nodeType === Node.TEXT_NODE && root.textContent.trim() === text) {
+                            var el = root.parentElement;
+                            var b = el ? el.getBoundingClientRect() : null;
+                            if (b && b.width > 0) return el;
+                        }
+                        var children = root.shadowRoot
+                            ? [...root.childNodes, ...root.shadowRoot.childNodes]
+                            : [...root.childNodes];
+                        for (var i = 0; i < children.length; i++) {
+                            var found = findText(children[i], text);
+                            if (found) return found;
+                        }
+                        return null;
+                    }
+                    var el = findText(document.body, 'Ready to ship');
+                    if (el) { el.scrollIntoView(); el.click(); return 'clicked'; }
+                    return null;
+                }
+            """)
+            if result:
+                rts_clicked = True
+                logger.debug("  'Ready to ship' clicked via shadow DOM traversal")
+        except Exception as e:
+            logger.debug(f"  Shadow DOM JS failed: {e}")
 
     if not rts_clicked:
         logger.warning("  'Ready to ship' option not found")
