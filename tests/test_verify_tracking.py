@@ -147,3 +147,40 @@ def test_format_verify_summary_multiple_regions():
     out = format_verify_summary([r1, r2])
     assert "US" in out
     assert "CA" in out
+
+
+from verify_tracking import (
+    _navigate_to_queue_page,
+    _apply_ready_to_ship_filter,
+    _collect_all_missing_fba_ids,
+)
+
+
+@pytest.mark.integration
+def test_navigate_to_queue_page(browser_page, test_logger):
+    """Should navigate to the shipping queue without errors."""
+    result = _navigate_to_queue_page(browser_page, "https://sellercentral.amazon.com")
+    test_logger.info(f"Queue page URL: {browser_page.url}, result: {result}")
+    assert result is True
+    assert "shipping-queue" in browser_page.url or "ssof" in browser_page.url
+
+
+@pytest.mark.integration
+def test_apply_ready_to_ship_filter(browser_page, test_logger):
+    """Should apply Status=Ready to ship filter without errors."""
+    _navigate_to_queue_page(browser_page, "https://sellercentral.amazon.com")
+    result = _apply_ready_to_ship_filter(browser_page)
+    test_logger.info(f"Filter applied: {result}, URL: {browser_page.url}")
+    assert result is True
+
+
+@pytest.mark.integration
+def test_collect_all_missing_fba_ids_returns_list(browser_page, test_logger):
+    """Should return a list (possibly empty) of FBA IDs with missing tracking."""
+    _navigate_to_queue_page(browser_page, "https://sellercentral.amazon.com")
+    _apply_ready_to_ship_filter(browser_page)
+    fba_ids = _collect_all_missing_fba_ids(browser_page)
+    test_logger.info(f"Found {len(fba_ids)} FBA IDs with missing tracking: {fba_ids[:5]}")
+    assert isinstance(fba_ids, list)
+    for fba_id in fba_ids:
+        assert fba_id.startswith("FBA"), f"Unexpected ID format: {fba_id}"

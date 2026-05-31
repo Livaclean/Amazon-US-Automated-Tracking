@@ -221,3 +221,154 @@ def discover_queue_page(page, amazon_url: str, logs_folder: str) -> None:
     dump_path.write_text("".join(output), encoding="utf-8")
     print(f"\nQueue discovery saved to: {dump_path}")
     print("Review the file and screenshot in logs/ to confirm selectors before running --verify.")
+
+
+def _navigate_to_queue_page(page, amazon_url: str) -> bool:
+    """Navigates to the FBA shipping queue page. Returns True on success."""
+    queue_url = f"{amazon_url}/gp/ssof/shipping-queue.html#fbashipment"
+    try:
+        page.goto(queue_url, wait_until="domcontentloaded", timeout=30000)
+        page.wait_for_timeout(2000)
+        return True
+    except Exception as e:
+        logger.warning(f"_navigate_to_queue_page failed: {e}")
+        return False
+
+
+def _apply_ready_to_ship_filter(page) -> bool:
+    """
+    Clicks the Status filter, selects 'Ready to ship', and clicks Apply.
+    Returns True if the filter was applied, False if any selector was not found.
+    NOTE: Run --discover-queue first if this fails, to identify real Amazon selectors.
+    """
+    # Step 1: open the Status filter
+    for selector in QUEUE_SELECTORS["status_filter_button"]:
+        try:
+            el = page.wait_for_selector(selector, timeout=5000, state="visible")
+            el.click()
+            page.wait_for_timeout(800)
+            logger.debug(f"Status filter opened via: {selector}")
+            break
+        except Exception:
+            continue
+    else:
+        logger.warning("_apply_ready_to_ship_filter: Status filter button not found")
+        return False
+
+    # Step 2: select 'Ready to ship'
+    for selector in QUEUE_SELECTORS["ready_to_ship_option"]:
+        try:
+            el = page.wait_for_selector(selector, timeout=5000, state="visible")
+            el.click()
+            page.wait_for_timeout(500)
+            logger.debug(f"'Ready to ship' selected via: {selector}")
+            break
+        except Exception:
+            continue
+    else:
+        logger.warning("_apply_ready_to_ship_filter: 'Ready to ship' option not found")
+        return False
+
+    # Step 3: click Apply
+    for selector in QUEUE_SELECTORS["apply_button"]:
+        try:
+            el = page.wait_for_selector(selector, timeout=5000, state="visible")
+            el.click()
+            page.wait_for_timeout(2000)
+            logger.debug(f"Apply clicked via: {selector}")
+            return True
+        except Exception:
+            continue
+
+    logger.warning("_apply_ready_to_ship_filter: Apply button not found")
+    return False
+
+
+def _collect_missing_fba_ids_on_page(page) -> list:
+    """
+    Extracts FBA IDs from rows with a 'Missing Tracking ID' badge on the current page.
+    Uses JavaScript DOM traversal for reliability across Amazon UI variations.
+    """
+    try:
+        fba_ids = page.evaluate("""() => {
+            const FBA_RE = /FBA[A-Z0-9]{6,}/;
+            const results = [];
+            const BADGE_TEXTS = [
+                'missing tracking number', 'missing tracking id',
+                'missing tracking', 'add tracking',
+            ];
+            // Find all text nodes containing a badge phrase
+            const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+            const badgeEls = new Set();
+            let node;
+            while ((node = walker.nextNode())) {
+                const text = node.textContent.toLowerCase();
+                if (BADGE_TEXTS.some(t => text.includes(t))) {
+                    badgeEls.add(node.parentElement);
+                }
+            }
+            // Also find by data-testid and class
+            document.querySelectorAll(
+                '[data-testid*="missing-tracking"], [class*="missing-tracking"]'
+            ).forEach(el => badgeEls.add(el));
+
+            for (const badge of badgeEls) {
+                let p = badge;
+                for (let i = 0; i < 12; i++) {
+                    if (!p || !p.parentElement) break;
+                    p = p.parentElement;
+                    const tag = p.tagName.toLowerCase();
+                    const cls = (p.className || '').toLowerCase();
+                    if (tag === 'tr' || tag === 'li' ||
+                        cls.includes('row') || cls.includes('shipment') ||
+                        cls.includes('item')) {
+                        const match = p.textContent.match(/FBA[A-Z0-9]{6,}/);
+                        if (match) {
+                            results.push(match[0]);
+                            break;
+                        }
+                    }
+                }
+            }
+            return [...new Set(results)];
+        }""")
+        return fba_ids if isinstance(fba_ids, list) else []
+    except Exception as e:
+        logger.warning(f"_collect_missing_fba_ids_on_page: JS evaluation failed: {e}")
+        return []
+
+
+def _collect_all_missing_fba_ids(page) -> list:
+    """
+    Paginates through ALL pages of the filtered queue and collects every
+    FBA ID that has a 'Missing Tracking ID' badge. Hard requirement: no page is skipped.
+    """
+    all_fba_ids = []
+    page_num = 1
+
+    while True:
+        logger.info(f"  Queue page {page_num}: collecting missing-tracking FBA IDs...")
+        ids_on_page = _collect_missing_fba_ids_on_page(page)
+        logger.info(f"  Page {page_num}: found {len(ids_on_page)} FBA(s) with missing tracking")
+        all_fba_ids.extend(ids_on_page)
+
+        # Check for next page button
+        next_clicked = False
+        for selector in QUEUE_SELECTORS["next_page_button"]:
+            try:
+                btn = page.query_selector(selector)
+                if btn and btn.is_visible() and btn.is_enabled():
+                    btn.click()
+                    page.wait_for_timeout(2000)
+                    page_num += 1
+                    next_clicked = True
+                    logger.debug(f"  Navigated to page {page_num} via: {selector}")
+                    break
+            except Exception:
+                continue
+
+        if not next_clicked:
+            logger.info(f"  No more pages after page {page_num}.")
+            break
+
+    return list(dict.fromkeys(all_fba_ids))  # deduplicate, preserve order
