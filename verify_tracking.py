@@ -244,13 +244,14 @@ def _navigate_to_queue_page(page, amazon_url: str) -> bool:
     return False
 
 
-def _apply_ready_to_ship_filter(page) -> bool:
+def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
     """
     Clicks the 'Only show shipments with missing tracking information' toggle.
     Discovery found this is simpler and more reliable than the Status → Ready to ship flow.
     Returns True if the toggle was clicked, False if not found.
     NOTE: Run --discover-queue if this fails, to re-check selectors.
     """
+    logger.info(f"_apply_ready_to_ship_filter: current URL = {page.url}")
     for selector in QUEUE_SELECTORS["missing_tracking_toggle"]:
         try:
             el = page.wait_for_selector(selector, timeout=15000, state="visible")
@@ -260,6 +261,15 @@ def _apply_ready_to_ship_filter(page) -> bool:
             return True
         except Exception:
             continue
+    # Screenshot to diagnose what the page looks like when toggle is not found
+    try:
+        folder = Path(logs_folder) / "screenshots"
+        folder.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        page.screenshot(path=str(folder / f"verify_toggle_not_found_{ts}.png"))
+        logger.info(f"Screenshot saved: verify_toggle_not_found_{ts}.png")
+    except Exception as e:
+        logger.debug(f"Screenshot failed: {e}")
     logger.warning("_apply_ready_to_ship_filter: missing tracking toggle not found")
     return False
 
@@ -395,7 +405,7 @@ def run_verify(page, region: dict, config: dict, shipments_all: dict) -> VerifyR
         _wait_for_login(page)
 
     # Apply Ready to ship filter
-    if not _apply_ready_to_ship_filter(page):
+    if not _apply_ready_to_ship_filter(page, config.get("logs_folder", "logs")):
         logger.warning(f"[{region_name}] Could not apply Ready to ship filter — skipping verify")
         return result
 
