@@ -432,7 +432,6 @@ def run_verify(page, region: dict, config: dict, shipments_all: dict) -> VerifyR
     Returns a populated VerifyResult.
     """
     from upload_tracking import _is_login_page, _wait_for_login
-    from run import wait_for_login
 
     region_name = region["name"]
     amazon_url = region["amazon_url"]
@@ -479,11 +478,10 @@ def run_verify(page, region: dict, config: dict, shipments_all: dict) -> VerifyR
         print(f"  [{region_name}] Re-uploading {fba_id}...")
         reup = _reupload_fba(page, fba_id, entries, region_config)
 
-        if reup["status"] in ("success", "partial", "skipped"):
-            if reup["total"] > 0 and reup["filled"] < reup["total"]:
-                result.still_incomplete.append(reup)
-            else:
-                result.re_uploaded.append(reup)
+        if reup["status"] in ("success", "partial") and reup["total"] > 0 and reup["filled"] == reup["total"]:
+            result.re_uploaded.append(reup)
+        elif reup["status"] in ("success", "partial") and reup["total"] > 0 and reup["filled"] < reup["total"]:
+            result.still_incomplete.append(reup)
         else:
             result.still_incomplete.append(reup)
 
