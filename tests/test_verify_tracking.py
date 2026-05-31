@@ -91,3 +91,62 @@ def test_verify_result_defaults():
     assert r.still_incomplete == []
     assert r.missing_in_sheet == []
     assert r.not_in_sheet == []
+
+
+from verify_tracking import format_verify_summary
+
+
+@pytest.mark.unit
+def test_format_verify_summary_all_ok():
+    r = VerifyResult(region="US", total_checked=5, total_ok=5)
+    out = format_verify_summary([r])
+    assert "VERIFICATION" in out
+    assert "US" in out
+    assert "All tracking complete" in out
+
+
+@pytest.mark.unit
+def test_format_verify_summary_re_uploaded():
+    r = VerifyResult(region="US", total_checked=3, total_ok=2)
+    r.re_uploaded = [{"fba_id": "FBA001", "filled": 3, "total": 3}]
+    out = format_verify_summary([r])
+    assert "FBA001" in out
+    assert "Re-uploaded successfully" in out
+    assert "3" in out
+
+
+@pytest.mark.unit
+def test_format_verify_summary_still_incomplete():
+    r = VerifyResult(region="US", total_checked=2, total_ok=1)
+    r.still_incomplete = [{"fba_id": "FBA002", "filled": 2, "total": 4}]
+    out = format_verify_summary([r])
+    assert "FBA002" in out
+    assert "Still incomplete" in out
+    assert "2 of 4" in out
+
+
+@pytest.mark.unit
+def test_format_verify_summary_missing_in_sheet():
+    r = VerifyResult(region="CA", total_checked=2, total_ok=1)
+    r.missing_in_sheet = [{"fba_id": "FBA003", "reason": 'tracking column is "/"'}]
+    out = format_verify_summary([r])
+    assert "FBA003" in out
+    assert "Tracking missing in sheet" in out
+
+
+@pytest.mark.unit
+def test_format_verify_summary_not_in_sheet():
+    r = VerifyResult(region="US", total_checked=2, total_ok=1)
+    r.not_in_sheet = ["FBA004"]
+    out = format_verify_summary([r])
+    assert "FBA004" in out
+    assert "Not in sheet" in out
+
+
+@pytest.mark.unit
+def test_format_verify_summary_multiple_regions():
+    r1 = VerifyResult(region="US", total_checked=10, total_ok=10)
+    r2 = VerifyResult(region="CA", total_checked=5, total_ok=5)
+    out = format_verify_summary([r1, r2])
+    assert "US" in out
+    assert "CA" in out

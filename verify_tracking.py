@@ -88,3 +88,51 @@ def _cross_reference(fba_ids: list, shipments_all: dict) -> dict:
             missing_in_sheet.append({"fba_id": fba_id, "reason": reason})
 
     return {"reupload": reupload, "missing_in_sheet": missing_in_sheet, "not_in_sheet": not_in_sheet}
+
+
+def format_verify_summary(results: list) -> str:
+    SEP = "=" * 60
+    lines = [SEP, "VERIFICATION — Missing Tracking ID Check", SEP]
+
+    for r in results:
+        missing_count = (
+            len(r.re_uploaded) + len(r.still_incomplete)
+            + len(r.missing_in_sheet) + len(r.not_in_sheet)
+        )
+        lines += [
+            f"Region: {r.region}",
+            f"  Checked : {r.total_checked} \"Ready to ship\" shipments",
+            f"  OK       : {r.total_ok} (tracking complete)",
+            f"  Missing  : {missing_count}",
+        ]
+
+        if not missing_count:
+            lines.append("  All tracking complete.")
+        else:
+            if r.re_uploaded:
+                lines.append("\n  Re-uploaded successfully:")
+                for item in r.re_uploaded:
+                    lines.append(f"    {item['fba_id']}  — {item['filled']} tracking ID(s) filled")
+
+            if r.still_incomplete:
+                lines.append("\n  Still incomplete after re-upload:")
+                for item in r.still_incomplete:
+                    lines.append(
+                        f"    {item['fba_id']}  — {item['filled']} of {item['total']} slots filled "
+                        f"(fewer tracking IDs than fields)"
+                    )
+
+            if r.missing_in_sheet:
+                lines.append("\n  Tracking missing in sheet (in sheet but no usable tracking ID):")
+                for item in r.missing_in_sheet:
+                    lines.append(f"    {item['fba_id']}  — {item['reason']}")
+
+            if r.not_in_sheet:
+                lines.append("\n  Not in sheet (FBA ID not found in sheet at all):")
+                for fba_id in r.not_in_sheet:
+                    lines.append(f"    {fba_id}")
+
+        lines.append("")
+
+    lines.append(SEP)
+    return "\n".join(lines)
