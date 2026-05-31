@@ -155,6 +155,22 @@ from verify_tracking import (
     _collect_all_missing_fba_ids,
 )
 
+from verify_tracking import _reupload_fba
+
+
+@pytest.mark.integration
+def test_reupload_fba_not_found(browser_page, tmp_config, test_logger):
+    """Should return status 'not_found' for a non-existent FBA ID."""
+    result = _reupload_fba(
+        browser_page,
+        fba_id="FBA_NONEXISTENT_TEST_ID",
+        entries=[{"tracking": "1Z999AA10123456784", "carrier": "UPS"}],
+        config=tmp_config,
+    )
+    test_logger.info(f"_reupload_fba result: {result}")
+    assert result["fba_id"] == "FBA_NONEXISTENT_TEST_ID"
+    assert result["status"] == "not_found"
+
 
 @pytest.mark.integration
 def test_navigate_to_queue_page(browser_page, test_logger):

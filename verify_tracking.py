@@ -385,3 +385,41 @@ def _collect_all_missing_fba_ids(page) -> list:
         logger.warning(f"  Reached max_pages limit ({max_pages}) — stopping pagination")
 
     return list(dict.fromkeys(all_fba_ids))
+
+
+def _reupload_fba(page, fba_id: str, entries: list, config: dict) -> dict:
+    """
+    Runs full carrier scrape then uploads tracking for one FBA with missing tracking.
+    Returns {"fba_id": str, "status": str, "filled": int, "total": int}.
+    """
+    from fetch_sub_tracking import get_all_sub_tracking
+    from upload_tracking import navigate_to_shipment, upload_tracking_to_shipment
+
+    base_url = config.get("amazon_base_url", "https://sellercentral.amazon.com")
+    logs_folder = config.get("logs_folder", "logs")
+
+    logger.info(f"  [verify] Re-uploading {fba_id}: running carrier scrape...")
+    try:
+        sub_ids = get_all_sub_tracking(page, entries, logs_folder)
+    except Exception as e:
+        logger.warning(f"  [verify] Carrier scrape failed for {fba_id}: {e}")
+        sub_ids = []
+
+    main_ids = [e["tracking"] for e in entries if _is_usable_tracking(e.get("tracking"))]
+    all_ids = list(dict.fromkeys(main_ids + sub_ids))
+
+    if not navigate_to_shipment(page, fba_id, base_url):
+        logger.warning(f"  [verify] Shipment {fba_id} not found on Amazon")
+        return {"fba_id": fba_id, "status": "not_found", "filled": 0, "total": 0}
+
+    upload_result = upload_tracking_to_shipment(page, all_ids, fba_id, config)
+
+    filled = upload_result.get("already_existed", 0) + upload_result.get("succeeded", 0)
+    total = filled + upload_result.get("empty_slots_remaining", 0)
+
+    return {
+        "fba_id": fba_id,
+        "status": upload_result.get("status", "failed"),
+        "filled": filled,
+        "total": total,
+    }
