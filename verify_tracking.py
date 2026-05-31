@@ -2,6 +2,8 @@
 import re
 import logging
 from dataclasses import dataclass, field
+from pathlib import Path
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -140,3 +142,81 @@ def format_verify_summary(results: list) -> str:
 
     lines.append(SEP)
     return "\n".join(lines)
+
+
+def discover_queue_page(page, amazon_url: str, logs_folder: str) -> None:
+    """
+    Dumps all interactive elements from the shipping queue page.
+    Run with --discover-queue on first use to find real Amazon selectors,
+    then update QUEUE_SELECTORS if needed.
+    """
+    queue_url = f"{amazon_url}/gp/ssof/shipping-queue.html#fbashipment"
+    logger.info(f"Discovery: navigating to {queue_url}")
+    try:
+        page.goto(queue_url, wait_until="domcontentloaded", timeout=30000)
+    except Exception as e:
+        logger.warning(f"discover_queue_page: navigation failed: {e}")
+        return
+    page.wait_for_timeout(3000)
+
+    folder = Path(logs_folder) / "screenshots"
+    folder.mkdir(parents=True, exist_ok=True)
+    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+    try:
+        page.screenshot(path=str(folder / f"queue_discovery_{ts}.png"))
+    except Exception:
+        pass
+
+    output = [f"URL: {page.url}\nTitle: {page.title()}\n\n"]
+
+    output.append("=== BUTTONS ===\n")
+    for el in page.query_selector_all("button"):
+        try:
+            output.append(
+                f"  text='{el.text_content().strip()}' | "
+                f"class='{el.get_attribute('class')}' | "
+                f"data-testid='{el.get_attribute('data-testid')}' | "
+                f"aria-label='{el.get_attribute('aria-label')}'\n"
+            )
+        except Exception:
+            pass
+
+    output.append("\n=== BADGES / STATUS SPANS ===\n")
+    for el in page.query_selector_all("span, [class*='badge'], [class*='status'], [class*='missing']"):
+        try:
+            text = el.text_content().strip()
+            if text and len(text) < 120:
+                output.append(
+                    f"  text='{text}' | "
+                    f"class='{el.get_attribute('class')}' | "
+                    f"data-testid='{el.get_attribute('data-testid')}'\n"
+                )
+        except Exception:
+            pass
+
+    output.append("\n=== LINKS (FBA-related) ===\n")
+    for el in page.query_selector_all("a"):
+        try:
+            text = el.text_content().strip()
+            href = el.get_attribute("href") or ""
+            if "FBA" in text or "fba" in href.lower() or "shipment" in href.lower():
+                output.append(f"  text='{text}' | href='{href}'\n")
+        except Exception:
+            pass
+
+    output.append("\n=== PAGINATION ===\n")
+    for el in page.query_selector_all("[class*='pagination'], [class*='pager'], [aria-label*='page' i]"):
+        try:
+            output.append(
+                f"  tag='{el.evaluate('e => e.tagName')}' | "
+                f"text='{el.text_content().strip()[:80]}' | "
+                f"class='{el.get_attribute('class')}' | "
+                f"aria-label='{el.get_attribute('aria-label')}'\n"
+            )
+        except Exception:
+            pass
+
+    dump_path = Path(logs_folder) / "queue_discovery.txt"
+    dump_path.write_text("".join(output), encoding="utf-8")
+    print(f"\nQueue discovery saved to: {dump_path}")
+    print("Review the file and screenshot in logs/ to confirm selectors before running --verify.")

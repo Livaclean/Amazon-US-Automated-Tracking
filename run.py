@@ -283,6 +283,11 @@ def main():
         help="Dump Amazon page elements to logs/ (run once on first use to find selectors)",
     )
     parser.add_argument(
+        "--discover-queue",
+        action="store_true",
+        help="Dump Amazon shipping queue page elements to logs/ (run before first --verify to find selectors)",
+    )
+    parser.add_argument(
         "--config",
         default="config.json",
         help="Path to config.json (default: config.json in current directory)",
@@ -357,6 +362,7 @@ def main():
         get_slot_count,
     )
     from highlight_excel import highlight_and_save
+    from verify_tracking import discover_queue_page, format_verify_summary
 
     logger = logging.getLogger(__name__)
 
@@ -538,6 +544,16 @@ def main():
                 page, first_fba, config["amazon_base_url"], config["logs_folder"]
             )
             print("\nDiscovery complete. Review the logs/ folder.")
+            return
+
+        if args.discover_queue:
+            first_region = configured_regions[0]
+            region_url = first_region["amazon_url"]
+            logger.info(f"Queue discovery mode: opening shipping queue for {first_region['name']}")
+            print(f"Queue discovery: you may need to log in to {region_url} manually.")
+            wait_for_login(page, first_region["name"], region_url, timeout_seconds=300)
+            discover_queue_page(page, region_url, config["logs_folder"])
+            print("\nQueue discovery complete. Review logs/queue_discovery.txt and the screenshot.")
             return
 
         # Check-only mode: visit each FBA on Amazon, record status, do NOT upload
