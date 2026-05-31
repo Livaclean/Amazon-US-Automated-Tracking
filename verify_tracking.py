@@ -423,3 +423,84 @@ def _reupload_fba(page, fba_id: str, entries: list, config: dict) -> dict:
         "filled": filled,
         "total": total,
     }
+
+
+def run_verify(page, region: dict, config: dict, shipments_all: dict) -> VerifyResult:
+    """
+    Main entry point. Checks Amazon's shipping queue for this region,
+    cross-references against shipments_all, re-uploads where possible.
+    Returns a populated VerifyResult.
+    """
+    from upload_tracking import _is_login_page, _wait_for_login
+    from run import wait_for_login
+
+    region_name = region["name"]
+    amazon_url = region["amazon_url"]
+    result = VerifyResult(region=region_name)
+
+    logger.info(f"[{region_name}] Starting verification pass...")
+
+    region_config = dict(config)
+    region_config["amazon_base_url"] = amazon_url
+
+    # Navigate to queue
+    if not _navigate_to_queue_page(page, amazon_url):
+        logger.warning(f"[{region_name}] Could not load shipping queue — skipping verify")
+        return result
+
+    # Handle login redirect
+    if _is_login_page(page):
+        _wait_for_login(page)
+
+    # Apply Ready to ship filter
+    if not _apply_ready_to_ship_filter(page):
+        logger.warning(f"[{region_name}] Could not apply Ready to ship filter — skipping verify")
+        return result
+
+    # Collect all FBA IDs with missing tracking across all pages
+    missing_fba_ids = _collect_all_missing_fba_ids(page)
+    result.total_checked = len(missing_fba_ids)
+    logger.info(f"[{region_name}] Found {len(missing_fba_ids)} FBA(s) with missing tracking")
+    print(f"\n[{region_name}] Verify: {len(missing_fba_ids)} FBA(s) with missing tracking badge")
+
+    if not missing_fba_ids:
+        result.total_ok = 0
+        return result
+
+    # Cross-reference against sheet
+    buckets = _cross_reference(missing_fba_ids, shipments_all)
+
+    result.not_in_sheet = buckets["not_in_sheet"]
+    result.missing_in_sheet = buckets["missing_in_sheet"]
+
+    # Re-upload FBAs that have usable tracking in the sheet
+    for fba_id in buckets["reupload"]:
+        entries = shipments_all[fba_id]
+        print(f"  [{region_name}] Re-uploading {fba_id}...")
+        reup = _reupload_fba(page, fba_id, entries, region_config)
+
+        if reup["status"] in ("success", "partial", "skipped"):
+            if reup["total"] > 0 and reup["filled"] < reup["total"]:
+                result.still_incomplete.append(reup)
+            else:
+                result.re_uploaded.append(reup)
+        else:
+            result.still_incomplete.append(reup)
+
+        # Update done cache for fully-filled shipments
+        if reup["filled"] == reup["total"] and reup["total"] > 0:
+            done_cache_file = Path(config["logs_folder"]) / f"completed_fba_{region_name}.txt"
+            try:
+                existing = set()
+                if done_cache_file.exists():
+                    existing = {
+                        line.strip()
+                        for line in done_cache_file.read_text(encoding="utf-8").splitlines()
+                        if line.strip()
+                    }
+                existing.add(fba_id)
+                done_cache_file.write_text("\n".join(sorted(existing)), encoding="utf-8")
+            except Exception as e:
+                logger.warning(f"[{region_name}] Could not update done cache for {fba_id}: {e}")
+
+    return result

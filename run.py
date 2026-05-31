@@ -362,7 +362,7 @@ def main():
         get_slot_count,
     )
     from highlight_excel import highlight_and_save
-    from verify_tracking import discover_queue_page, format_verify_summary
+    from verify_tracking import discover_queue_page, format_verify_summary, run_verify
 
     logger = logging.getLogger(__name__)
 

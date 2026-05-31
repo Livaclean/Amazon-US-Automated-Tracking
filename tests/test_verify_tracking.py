@@ -200,3 +200,23 @@ def test_collect_all_missing_fba_ids_returns_list(browser_page, test_logger):
     assert isinstance(fba_ids, list)
     for fba_id in fba_ids:
         assert fba_id.startswith("FBA"), f"Unexpected ID format: {fba_id}"
+
+
+from verify_tracking import run_verify
+
+
+@pytest.mark.integration
+def test_run_verify_returns_verify_result(browser_page, tmp_config, test_logger):
+    """run_verify should return a VerifyResult for the given region."""
+    region = {"name": "US", "amazon_url": "https://sellercentral.amazon.com"}
+    shipments_all = {}  # empty — all found FBAs will land in not_in_sheet
+
+    result = run_verify(browser_page, region, tmp_config, shipments_all)
+    test_logger.info(
+        f"run_verify result: checked={result.total_checked}, ok={result.total_ok}, "
+        f"not_in_sheet={result.not_in_sheet[:3]}"
+    )
+    assert isinstance(result, VerifyResult)
+    assert result.region == "US"
+    assert result.total_checked >= 0
+    assert result.total_ok <= result.total_checked
