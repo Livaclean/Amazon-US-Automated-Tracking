@@ -270,24 +270,32 @@ def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
     logger.info("  Step 1: clicking Status dropdown...")
     status_clicked = False
 
-    # Status kat-popover confirmed at x=403, y=428, w=227 — center is (516, 459)
-    # Click by coordinates first (most reliable for custom web components)
+    # Status is the 2nd kat-popover in the inline filter container
+    # Get its live bounding box and click the center
     try:
-        page.mouse.click(516, 459)
-        status_clicked = True
-        logger.debug("  Status dropdown clicked at coordinates (516, 459)")
+        el = page.locator(".popover-inline-filter-container kat-popover").nth(1)
+        bbox = el.bounding_box()
+        logger.info(f"  Status kat-popover bbox: {bbox}")
+        if bbox and bbox['width'] > 0:
+            cx = bbox['x'] + bbox['width'] / 2
+            cy = bbox['y'] + bbox['height'] / 2
+            page.mouse.click(cx, cy)
+            status_clicked = True
+            logger.info(f"  Status dropdown clicked at ({cx:.0f}, {cy:.0f})")
+        else:
+            logger.warning(f"  Status kat-popover has zero bbox: {bbox}")
     except Exception as e:
-        logger.debug(f"  Coordinate click failed: {e}")
+        logger.debug(f"  Bounding box click failed: {e}")
 
+    # Fallback: try clicking the element directly
     if not status_clicked:
         try:
             el = page.locator(".popover-inline-filter-container kat-popover").nth(1)
-            el.wait_for(timeout=5000, state="visible")
             el.click()
             status_clicked = True
-            logger.debug("  Status dropdown clicked via nth(1) locator")
+            logger.debug("  Status clicked via direct locator click")
         except Exception as e:
-            logger.debug(f"  nth(1) locator failed: {e}")
+            logger.debug(f"  Direct click failed: {e}")
 
     if not status_clicked:
         logger.warning("  Status dropdown not found")
