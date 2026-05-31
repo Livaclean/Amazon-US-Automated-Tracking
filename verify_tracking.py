@@ -270,35 +270,33 @@ def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
     logger.info("  Step 1: clicking Status dropdown...")
     status_clicked = False
 
-    # Confirmed from debug: Status is the 2nd kat-popover in .popover-inline-filter-container
-    # (index 1, 0-based). The first one (index 0) is "Last updated".
-    # Status kat-popover is at x=403, y=428, text contains 'Select all'.
+    # Status kat-popover confirmed at x=403, y=428, w=227 — center is (516, 459)
+    # Click by coordinates first (most reliable for custom web components)
     try:
-        # Use Playwright's nth() to select the 2nd kat-popover in the inline filter container
-        el = page.locator(".popover-inline-filter-container kat-popover").nth(1)
-        el.wait_for(timeout=8000, state="visible")
-        el.click()
+        page.mouse.click(516, 459)
         status_clicked = True
-        logger.debug("  Status dropdown clicked via nth(1) locator")
+        logger.debug("  Status dropdown clicked at coordinates (516, 459)")
     except Exception as e:
-        logger.debug(f"  nth(1) locator failed: {e}")
+        logger.debug(f"  Coordinate click failed: {e}")
 
-    # Fallback: click by confirmed page coordinates (x=403+113=516, y=428+31=459)
     if not status_clicked:
         try:
-            page.mouse.click(516, 459)
+            el = page.locator(".popover-inline-filter-container kat-popover").nth(1)
+            el.wait_for(timeout=5000, state="visible")
+            el.click()
             status_clicked = True
-            logger.debug("  Status dropdown clicked by coordinates (516, 459)")
+            logger.debug("  Status dropdown clicked via nth(1) locator")
         except Exception as e:
-            logger.debug(f"  Coordinate click failed: {e}")
+            logger.debug(f"  nth(1) locator failed: {e}")
 
     if not status_clicked:
         logger.warning("  Status dropdown not found")
         _take_screenshot(page, logs_folder, "verify_status_not_found")
         return False
 
-    page.wait_for_timeout(2000)
+    page.wait_for_timeout(3000)
     _take_screenshot(page, logs_folder, "verify_after_status_click")
+    logger.info(f"  Page URL after Status click: {page.url}")
 
     # Step 2: Select "Ready to ship" from the opened Status dropdown
     # The options render inside kat-popover shadow DOM — use get_by_text() or JS traversal
