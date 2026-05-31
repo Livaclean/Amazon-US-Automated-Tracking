@@ -253,35 +253,76 @@ def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
     """
     logger.info(f"_apply_ready_to_ship_filter: current URL = {page.url}")
 
-    # Try via JavaScript first — more reliable when element exists but is outside viewport
+    # Count FBA links before clicking so we can verify the filter reduced them
+    def _count_fba_links():
+        try:
+            return len(page.query_selector_all("a[href*='/fba/inbound-shipment/summary/FBA']"))
+        except Exception:
+            return -1
+
+    count_before = _count_fba_links()
+    logger.info(f"  FBA links before filter: {count_before}")
+
+    # Try via JavaScript first — more reliable when element is outside viewport
+    clicked = False
     try:
         clicked = page.evaluate("""() => {
             const el = document.querySelector('.missing-tracking-info-toggle-group');
             if (el) { el.scrollIntoView(); el.click(); return true; }
-            // Fallback: find by text content
             const spans = [...document.querySelectorAll('span')];
             const match = spans.find(s => s.textContent.includes('missing tracking information'));
             if (match) { match.scrollIntoView(); match.click(); return true; }
             return false;
         }""")
-        if clicked:
-            page.wait_for_timeout(2000)
-            logger.debug("Missing tracking toggle clicked via JS evaluate")
-            return True
     except Exception as e:
         logger.debug(f"JS toggle click failed: {e}")
 
     # Playwright selector fallback
-    for selector in QUEUE_SELECTORS["missing_tracking_toggle"]:
-        try:
-            el = page.wait_for_selector(selector, timeout=5000)
-            el.scroll_into_view_if_needed()
-            el.click()
-            page.wait_for_timeout(2000)
-            logger.debug(f"Missing tracking toggle clicked via: {selector}")
-            return True
-        except Exception:
-            continue
+    if not clicked:
+        for selector in QUEUE_SELECTORS["missing_tracking_toggle"]:
+            try:
+                el = page.wait_for_selector(selector, timeout=5000)
+                el.scroll_into_view_if_needed()
+                el.click()
+                clicked = True
+                logger.debug(f"Missing tracking toggle clicked via: {selector}")
+                break
+            except Exception:
+                continue
+
+    if not clicked:
+        logger.warning("  Toggle element not found on page at all")
+    else:
+        logger.info("  Toggle clicked — waiting for page to update...")
+        page.wait_for_timeout(3000)
+
+    # Screenshot to confirm filter state regardless of click outcome
+    try:
+        folder = Path(logs_folder) / "screenshots"
+        folder.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        fname = f"verify_filter_{'applied' if clicked else 'failed'}_{ts}.png"
+        page.screenshot(path=str(folder / fname))
+        logger.info(f"  Filter state screenshot: {fname}")
+    except Exception as e:
+        logger.debug(f"Screenshot failed: {e}")
+
+    count_after = _count_fba_links()
+    logger.info(f"  FBA links after filter: {count_after}")
+
+    if not clicked:
+        return False
+
+    # If link count didn't change at all, the filter may not have taken effect
+    if count_before > 0 and count_after == count_before:
+        logger.warning(
+            f"  Toggle was clicked but link count unchanged ({count_after}) — "
+            f"filter may not have applied. Proceeding anyway."
+        )
+    else:
+        logger.info(f"  Filter applied: {count_before} → {count_after} FBA links")
+
+    return True
     # Screenshot to diagnose what the page looks like when toggle is not found
     try:
         folder = Path(logs_folder) / "screenshots"
