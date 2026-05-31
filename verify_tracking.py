@@ -264,61 +264,52 @@ def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
     """
     logger.info(f"_apply_ready_to_ship_filter: current URL = {page.url}")
 
-    # Step 1: Click the Status filter trigger
-    # From discovery: the trigger is a span/button with text 'Status' in the filter bar
-    logger.info("  Step 1: opening Status filter dropdown...")
-    status_clicked = False
-    try:
-        status_clicked = page.evaluate("""() => {
-            // Find the deepest element whose exact text is 'Status' — that's the trigger
-            const all = [...document.querySelectorAll('*')];
-            for (const el of all) {
-                if (el.children.length === 0 && el.textContent.trim() === 'Status') {
-                    el.scrollIntoView();
-                    el.click();
-                    return true;
-                }
-            }
-            return false;
-        }""")
-    except Exception as e:
-        logger.debug(f"JS Status click failed: {e}")
+    # Step 1: Click the "Filters" button (kat-button.popover-filter-button)
+    # Confirmed from debug: KAT-BUTTON.popover-filter-button at x=51, y=428
+    logger.info("  Step 1: clicking Filters button...")
+    filters_clicked = False
+    for selector in ["kat-button.popover-filter-button", "kat-button:has-text('Filters')"]:
+        try:
+            el = page.wait_for_selector(selector, timeout=8000, state="visible")
+            el.click()
+            filters_clicked = True
+            logger.debug(f"  Filters button clicked via: {selector}")
+            break
+        except Exception:
+            continue
 
-    if not status_clicked:
-        logger.warning("  Status filter trigger not found")
-        _take_screenshot(page, logs_folder, "verify_status_not_found")
+    if not filters_clicked:
+        logger.warning("  Filters button not found")
+        _take_screenshot(page, logs_folder, "verify_filters_btn_not_found")
         return False
 
-    page.wait_for_timeout(1500)
-    logger.info("  Status dropdown opened — taking screenshot...")
-    _take_screenshot(page, logs_folder, "verify_after_status_click")
+    page.wait_for_timeout(2000)
+    _take_screenshot(page, logs_folder, "verify_after_filters_click")
+    logger.info("  Filters panel opened")
 
-    # Step 2: Select "Ready to ship" option
+    # Step 2: Select "Ready to ship" — now visible inside the filter panel
     logger.info("  Step 2: selecting 'Ready to ship'...")
     rts_clicked = False
-    try:
-        rts_clicked = page.evaluate("""() => {
-            const all = [...document.querySelectorAll('*')];
-            for (const el of all) {
-                if (el.children.length === 0 && el.textContent.trim() === 'Ready to ship') {
-                    el.scrollIntoView();
-                    el.click();
-                    return true;
-                }
-            }
-            return false;
-        }""")
-    except Exception as e:
-        logger.debug(f"JS Ready to ship click failed: {e}")
+    # Try Playwright selector first (element should now be visible in open panel)
+    for selector in ["span:has-text('Ready to ship')", "label:has-text('Ready to ship')",
+                     "kat-checkbox:has-text('Ready to ship')"]:
+        try:
+            el = page.wait_for_selector(selector, timeout=5000, state="visible")
+            el.click()
+            rts_clicked = True
+            logger.debug(f"  'Ready to ship' clicked via: {selector}")
+            break
+        except Exception:
+            continue
 
     if not rts_clicked:
-        logger.warning("  'Ready to ship' option not found")
+        logger.warning("  'Ready to ship' option not found in filter panel")
         _take_screenshot(page, logs_folder, "verify_rts_not_found")
         return False
 
     page.wait_for_timeout(800)
-    logger.info("  'Ready to ship' selected — taking screenshot...")
     _take_screenshot(page, logs_folder, "verify_after_rts_select")
+    logger.info("  'Ready to ship' selected")
 
     # Step 3: Click Apply
     logger.info("  Step 3: clicking Apply...")
@@ -334,33 +325,19 @@ def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
             continue
 
     if not apply_clicked:
-        # JS fallback for Apply
-        try:
-            apply_clicked = page.evaluate("""() => {
-                const btns = [...document.querySelectorAll('button.button, button')];
-                const btn = btns.find(b => b.textContent.trim() === 'Apply');
-                if (btn) { btn.click(); return true; }
-                return false;
-            }""")
-        except Exception as e:
-            logger.debug(f"JS Apply click failed: {e}")
-
-    if not apply_clicked:
         logger.warning("  Apply button not found")
         _take_screenshot(page, logs_folder, "verify_apply_not_found")
         return False
 
     page.wait_for_timeout(3000)
-    logger.info("  Filter applied — taking screenshot to confirm...")
     _take_screenshot(page, logs_folder, "verify_filter_applied")
 
-    # Verify: count FBA links after filter — should be fewer than unfiltered
+    count = 0
     try:
         count = len(page.query_selector_all("a[href*='/fba/inbound-shipment/summary/FBA']"))
-        logger.info(f"  FBA links visible after filter: {count}")
     except Exception:
         pass
-
+    logger.info(f"  Filter applied — {count} FBA links visible after filter")
     return True
     # Screenshot to diagnose what the page looks like when toggle is not found
     try:
