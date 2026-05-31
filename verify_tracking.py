@@ -159,13 +159,14 @@ def discover_queue_page(page, amazon_url: str, logs_folder: str) -> None:
         return
     page.wait_for_timeout(3000)
 
+    Path(logs_folder).mkdir(parents=True, exist_ok=True)
     folder = Path(logs_folder) / "screenshots"
     folder.mkdir(parents=True, exist_ok=True)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     try:
         page.screenshot(path=str(folder / f"queue_discovery_{ts}.png"))
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"discover_queue_page: screenshot failed: {e}")
 
     output = [f"URL: {page.url}\nTitle: {page.title()}\n\n"]
 
