@@ -10,11 +10,10 @@ logger = logging.getLogger(__name__)
 FBA_ID_RE = re.compile(r'FBA[A-Z0-9]{6,}')
 
 QUEUE_SELECTORS = {
-    # Toggle discovered at class='missing-tracking-info-toggle-group'
-    "missing_tracking_toggle": [
-        ".missing-tracking-info-toggle-group",
-        "span.missing-tracking-info-toggle-group",
-        "span:has-text('Only show shipments with missing tracking information')",
+    # Apply button — class='button', text='Apply' (confirmed from discovery)
+    "apply_button": [
+        "button.button:has-text('Apply')",
+        "button:has-text('Apply')",
     ],
     # FBA links in the queue table use href pattern /fba/inbound-shipment/summary/FBAxxxxx/
     "fba_id_link": [
@@ -124,6 +123,18 @@ def format_verify_summary(results: list) -> str:
 
     lines.append(SEP)
     return "\n".join(lines)
+
+
+def _take_screenshot(page, logs_folder: str, name: str) -> None:
+    """Saves a diagnostic screenshot to logs/screenshots/."""
+    try:
+        folder = Path(logs_folder) / "screenshots"
+        folder.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        page.screenshot(path=str(folder / f"{name}_{ts}.png"))
+        logger.info(f"  Screenshot: {name}_{ts}.png")
+    except Exception as e:
+        logger.debug(f"Screenshot failed ({name}): {e}")
 
 
 def discover_queue_page(page, amazon_url: str, logs_folder: str) -> None:
@@ -253,74 +264,102 @@ def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
     """
     logger.info(f"_apply_ready_to_ship_filter: current URL = {page.url}")
 
-    # Count FBA links before clicking so we can verify the filter reduced them
-    def _count_fba_links():
-        try:
-            return len(page.query_selector_all("a[href*='/fba/inbound-shipment/summary/FBA']"))
-        except Exception:
-            return -1
-
-    count_before = _count_fba_links()
-    logger.info(f"  FBA links before filter: {count_before}")
-
-    # Try via JavaScript first — more reliable when element is outside viewport
-    clicked = False
+    # Step 1: Click the Status filter trigger
+    # From discovery: the trigger is a span/button with text 'Status' in the filter bar
+    logger.info("  Step 1: opening Status filter dropdown...")
+    status_clicked = False
     try:
-        clicked = page.evaluate("""() => {
-            const el = document.querySelector('.missing-tracking-info-toggle-group');
-            if (el) { el.scrollIntoView(); el.click(); return true; }
-            const spans = [...document.querySelectorAll('span')];
-            const match = spans.find(s => s.textContent.includes('missing tracking information'));
-            if (match) { match.scrollIntoView(); match.click(); return true; }
+        status_clicked = page.evaluate("""() => {
+            // Find the deepest element whose exact text is 'Status' — that's the trigger
+            const all = [...document.querySelectorAll('*')];
+            for (const el of all) {
+                if (el.children.length === 0 && el.textContent.trim() === 'Status') {
+                    el.scrollIntoView();
+                    el.click();
+                    return true;
+                }
+            }
             return false;
         }""")
     except Exception as e:
-        logger.debug(f"JS toggle click failed: {e}")
+        logger.debug(f"JS Status click failed: {e}")
 
-    # Playwright selector fallback
-    if not clicked:
-        for selector in QUEUE_SELECTORS["missing_tracking_toggle"]:
-            try:
-                el = page.wait_for_selector(selector, timeout=5000)
-                el.scroll_into_view_if_needed()
-                el.click()
-                clicked = True
-                logger.debug(f"Missing tracking toggle clicked via: {selector}")
-                break
-            except Exception:
-                continue
-
-    if not clicked:
-        logger.warning("  Toggle element not found on page at all")
-    else:
-        logger.info("  Toggle clicked — waiting for page to update...")
-        page.wait_for_timeout(3000)
-
-    # Screenshot to confirm filter state regardless of click outcome
-    try:
-        folder = Path(logs_folder) / "screenshots"
-        folder.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        fname = f"verify_filter_{'applied' if clicked else 'failed'}_{ts}.png"
-        page.screenshot(path=str(folder / fname))
-        logger.info(f"  Filter state screenshot: {fname}")
-    except Exception as e:
-        logger.debug(f"Screenshot failed: {e}")
-
-    count_after = _count_fba_links()
-    logger.info(f"  FBA links after filter: {count_after}")
-
-    if not clicked:
+    if not status_clicked:
+        logger.warning("  Status filter trigger not found")
+        _take_screenshot(page, logs_folder, "verify_status_not_found")
         return False
 
-    # If link count didn't change at all, the filter may not have taken effect
-    if count_before > 0 and count_after == count_before:
-        logger.warning(
-            f"  Toggle was clicked but link count unchanged ({count_after}) — "
-            f"filter may not have applied. Proceeding anyway."
-        )
-    else:
-        logger.info(f"  Filter applied: {count_before} → {count_after} FBA links")
+    page.wait_for_timeout(1500)
+    logger.info("  Status dropdown opened — taking screenshot...")
+    _take_screenshot(page, logs_folder, "verify_after_status_click")
+
+    # Step 2: Select "Ready to ship" option
+    logger.info("  Step 2: selecting 'Ready to ship'...")
+    rts_clicked = False
+    try:
+        rts_clicked = page.evaluate("""() => {
+            const all = [...document.querySelectorAll('*')];
+            for (const el of all) {
+                if (el.children.length === 0 && el.textContent.trim() === 'Ready to ship') {
+                    el.scrollIntoView();
+                    el.click();
+                    return true;
+                }
+            }
+            return false;
+        }""")
+    except Exception as e:
+        logger.debug(f"JS Ready to ship click failed: {e}")
+
+    if not rts_clicked:
+        logger.warning("  'Ready to ship' option not found")
+        _take_screenshot(page, logs_folder, "verify_rts_not_found")
+        return False
+
+    page.wait_for_timeout(800)
+    logger.info("  'Ready to ship' selected — taking screenshot...")
+    _take_screenshot(page, logs_folder, "verify_after_rts_select")
+
+    # Step 3: Click Apply
+    logger.info("  Step 3: clicking Apply...")
+    apply_clicked = False
+    for selector in QUEUE_SELECTORS["apply_button"]:
+        try:
+            el = page.wait_for_selector(selector, timeout=5000, state="visible")
+            el.click()
+            apply_clicked = True
+            logger.debug(f"  Apply clicked via: {selector}")
+            break
+        except Exception:
+            continue
+
+    if not apply_clicked:
+        # JS fallback for Apply
+        try:
+            apply_clicked = page.evaluate("""() => {
+                const btns = [...document.querySelectorAll('button.button, button')];
+                const btn = btns.find(b => b.textContent.trim() === 'Apply');
+                if (btn) { btn.click(); return true; }
+                return false;
+            }""")
+        except Exception as e:
+            logger.debug(f"JS Apply click failed: {e}")
+
+    if not apply_clicked:
+        logger.warning("  Apply button not found")
+        _take_screenshot(page, logs_folder, "verify_apply_not_found")
+        return False
+
+    page.wait_for_timeout(3000)
+    logger.info("  Filter applied — taking screenshot to confirm...")
+    _take_screenshot(page, logs_folder, "verify_filter_applied")
+
+    # Verify: count FBA links after filter — should be fewer than unfiltered
+    try:
+        count = len(page.query_selector_all("a[href*='/fba/inbound-shipment/summary/FBA']"))
+        logger.info(f"  FBA links visible after filter: {count}")
+    except Exception:
+        pass
 
     return True
     # Screenshot to diagnose what the page looks like when toggle is not found
