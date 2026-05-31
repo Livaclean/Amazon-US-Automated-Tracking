@@ -339,6 +339,11 @@ def main():
         metavar="REGION",
         help="Limit which regions to run (e.g. --regions US CA). Default: all regions in config.",
     )
+    parser.add_argument(
+        "--verify",
+        action="store_true",
+        help="Check Amazon shipping queue for missing tracking IDs (runs automatically after upload; use standalone to check without uploading)",
+    )
     args = parser.parse_args()
 
     # Pre-initialize so these are always in scope even if an early exception occurs
@@ -554,6 +559,26 @@ def main():
             wait_for_login(page, first_region["name"], region_url, timeout_seconds=300)
             discover_queue_page(page, region_url, config["logs_folder"])
             print("\nQueue discovery complete. Review logs/queue_discovery.txt and the screenshot.")
+            return
+
+        if args.verify and not any([
+            args.collect_only, args.check_only, args.from_json, args.discover,
+            getattr(args, 'discover_queue', False),
+        ]):
+            # Standalone verify mode — no upload
+            verify_results = []
+            for region in configured_regions:
+                region_name = region["name"]
+                amazon_url = region["amazon_url"]
+                print(f"\n[{region_name}] Verify: logging in to {amazon_url}...")
+                logged_in = wait_for_login(page, region_name, amazon_url, timeout_seconds=300)
+                if not logged_in:
+                    print(f"[{region_name}] Login timed out — skipping verify for this region.")
+                    continue
+                vr = run_verify(page, region, config, shipments_all)
+                verify_results.append(vr)
+
+            print(format_verify_summary(verify_results))
             return
 
         # Check-only mode: visit each FBA on Amazon, record status, do NOT upload
@@ -778,6 +803,15 @@ def main():
             return
 
         results = all_results
+
+        # Post-upload verification — check all regions for remaining missing tracking
+        verify_results = []
+        for region in configured_regions:
+            region_name = region["name"]
+            print(f"\n[{region_name}] Running post-upload verification...")
+            vr = run_verify(page, region, config, shipments_all)
+            verify_results.append(vr)
+        print(format_verify_summary(verify_results))
 
         # Step 4: Post-run - highlight updated rows, save to output, write combined summary
         ts_out = datetime.now().strftime("%Y%m%d_%H%M%S")
