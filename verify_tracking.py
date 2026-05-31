@@ -222,14 +222,24 @@ def _navigate_to_queue_page(page, amazon_url: str) -> bool:
     for attempt in range(3):
         try:
             page.goto(queue_url, wait_until="domcontentloaded", timeout=30000)
-            page.wait_for_timeout(2000)
         except Exception as e:
             logger.warning(f"_navigate_to_queue_page failed: {e}")
             return False
-        if not _is_login_page(page):
-            return True
-        logger.warning(f"_navigate_to_queue_page: redirected to login (attempt {attempt + 1})")
-        _wait_for_login(page)
+        if _is_login_page(page):
+            logger.warning(f"_navigate_to_queue_page: redirected to login (attempt {attempt + 1})")
+            _wait_for_login(page)
+            continue
+        # Wait for the SPA to render — look for the toggle or any shipment link
+        try:
+            page.wait_for_selector(
+                ".missing-tracking-info-toggle-group, a[href*='/fba/inbound-shipment/summary/FBA']",
+                timeout=15000,
+                state="visible",
+            )
+        except Exception:
+            # Page loaded but expected elements not yet visible — give it more time
+            page.wait_for_timeout(3000)
+        return True
     logger.error("_navigate_to_queue_page: could not navigate past login after 3 attempts")
     return False
 
@@ -243,7 +253,7 @@ def _apply_ready_to_ship_filter(page) -> bool:
     """
     for selector in QUEUE_SELECTORS["missing_tracking_toggle"]:
         try:
-            el = page.wait_for_selector(selector, timeout=5000, state="visible")
+            el = page.wait_for_selector(selector, timeout=15000, state="visible")
             el.click()
             page.wait_for_timeout(2000)
             logger.debug(f"Missing tracking toggle clicked via: {selector}")
