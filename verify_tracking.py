@@ -279,9 +279,9 @@ def _apply_ready_to_ship_filter(page) -> bool:
             return True
         except Exception:
             continue
-
-    logger.warning("_apply_ready_to_ship_filter: Apply button not found")
-    return False
+    else:
+        logger.warning("_apply_ready_to_ship_filter: Apply button not found")
+        return False
 
 
 def _collect_missing_fba_ids_on_page(page) -> list:
@@ -291,11 +291,10 @@ def _collect_missing_fba_ids_on_page(page) -> list:
     """
     try:
         fba_ids = page.evaluate("""() => {
-            const FBA_RE = /FBA[A-Z0-9]{6,}/;
             const results = [];
             const BADGE_TEXTS = [
                 'missing tracking number', 'missing tracking id',
-                'missing tracking', 'add tracking',
+                'missing tracking',
             ];
             // Find all text nodes containing a badge phrase
             const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
@@ -314,19 +313,29 @@ def _collect_missing_fba_ids_on_page(page) -> list:
 
             for (const badge of badgeEls) {
                 let p = badge;
+                let found = false;
                 for (let i = 0; i < 12; i++) {
                     if (!p || !p.parentElement) break;
                     p = p.parentElement;
                     const tag = p.tagName.toLowerCase();
                     const cls = (p.className || '').toLowerCase();
-                    if (tag === 'tr' || tag === 'li' ||
+                    const isRow = tag === 'tr' || tag === 'li' ||
                         cls.includes('row') || cls.includes('shipment') ||
-                        cls.includes('item')) {
+                        cls.includes('item');
+                    if (isRow) {
                         const match = p.textContent.match(/FBA[A-Z0-9]{6,}/);
-                        if (match) {
-                            results.push(match[0]);
-                            break;
+                        if (match) { results.push(match[0]); found = true; break; }
+                    }
+                }
+                // Fallback: if no semantic row found, try the whole subtree up to body
+                if (!found) {
+                    let q = badge.parentElement;
+                    for (let i = 0; i < 20 && q && q !== document.body; i++) {
+                        const match = q.textContent.match(/FBA[A-Z0-9]{6,}/);
+                        if (match && q.textContent.length > 50) {
+                            results.push(match[0]); break;
                         }
+                        q = q.parentElement;
                     }
                 }
             }
@@ -345,21 +354,22 @@ def _collect_all_missing_fba_ids(page) -> list:
     """
     all_fba_ids = []
     page_num = 1
+    max_pages = 50  # safety ceiling — queue will never realistically exceed this
 
-    while True:
+    while page_num <= max_pages:
         logger.info(f"  Queue page {page_num}: collecting missing-tracking FBA IDs...")
         ids_on_page = _collect_missing_fba_ids_on_page(page)
         logger.info(f"  Page {page_num}: found {len(ids_on_page)} FBA(s) with missing tracking")
         all_fba_ids.extend(ids_on_page)
 
-        # Check for next page button
         next_clicked = False
         for selector in QUEUE_SELECTORS["next_page_button"]:
             try:
                 btn = page.query_selector(selector)
                 if btn and btn.is_visible() and btn.is_enabled():
                     btn.click()
-                    page.wait_for_timeout(2000)
+                    page.wait_for_load_state("domcontentloaded", timeout=15000)
+                    page.wait_for_timeout(1000)
                     page_num += 1
                     next_clicked = True
                     logger.debug(f"  Navigated to page {page_num} via: {selector}")
@@ -371,4 +381,7 @@ def _collect_all_missing_fba_ids(page) -> list:
             logger.info(f"  No more pages after page {page_num}.")
             break
 
-    return list(dict.fromkeys(all_fba_ids))  # deduplicate, preserve order
+    if page_num > max_pages:
+        logger.warning(f"  Reached max_pages limit ({max_pages}) — stopping pagination")
+
+    return list(dict.fromkeys(all_fba_ids))
