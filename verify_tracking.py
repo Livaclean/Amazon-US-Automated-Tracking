@@ -110,12 +110,14 @@ def format_verify_summary(results: list) -> str:
             lines.append("  All tracking complete.")
         else:
             if r.re_uploaded:
-                lines.append("\n  Re-uploaded successfully:")
+                lines.append("")
+                lines.append("  Re-uploaded successfully:")
                 for item in r.re_uploaded:
                     lines.append(f"    {item['fba_id']}  — {item['filled']} tracking ID(s) filled")
 
             if r.still_incomplete:
-                lines.append("\n  Still incomplete after re-upload:")
+                lines.append("")
+                lines.append("  Still incomplete after re-upload:")
                 for item in r.still_incomplete:
                     lines.append(
                         f"    {item['fba_id']}  — {item['filled']} of {item['total']} slots filled "
@@ -123,12 +125,14 @@ def format_verify_summary(results: list) -> str:
                     )
 
             if r.missing_in_sheet:
-                lines.append("\n  Tracking missing in sheet (in sheet but no usable tracking ID):")
+                lines.append("")
+                lines.append("  Tracking missing in sheet (in sheet but no usable tracking ID):")
                 for item in r.missing_in_sheet:
                     lines.append(f"    {item['fba_id']}  — {item['reason']}")
 
             if r.not_in_sheet:
-                lines.append("\n  Not in sheet (FBA ID not found in sheet at all):")
+                lines.append("")
+                lines.append("  Not in sheet (FBA ID not found in sheet at all):")
                 for fba_id in r.not_in_sheet:
                     lines.append(f"    {fba_id}")
 

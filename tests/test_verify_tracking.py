@@ -4,7 +4,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from verify_tracking import _is_usable_tracking, _cross_reference, VerifyResult
+from verify_tracking import _is_usable_tracking, _cross_reference, VerifyResult, format_verify_summary
 
 
 @pytest.mark.unit
@@ -91,9 +91,6 @@ def test_verify_result_defaults():
     assert r.still_incomplete == []
     assert r.missing_in_sheet == []
     assert r.not_in_sheet == []
-
-
-from verify_tracking import format_verify_summary
 
 
 @pytest.mark.unit
