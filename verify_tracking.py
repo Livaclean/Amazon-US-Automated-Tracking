@@ -150,6 +150,7 @@ def discover_queue_page(page, amazon_url: str, logs_folder: str) -> None:
     Run with --discover-queue on first use to find real Amazon selectors,
     then update QUEUE_SELECTORS if needed.
     """
+    from upload_tracking import _is_login_page, _wait_for_login
     queue_url = f"{amazon_url}/gp/ssof/shipping-queue.html#fbashipment"
     logger.info(f"Discovery: navigating to {queue_url}")
     try:
@@ -157,6 +158,15 @@ def discover_queue_page(page, amazon_url: str, logs_folder: str) -> None:
     except Exception as e:
         logger.warning(f"discover_queue_page: navigation failed: {e}")
         return
+    # Handle login redirect — queue page may require separate auth
+    if _is_login_page(page):
+        logger.info("discover_queue_page: redirected to login — waiting for manual login...")
+        _wait_for_login(page)
+        try:
+            page.goto(queue_url, wait_until="domcontentloaded", timeout=30000)
+        except Exception as e:
+            logger.warning(f"discover_queue_page: re-navigation after login failed: {e}")
+            return
     page.wait_for_timeout(3000)
 
     Path(logs_folder).mkdir(parents=True, exist_ok=True)
@@ -224,15 +234,22 @@ def discover_queue_page(page, amazon_url: str, logs_folder: str) -> None:
 
 
 def _navigate_to_queue_page(page, amazon_url: str) -> bool:
-    """Navigates to the FBA shipping queue page. Returns True on success."""
+    """Navigates to the FBA shipping queue page, handling login redirects. Returns True on success."""
+    from upload_tracking import _is_login_page, _wait_for_login
     queue_url = f"{amazon_url}/gp/ssof/shipping-queue.html#fbashipment"
-    try:
-        page.goto(queue_url, wait_until="domcontentloaded", timeout=30000)
-        page.wait_for_timeout(2000)
-        return True
-    except Exception as e:
-        logger.warning(f"_navigate_to_queue_page failed: {e}")
-        return False
+    for attempt in range(3):
+        try:
+            page.goto(queue_url, wait_until="domcontentloaded", timeout=30000)
+            page.wait_for_timeout(2000)
+        except Exception as e:
+            logger.warning(f"_navigate_to_queue_page failed: {e}")
+            return False
+        if not _is_login_page(page):
+            return True
+        logger.warning(f"_navigate_to_queue_page: redirected to login (attempt {attempt + 1})")
+        _wait_for_login(page)
+    logger.error("_navigate_to_queue_page: could not navigate past login after 3 attempts")
+    return False
 
 
 def _apply_ready_to_ship_filter(page) -> bool:
