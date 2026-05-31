@@ -10,8 +10,9 @@ logger = logging.getLogger(__name__)
 FBA_ID_RE = re.compile(r'FBA[A-Z0-9]{6,}')
 
 QUEUE_SELECTORS = {
-    # Apply button — class='button', text='Apply' (confirmed from discovery)
+    # Apply button — kat-button inside the filter panel (confirmed from screenshot)
     "apply_button": [
+        "kat-button:has-text('Apply')",
         "button.button:has-text('Apply')",
         "button:has-text('Apply')",
     ],
