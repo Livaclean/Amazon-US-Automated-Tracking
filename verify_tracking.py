@@ -305,21 +305,42 @@ def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
     logger.info("  Step 2: selecting 'Ready to ship'...")
     rts_clicked = False
 
-    # Playwright's get_by_text pierces shadow DOM
+    # Scope "Ready to ship" to inside the Status kat-popover (index 6) to avoid
+    # clicking a table row value that also has that text
     try:
-        el = page.get_by_text("Ready to ship", exact=True).first
-        el.wait_for(timeout=5000, state="visible")
-        el.click()
+        # Status kat-popover is at index 6 (0-based) — look for Ready to ship inside it
+        rts = page.locator("kat-popover").nth(6).get_by_text("Ready to ship", exact=True)
+        rts.wait_for(timeout=5000)
+        rts.click()
         rts_clicked = True
-        logger.debug("  'Ready to ship' clicked via get_by_text()")
+        logger.debug("  'Ready to ship' clicked via scoped locator inside Status kat-popover")
     except Exception as e:
-        logger.debug(f"  get_by_text failed: {e}")
+        logger.debug(f"  Scoped locator failed: {e}")
 
-    # JS fallback: traverse shadow DOM to find and click 'Ready to ship'
+    # Fallback: look inside the kat-popover with 'Select all' content
+    if not rts_clicked:
+        try:
+            rts = page.locator("kat-popover", has_text="Select all").get_by_text("Ready to ship")
+            rts.wait_for(timeout=5000)
+            rts.click()
+            rts_clicked = True
+            logger.debug("  'Ready to ship' clicked via has_text('Select all') scoped locator")
+        except Exception as e:
+            logger.debug(f"  has_text fallback failed: {e}")
+
+    # JS fallback: find 'Ready to ship' ONLY inside the Status kat-popover shadow DOM
     if not rts_clicked:
         try:
             result = page.evaluate("""
                 () => {
+                    var pops = document.querySelectorAll('kat-popover');
+                    var statusPop = null;
+                    for (var i = 0; i < pops.length; i++) {
+                        if (pops[i].textContent.trim().startsWith('Select all')) {
+                            statusPop = pops[i]; break;
+                        }
+                    }
+                    if (!statusPop) return null;
                     function findText(root, text) {
                         if (!root) return null;
                         if (root.nodeType === Node.TEXT_NODE && root.textContent.trim() === text) {
@@ -336,16 +357,16 @@ def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
                         }
                         return null;
                     }
-                    var el = findText(document.body, 'Ready to ship');
-                    if (el) { el.scrollIntoView(); el.click(); return 'clicked'; }
+                    var el = findText(statusPop, 'Ready to ship');
+                    if (el) { el.scrollIntoView(); el.click(); return 'clicked inside Status popover'; }
                     return null;
                 }
             """)
             if result:
                 rts_clicked = True
-                logger.debug("  'Ready to ship' clicked via shadow DOM traversal")
+                logger.debug(f"  'Ready to ship' via scoped JS: {result}")
         except Exception as e:
-            logger.debug(f"  Shadow DOM JS failed: {e}")
+            logger.debug(f"  Scoped JS failed: {e}")
 
     if not rts_clicked:
         logger.warning("  'Ready to ship' option not found")
