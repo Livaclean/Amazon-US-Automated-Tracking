@@ -10,41 +10,23 @@ logger = logging.getLogger(__name__)
 FBA_ID_RE = re.compile(r'FBA[A-Z0-9]{6,}')
 
 QUEUE_SELECTORS = {
-    "status_filter_button": [
-        "button:has-text('Status')",
-        "[data-testid*='status-filter']",
-        "[aria-label*='Status' i]",
-        "label:has-text('Status')",
+    # Toggle discovered at class='missing-tracking-info-toggle-group'
+    "missing_tracking_toggle": [
+        ".missing-tracking-info-toggle-group",
+        "span.missing-tracking-info-toggle-group",
+        "span:has-text('Only show shipments with missing tracking information')",
     ],
-    "ready_to_ship_option": [
-        "li:has-text('Ready to ship')",
-        "option:has-text('Ready to ship')",
-        "[data-value='READY_TO_SHIP']",
-        "label:has-text('Ready to ship')",
-        "span:has-text('Ready to ship')",
-        "div:has-text('Ready to ship')",
+    # FBA links in the queue table use href pattern /fba/inbound-shipment/summary/FBAxxxxx/
+    "fba_id_link": [
+        "a[href*='/fba/inbound-shipment/summary/FBA']",
     ],
-    "apply_button": [
-        "button:has-text('Apply')",
-        "[data-testid*='apply']",
-        "button:has-text('Filter')",
-        "input[value='Apply']",
-    ],
-    "missing_tracking_badge": [
-        "[data-testid*='missing-tracking']",
-        "span:has-text('Missing tracking number')",
-        "span:has-text('Missing Tracking ID')",
-        "span:has-text('Missing tracking ID')",
-        "[class*='missing-tracking']",
-        "div:has-text('Missing Tracking')",
-    ],
+    # Pagination: div.content.pagination-container contains << First < Previous Page N Next >
     "next_page_button": [
-        "button[aria-label='Next page']",
-        "button[aria-label='Next']",
+        ".pagination-container a:has-text('Next')",
+        "div.content.pagination-container a:has-text('Next')",
+        ".pagination-container a:has-text('Next >')",
+        "[aria-label='Next page']",
         "button:has-text('Next')",
-        "[data-testid*='pagination-next']",
-        "a:has-text('Next')",
-        "li.next a",
     ],
 }
 
@@ -254,114 +236,48 @@ def _navigate_to_queue_page(page, amazon_url: str) -> bool:
 
 def _apply_ready_to_ship_filter(page) -> bool:
     """
-    Clicks the Status filter, selects 'Ready to ship', and clicks Apply.
-    Returns True if the filter was applied, False if any selector was not found.
-    NOTE: Run --discover-queue first if this fails, to identify real Amazon selectors.
+    Clicks the 'Only show shipments with missing tracking information' toggle.
+    Discovery found this is simpler and more reliable than the Status → Ready to ship flow.
+    Returns True if the toggle was clicked, False if not found.
+    NOTE: Run --discover-queue if this fails, to re-check selectors.
     """
-    # Step 1: open the Status filter
-    for selector in QUEUE_SELECTORS["status_filter_button"]:
-        try:
-            el = page.wait_for_selector(selector, timeout=5000, state="visible")
-            el.click()
-            page.wait_for_timeout(800)
-            logger.debug(f"Status filter opened via: {selector}")
-            break
-        except Exception:
-            continue
-    else:
-        logger.warning("_apply_ready_to_ship_filter: Status filter button not found")
-        return False
-
-    # Step 2: select 'Ready to ship'
-    for selector in QUEUE_SELECTORS["ready_to_ship_option"]:
-        try:
-            el = page.wait_for_selector(selector, timeout=5000, state="visible")
-            el.click()
-            page.wait_for_timeout(500)
-            logger.debug(f"'Ready to ship' selected via: {selector}")
-            break
-        except Exception:
-            continue
-    else:
-        logger.warning("_apply_ready_to_ship_filter: 'Ready to ship' option not found")
-        return False
-
-    # Step 3: click Apply
-    for selector in QUEUE_SELECTORS["apply_button"]:
+    for selector in QUEUE_SELECTORS["missing_tracking_toggle"]:
         try:
             el = page.wait_for_selector(selector, timeout=5000, state="visible")
             el.click()
             page.wait_for_timeout(2000)
-            logger.debug(f"Apply clicked via: {selector}")
+            logger.debug(f"Missing tracking toggle clicked via: {selector}")
             return True
         except Exception:
             continue
-    else:
-        logger.warning("_apply_ready_to_ship_filter: Apply button not found")
-        return False
+    logger.warning("_apply_ready_to_ship_filter: missing tracking toggle not found")
+    return False
 
 
 def _collect_missing_fba_ids_on_page(page) -> list:
     """
-    Extracts FBA IDs from rows with a 'Missing Tracking ID' badge on the current page.
-    Uses JavaScript DOM traversal for reliability across Amazon UI variations.
+    Extracts FBA IDs from shipment links on the current (filtered) page.
+    After the missing-tracking toggle is active, every link on the page points
+    to a shipment with missing tracking — FBA IDs come directly from link hrefs.
     """
+    fba_ids = []
+    seen: set = set()
     try:
-        fba_ids = page.evaluate("""() => {
-            const results = [];
-            const BADGE_TEXTS = [
-                'missing tracking number', 'missing tracking id',
-                'missing tracking',
-            ];
-            // Find all text nodes containing a badge phrase
-            const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
-            const badgeEls = new Set();
-            let node;
-            while ((node = walker.nextNode())) {
-                const text = node.textContent.toLowerCase();
-                if (BADGE_TEXTS.some(t => text.includes(t))) {
-                    badgeEls.add(node.parentElement);
-                }
-            }
-            // Also find by data-testid and class
-            document.querySelectorAll(
-                '[data-testid*="missing-tracking"], [class*="missing-tracking"]'
-            ).forEach(el => badgeEls.add(el));
-
-            for (const badge of badgeEls) {
-                let p = badge;
-                let found = false;
-                for (let i = 0; i < 12; i++) {
-                    if (!p || !p.parentElement) break;
-                    p = p.parentElement;
-                    const tag = p.tagName.toLowerCase();
-                    const cls = (p.className || '').toLowerCase();
-                    const isRow = tag === 'tr' || tag === 'li' ||
-                        cls.includes('row') || cls.includes('shipment') ||
-                        cls.includes('item');
-                    if (isRow) {
-                        const match = p.textContent.match(/FBA[A-Z0-9]{6,}/);
-                        if (match) { results.push(match[0]); found = true; break; }
-                    }
-                }
-                // Fallback: if no semantic row found, try the whole subtree up to body
-                if (!found) {
-                    let q = badge.parentElement;
-                    for (let i = 0; i < 20 && q && q !== document.body; i++) {
-                        const match = q.textContent.match(/FBA[A-Z0-9]{6,}/);
-                        if (match && q.textContent.length > 50) {
-                            results.push(match[0]); break;
-                        }
-                        q = q.parentElement;
-                    }
-                }
-            }
-            return [...new Set(results)];
-        }""")
-        return fba_ids if isinstance(fba_ids, list) else []
+        links = page.query_selector_all("a[href*='/fba/inbound-shipment/summary/FBA']")
+        for link in links:
+            try:
+                href = link.get_attribute("href") or ""
+                match = FBA_ID_RE.search(href)
+                if match:
+                    fba_id = match.group()
+                    if fba_id not in seen:
+                        seen.add(fba_id)
+                        fba_ids.append(fba_id)
+            except Exception:
+                continue
     except Exception as e:
-        logger.warning(f"_collect_missing_fba_ids_on_page: JS evaluation failed: {e}")
-        return []
+        logger.warning(f"_collect_missing_fba_ids_on_page: link query failed: {e}")
+    return fba_ids
 
 
 def _collect_all_missing_fba_ids(page) -> list:
