@@ -258,133 +258,94 @@ def _navigate_to_queue_page(page, amazon_url: str) -> bool:
 
 def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
     """
-    Clicks the 'Only show shipments with missing tracking information' toggle.
-    Discovery found this is simpler and more reliable than the Status → Ready to ship flow.
-    Returns True if the toggle was clicked, False if not found.
-    NOTE: Run --discover-queue if this fails, to re-check selectors.
+    Opens the Filters left panel, scrolls to the Status section,
+    selects 'Ready to ship', and clicks Apply.
     """
     logger.info(f"_apply_ready_to_ship_filter: current URL = {page.url}")
 
-    # Step 1: Click the "Status" dropdown in the toolbar
-    # The toolbar has: [Filters] [Last updated] [Status ▼] — we need the Status dropdown
-    logger.info("  Step 1: clicking Status dropdown...")
-    status_clicked = False
-
-    # Status is the 2nd kat-popover in the inline filter container
-    # Get its live bounding box and click the center
-    try:
-        el = page.locator(".popover-inline-filter-container kat-popover").nth(1)
-        bbox = el.bounding_box()
-        logger.info(f"  Status kat-popover bbox: {bbox}")
-        if bbox and bbox['width'] > 0:
-            cx = bbox['x'] + bbox['width'] / 2
-            cy = bbox['y'] + bbox['height'] / 2
-            page.mouse.click(cx, cy)
-            status_clicked = True
-            logger.info(f"  Status dropdown clicked at ({cx:.0f}, {cy:.0f})")
-        else:
-            logger.warning(f"  Status kat-popover has zero bbox: {bbox}")
-    except Exception as e:
-        logger.debug(f"  Bounding box click failed: {e}")
-
-    # Fallback: try clicking the element directly
-    if not status_clicked:
+    # Step 1: Open the Filters left panel
+    # The Filters panel (kat-button.popover-filter-button) contains Status section below Last updated
+    logger.info("  Step 1: opening Filters panel...")
+    filters_clicked = False
+    for selector in ["kat-button.popover-filter-button", "kat-button:has-text('Filters')"]:
         try:
-            el = page.locator(".popover-inline-filter-container kat-popover").nth(1)
+            el = page.wait_for_selector(selector, timeout=8000, state="visible")
             el.click()
-            status_clicked = True
-            logger.debug("  Status clicked via direct locator click")
-        except Exception as e:
-            logger.debug(f"  Direct click failed: {e}")
+            filters_clicked = True
+            logger.debug(f"  Filters panel opened via: {selector}")
+            break
+        except Exception:
+            continue
 
-    if not status_clicked:
-        logger.warning("  Status dropdown not found")
-        _take_screenshot(page, logs_folder, "verify_status_not_found")
+    if not filters_clicked:
+        logger.warning("  Filters button not found")
+        _take_screenshot(page, logs_folder, "verify_filters_not_found")
         return False
 
-    page.wait_for_timeout(3000)
-    _take_screenshot(page, logs_folder, "verify_after_status_click")
-    logger.info(f"  Page URL after Status click: {page.url}")
+    page.wait_for_timeout(2000)
+    _take_screenshot(page, logs_folder, "verify_after_filters_click")
 
-    # Step 2: Select "Ready to ship" from the opened Status dropdown
-    # The options render inside kat-popover shadow DOM — use get_by_text() or JS traversal
-    logger.info("  Step 2: selecting 'Ready to ship'...")
+    # Step 2: Scroll inside the filter panel to reveal the Status section (below Last updated)
+    logger.info("  Step 2: scrolling to reveal Status section...")
+    try:
+        # Scroll the filter panel — it's inside kat-popover[4] (parent=filter-popover)
+        page.evaluate("""
+            () => {
+                // Try scrolling any visible overflow container in the filter area
+                var els = document.querySelectorAll('*');
+                for (var i = 0; i < els.length; i++) {
+                    var el = els[i];
+                    var s = window.getComputedStyle(el);
+                    var b = el.getBoundingClientRect();
+                    if (b.width > 100 && b.height > 100 && b.height < 700 &&
+                        b.x < 300 && b.y > 400 &&
+                        (s.overflowY === 'auto' || s.overflowY === 'scroll')) {
+                        el.scrollTop = 600;
+                    }
+                }
+            }
+        """)
+        page.wait_for_timeout(500)
+        # Also use mouse wheel over the filter panel area
+        page.mouse.wheel(150, 550, delta_x=0, delta_y=500)
+        page.wait_for_timeout(1000)
+    except Exception as e:
+        logger.debug(f"  Scroll failed: {e}")
+
+    _take_screenshot(page, logs_folder, "verify_after_scroll")
+
+    # Step 3: Click "Ready to ship" inside the Filters panel
+    # It's in the Status section of the panel (below Last updated)
+    logger.info("  Step 3: selecting 'Ready to ship'...")
     rts_clicked = False
 
-    # Scope "Ready to ship" to inside the Status kat-popover (index 6) to avoid
-    # clicking a table row value that also has that text
-    try:
-        # Status kat-popover is at index 6 (0-based) — look for Ready to ship inside it
-        rts = page.locator("kat-popover").nth(6).get_by_text("Ready to ship", exact=True)
-        rts.wait_for(timeout=5000)
-        rts.click()
-        rts_clicked = True
-        logger.debug("  'Ready to ship' clicked via scoped locator inside Status kat-popover")
-    except Exception as e:
-        logger.debug(f"  Scoped locator failed: {e}")
-
-    # Fallback: look inside the kat-popover with 'Select all' content
-    if not rts_clicked:
+    # Scoped to kat-popover[4] which is the Filters panel content (parent=filter-popover)
+    for attempt in [
+        lambda: page.locator("kat-popover").nth(4).get_by_text("Ready to ship", exact=True),
+        lambda: page.locator(".filter-popover").get_by_text("Ready to ship", exact=True),
+        lambda: page.get_by_text("Ready to ship", exact=True).nth(0),
+        lambda: page.locator("text=Ready to ship").first,
+    ]:
         try:
-            rts = page.locator("kat-popover", has_text="Select all").get_by_text("Ready to ship")
-            rts.wait_for(timeout=5000)
-            rts.click()
+            el = attempt()
+            el.wait_for(timeout=8000, state="visible")
+            el.click()
             rts_clicked = True
-            logger.debug("  'Ready to ship' clicked via has_text('Select all') scoped locator")
+            logger.info("  'Ready to ship' clicked")
+            break
         except Exception as e:
-            logger.debug(f"  has_text fallback failed: {e}")
-
-    # JS fallback: find 'Ready to ship' ONLY inside the Status kat-popover shadow DOM
-    if not rts_clicked:
-        try:
-            result = page.evaluate("""
-                () => {
-                    var pops = document.querySelectorAll('kat-popover');
-                    var statusPop = null;
-                    for (var i = 0; i < pops.length; i++) {
-                        if (pops[i].textContent.trim().startsWith('Select all')) {
-                            statusPop = pops[i]; break;
-                        }
-                    }
-                    if (!statusPop) return null;
-                    function findText(root, text) {
-                        if (!root) return null;
-                        if (root.nodeType === Node.TEXT_NODE && root.textContent.trim() === text) {
-                            var el = root.parentElement;
-                            var b = el ? el.getBoundingClientRect() : null;
-                            if (b && b.width > 0) return el;
-                        }
-                        var children = root.shadowRoot
-                            ? [...root.childNodes, ...root.shadowRoot.childNodes]
-                            : [...root.childNodes];
-                        for (var i = 0; i < children.length; i++) {
-                            var found = findText(children[i], text);
-                            if (found) return found;
-                        }
-                        return null;
-                    }
-                    var el = findText(statusPop, 'Ready to ship');
-                    if (el) { el.scrollIntoView(); el.click(); return 'clicked inside Status popover'; }
-                    return null;
-                }
-            """)
-            if result:
-                rts_clicked = True
-                logger.debug(f"  'Ready to ship' via scoped JS: {result}")
-        except Exception as e:
-            logger.debug(f"  Scoped JS failed: {e}")
+            logger.debug(f"  RTS attempt failed: {e}")
 
     if not rts_clicked:
-        logger.warning("  'Ready to ship' option not found")
+        logger.warning("  'Ready to ship' not found in Filters panel")
         _take_screenshot(page, logs_folder, "verify_rts_not_found")
         return False
 
     page.wait_for_timeout(800)
     _take_screenshot(page, logs_folder, "verify_after_rts_select")
-    logger.info("  'Ready to ship' selected")
 
-    # Step 3: Click Apply
-    logger.info("  Step 3: clicking Apply...")
+    # Step 4: Click Apply
+    logger.info("  Step 4: clicking Apply...")
     apply_clicked = False
     for selector in QUEUE_SELECTORS["apply_button"]:
         try:
@@ -409,19 +370,8 @@ def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
         count = len(page.query_selector_all("a[href*='/fba/inbound-shipment/summary/FBA']"))
     except Exception:
         pass
-    logger.info(f"  Filter applied — {count} FBA links visible after filter")
+    logger.info(f"  Filter applied — {count} FBA links visible after Ready to ship filter")
     return True
-    # Screenshot to diagnose what the page looks like when toggle is not found
-    try:
-        folder = Path(logs_folder) / "screenshots"
-        folder.mkdir(parents=True, exist_ok=True)
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        page.screenshot(path=str(folder / f"verify_toggle_not_found_{ts}.png"))
-        logger.info(f"Screenshot saved: verify_toggle_not_found_{ts}.png")
-    except Exception as e:
-        logger.debug(f"Screenshot failed: {e}")
-    logger.warning("_apply_ready_to_ship_filter: missing tracking toggle not found")
-    return False
 
 
 def _collect_missing_fba_ids_on_page(page) -> list:
