@@ -252,9 +252,30 @@ def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
     NOTE: Run --discover-queue if this fails, to re-check selectors.
     """
     logger.info(f"_apply_ready_to_ship_filter: current URL = {page.url}")
+
+    # Try via JavaScript first — more reliable when element exists but is outside viewport
+    try:
+        clicked = page.evaluate("""() => {
+            const el = document.querySelector('.missing-tracking-info-toggle-group');
+            if (el) { el.scrollIntoView(); el.click(); return true; }
+            // Fallback: find by text content
+            const spans = [...document.querySelectorAll('span')];
+            const match = spans.find(s => s.textContent.includes('missing tracking information'));
+            if (match) { match.scrollIntoView(); match.click(); return true; }
+            return false;
+        }""")
+        if clicked:
+            page.wait_for_timeout(2000)
+            logger.debug("Missing tracking toggle clicked via JS evaluate")
+            return True
+    except Exception as e:
+        logger.debug(f"JS toggle click failed: {e}")
+
+    # Playwright selector fallback
     for selector in QUEUE_SELECTORS["missing_tracking_toggle"]:
         try:
-            el = page.wait_for_selector(selector, timeout=15000, state="visible")
+            el = page.wait_for_selector(selector, timeout=5000)
+            el.scroll_into_view_if_needed()
             el.click()
             page.wait_for_timeout(2000)
             logger.debug(f"Missing tracking toggle clicked via: {selector}")
