@@ -285,77 +285,85 @@ def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
     page.wait_for_timeout(2000)
     _take_screenshot(page, logs_folder, "verify_after_filters_click")
 
-    # Step 2: Scroll inside the filter panel to reveal the Status section (below Last updated)
-    logger.info("  Step 2: scrolling to reveal Status section...")
+    # Step 2: Click "Ready to ship" via kat-checkbox[1]
+    # Debug confirmed: kat-checkbox[1] = Ready to ship (2nd status option, after Working)
+    # The text is inside Shadow DOM so it's invisible to get_by_text — use JS scrollIntoView + click
+    logger.info("  Step 2: clicking 'Ready to ship' kat-checkbox...")
+    rts_clicked = False
     try:
-        # Scroll the filter panel — it's inside kat-popover[4] (parent=filter-popover)
-        page.evaluate("""
+        result = page.evaluate("""
             () => {
-                // Try scrolling any visible overflow container in the filter area
-                var els = document.querySelectorAll('*');
-                for (var i = 0; i < els.length; i++) {
-                    var el = els[i];
-                    var s = window.getComputedStyle(el);
-                    var b = el.getBoundingClientRect();
-                    if (b.width > 100 && b.height > 100 && b.height < 700 &&
-                        b.x < 300 && b.y > 400 &&
-                        (s.overflowY === 'auto' || s.overflowY === 'scroll')) {
-                        el.scrollTop = 600;
-                    }
-                }
+                var cbs = document.querySelectorAll('kat-checkbox');
+                if (cbs.length < 2) return 'not enough checkboxes: ' + cbs.length;
+                // kat-checkbox[1] is Ready to ship (index 0=Working, 1=Ready to ship)
+                var el = cbs[1];
+                el.scrollIntoView({block: 'center', behavior: 'instant'});
+                el.click();
+                var b = el.getBoundingClientRect();
+                return 'clicked kat-checkbox[1] at x=' + Math.round(b.x) + ' y=' + Math.round(b.y);
             }
         """)
-        page.wait_for_timeout(500)
-        # Also use mouse wheel over the filter panel area
-        page.mouse.wheel(150, 550, delta_x=0, delta_y=500)
-        page.wait_for_timeout(1000)
+        logger.info(f"  JS result: {result}")
+        rts_clicked = bool(result and 'clicked' in str(result))
     except Exception as e:
-        logger.debug(f"  Scroll failed: {e}")
+        logger.debug(f"  JS kat-checkbox click failed: {e}")
 
-    _take_screenshot(page, logs_folder, "verify_after_scroll")
-
-    # Step 3: Click "Ready to ship" inside the Filters panel
-    # It's in the Status section of the panel (below Last updated)
-    logger.info("  Step 3: selecting 'Ready to ship'...")
-    rts_clicked = False
-
-    # Scoped to kat-popover[4] which is the Filters panel content (parent=filter-popover)
-    for attempt in [
-        lambda: page.locator("kat-popover").nth(4).get_by_text("Ready to ship", exact=True),
-        lambda: page.locator(".filter-popover").get_by_text("Ready to ship", exact=True),
-        lambda: page.get_by_text("Ready to ship", exact=True).nth(0),
-        lambda: page.locator("text=Ready to ship").first,
-    ]:
-        try:
-            el = attempt()
-            el.wait_for(timeout=8000, state="visible")
-            el.click()
-            rts_clicked = True
-            logger.info("  'Ready to ship' clicked")
-            break
-        except Exception as e:
-            logger.debug(f"  RTS attempt failed: {e}")
+    page.wait_for_timeout(1000)
+    _take_screenshot(page, logs_folder, "verify_after_rts_select")
 
     if not rts_clicked:
-        logger.warning("  'Ready to ship' not found in Filters panel")
+        logger.warning("  'Ready to ship' kat-checkbox not clicked")
         _take_screenshot(page, logs_folder, "verify_rts_not_found")
         return False
 
     page.wait_for_timeout(800)
     _take_screenshot(page, logs_folder, "verify_after_rts_select")
 
-    # Step 4: Click Apply
-    logger.info("  Step 4: clicking Apply...")
+    # Step 3: Click Apply via JS (kat-button with text Apply in the filter panel)
+    logger.info("  Step 3: clicking Apply...")
     apply_clicked = False
+
+    # Try Playwright selectors first
     for selector in QUEUE_SELECTORS["apply_button"]:
         try:
-            el = page.wait_for_selector(selector, timeout=5000, state="visible")
+            el = page.wait_for_selector(selector, timeout=3000, state="visible")
             el.click()
             apply_clicked = True
             logger.debug(f"  Apply clicked via: {selector}")
             break
         except Exception:
             continue
+
+    # JS fallback: find Apply kat-button in the filter panel
+    if not apply_clicked:
+        try:
+            result = page.evaluate("""
+                () => {
+                    var btns = document.querySelectorAll('kat-button');
+                    for (var i = 0; i < btns.length; i++) {
+                        var txt = btns[i].textContent.trim();
+                        var b = btns[i].getBoundingClientRect();
+                        if (txt === 'Apply' && b.width > 0) {
+                            btns[i].click();
+                            return 'clicked Apply kat-button at y=' + Math.round(b.y);
+                        }
+                    }
+                    // Try button.button too
+                    var bbtns = document.querySelectorAll('button.button, button');
+                    for (var j = 0; j < bbtns.length; j++) {
+                        if (bbtns[j].textContent.trim() === 'Apply') {
+                            var b2 = bbtns[j].getBoundingClientRect();
+                            if (b2.width > 0) { bbtns[j].click(); return 'clicked Apply button at y=' + Math.round(b2.y); }
+                        }
+                    }
+                    return null;
+                }
+            """)
+            if result:
+                apply_clicked = True
+                logger.info(f"  Apply via JS: {result}")
+        except Exception as e:
+            logger.debug(f"  JS Apply failed: {e}")
 
     if not apply_clicked:
         logger.warning("  Apply button not found")
