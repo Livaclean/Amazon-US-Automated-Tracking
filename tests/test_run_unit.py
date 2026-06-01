@@ -194,3 +194,17 @@ def test_collect_updated_row_numbers_all_failed():
     results = [{"fba_id": "FBA001", "status": "failed"}]
     rows = collect_updated_row_numbers(shipments, results)
     assert rows == set()
+
+
+from verify_tracking import VerifyResult, format_verify_summary
+
+
+@pytest.mark.unit
+def test_format_verify_summary_included_in_output(capsys):
+    """format_verify_summary output should contain expected sections."""
+    r = VerifyResult(region="US", total_checked=3, total_ok=2)
+    r.not_in_sheet = ["FBA999"]
+    output = format_verify_summary([r])
+    assert "VERIFICATION" in output
+    assert "FBA999" in output
+    assert "Not in sheet" in output
