@@ -285,54 +285,101 @@ def _apply_ready_to_ship_filter(page, logs_folder: str = "logs") -> bool:
     page.wait_for_timeout(2000)
     _take_screenshot(page, logs_folder, "verify_after_filters_click")
 
-    # Step 2: Click "Ready to ship" via kat-checkbox[1]
-    # Debug confirmed: kat-checkbox[1] = Ready to ship (2nd status option, after Working)
-    # The text is inside Shadow DOM so it's invisible to get_by_text — use JS scrollIntoView + click
-    logger.info("  Step 2: clicking 'Ready to ship' kat-checkbox...")
+    # Step 2: Click "Ready to ship" checkbox using ARIA role (pierces Shadow DOM)
+    logger.info("  Step 2: clicking 'Ready to ship' checkbox via ARIA...")
     rts_clicked = False
-    try:
-        result = page.evaluate("""
-            () => {
-                var cbs = document.querySelectorAll('kat-checkbox');
-                if (cbs.length < 2) return 'not enough checkboxes: ' + cbs.length;
-                // kat-checkbox[1] is Ready to ship (index 0=Working, 1=Ready to ship)
-                var el = cbs[1];
-                el.scrollIntoView({block: 'center', behavior: 'instant'});
-                el.click();
-                var b = el.getBoundingClientRect();
-                return 'clicked kat-checkbox[1] at x=' + Math.round(b.x) + ' y=' + Math.round(b.y);
-            }
-        """)
-        logger.info(f"  JS result: {result}")
-        rts_clicked = bool(result and 'clicked' in str(result))
-    except Exception as e:
-        logger.debug(f"  JS kat-checkbox click failed: {e}")
 
-    page.wait_for_timeout(1000)
+    try:
+        cb = page.get_by_role("checkbox", name="Ready to ship")
+        cb.wait_for(timeout=8000)
+        cb.scroll_into_view_if_needed()
+        cb.click()
+        rts_clicked = True
+        logger.info("  'Ready to ship' clicked via get_by_role(checkbox)")
+    except Exception as e:
+        logger.debug(f"  get_by_role checkbox failed: {e}")
+
+    # Fallback: find kat-checkbox by label attribute
+    if not rts_clicked:
+        try:
+            cb = page.locator("kat-checkbox[label='Ready to ship']")
+            cb.wait_for(timeout=5000, state="visible")
+            cb.click()
+            rts_clicked = True
+            logger.info("  'Ready to ship' clicked via kat-checkbox[label] attribute")
+        except Exception as e:
+            logger.debug(f"  label attribute locator failed: {e}")
+
+    # Fallback: click at the visible position of kat-checkbox[1] after scroll
+    if not rts_clicked:
+        try:
+            result = page.evaluate("""
+                () => {
+                    var cbs = document.querySelectorAll('kat-checkbox');
+                    if (cbs.length < 2) return null;
+                    var el = cbs[1];
+                    el.scrollIntoView({block: 'center', behavior: 'instant'});
+                    // Try clicking the inner label/input via shadow root
+                    if (el.shadowRoot) {
+                        var inner = el.shadowRoot.querySelector('label, input[type=checkbox], .checkbox-label, .label');
+                        if (inner) { inner.click(); }
+                    }
+                    el.click();
+                    var b = el.getBoundingClientRect();
+                    return 'x=' + Math.round(b.x) + ' y=' + Math.round(b.y);
+                }
+            """)
+            if result:
+                rts_clicked = True
+                logger.info(f"  'Ready to ship' via shadow+JS click: {result}")
+                # Use mouse.click at the element position for more reliable interaction
+                coords = {}
+                for part in str(result).split():
+                    if '=' in part:
+                        k, v = part.split('=')
+                        coords[k] = int(v)
+                if 'x' in coords and 'y' in coords:
+                    page.mouse.click(coords['x'] + 100, coords['y'] + 8)
+                    logger.info(f"  Mouse click at ({coords['x']+100}, {coords['y']+8})")
+        except Exception as e:
+            logger.debug(f"  Shadow JS click failed: {e}")
+
+    page.wait_for_timeout(800)
     _take_screenshot(page, logs_folder, "verify_after_rts_select")
 
     if not rts_clicked:
-        logger.warning("  'Ready to ship' kat-checkbox not clicked")
+        logger.warning("  'Ready to ship' checkbox not found")
         _take_screenshot(page, logs_folder, "verify_rts_not_found")
         return False
 
     page.wait_for_timeout(800)
     _take_screenshot(page, logs_folder, "verify_after_rts_select")
 
-    # Step 3: Click Apply via JS (kat-button with text Apply in the filter panel)
+    # Step 3: Click Apply using ARIA role (same shadow DOM piercing approach)
     logger.info("  Step 3: clicking Apply...")
     apply_clicked = False
 
-    # Try Playwright selectors first
-    for selector in QUEUE_SELECTORS["apply_button"]:
-        try:
-            el = page.wait_for_selector(selector, timeout=3000, state="visible")
-            el.click()
-            apply_clicked = True
-            logger.debug(f"  Apply clicked via: {selector}")
-            break
-        except Exception:
-            continue
+    # ARIA role approach — most reliable for shadow DOM components
+    try:
+        btn = page.get_by_role("button", name="Apply")
+        btn.wait_for(timeout=5000, state="visible")
+        btn.click()
+        apply_clicked = True
+        logger.info("  Apply clicked via get_by_role(button, Apply)")
+    except Exception as e:
+        logger.debug(f"  get_by_role Apply failed: {e}")
+
+    # Playwright selector fallback
+    if not apply_clicked:
+        for selector in QUEUE_SELECTORS["apply_button"]:
+            try:
+                el = page.wait_for_selector(selector, timeout=3000, state="visible")
+                el.click()
+                apply_clicked = True
+                logger.debug(f"  Apply clicked via: {selector}")
+                break
+            except Exception:
+                continue
 
     # JS fallback: find Apply kat-button in the filter panel
     if not apply_clicked:
