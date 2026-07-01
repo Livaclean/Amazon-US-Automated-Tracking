@@ -12,6 +12,11 @@ FEDEX_PATTERN = re.compile(r"\b(\d{22}|\d{20}|\d{15}|\d{12})\b")
 
 UPS_TRACK_URL = "https://www.ups.com/track?tracknum={tracking}&loc=en_US"
 FEDEX_TRACK_URL = "https://www.fedex.com/wtrk/track/?tracknumbers={tracking}"
+DHL_TRACK_URL = "https://www.dhl.com/us-en/home/tracking.html?tracking-id={tracking}&submit=1"
+
+# DHL piece ID patterns
+DHL_JD_PATTERN = re.compile(r"\b(JD\d{18})\b", re.IGNORECASE)
+DHL_EXPRESS_PATTERN = re.compile(r"\b(\d{10})\b")
 
 UPS_SELECTORS = [
     "[data-testid*='package-tracking-number']",
@@ -31,7 +36,7 @@ FEDEX_SELECTORS = [
 
 
 def normalize_carrier(carrier_name) -> str:
-    """Returns 'ups', 'fedex', or 'unknown'."""
+    """Returns 'ups', 'fedex', 'dhl', or 'unknown'."""
     if not carrier_name:
         return "unknown"
     name = str(carrier_name).lower().strip()
@@ -39,6 +44,8 @@ def normalize_carrier(carrier_name) -> str:
         return "ups"
     if "fedex" in name or "federal express" in name:
         return "fedex"
+    if "dhl" in name:
+        return "dhl"
     return "unknown"
 
 
@@ -49,6 +56,8 @@ def _detect_carrier_from_tracking(tracking: str) -> str:
         return "ups"
     if re.match(r"^\d{12}$|^\d{15}$|^\d{20}$|^\d{22}$", t):
         return "fedex"
+    if re.match(r"^JD\d{18}$", t):
+        return "dhl"
     return "unknown"
 
 
@@ -619,9 +628,91 @@ def fetch_fedex_sub_tracking(page, main_tracking: str, logs_folder: str = None) 
     return numbers
 
 
+def _extract_dhl_piece_ids(text: str) -> list:
+    """Extracts DHL piece IDs from text content: JD-format first, then 10-digit Express."""
+    jd_ids = DHL_JD_PATTERN.findall(text)
+    if jd_ids:
+        return [x.upper() for x in jd_ids]
+    return DHL_EXPRESS_PATTERN.findall(text)
+
+
+def _dhl_extract_from_api(data: dict) -> list:
+    """Extracts piece IDs from a DHL utapi JSON response."""
+    ids = []
+    for shipment in data.get("shipments", []):
+        ids.extend(shipment.get("details", {}).get("pieceIds", []))
+    return ids
+
+
+def fetch_dhl_sub_tracking(page, main_tracking: str, logs_folder: str = None) -> list:
+    """
+    Fetches DHL piece IDs by intercepting the utapi JSON response on page load.
+    The utapi endpoint returns details.pieceIds directly — no DOM interaction needed.
+    Falls back to clicking the 'Piece IDs' accordion button if interception fails.
+    """
+    url = DHL_TRACK_URL.format(tracking=main_tracking)
+    logger.info(f"  Loading: {url}")
+
+    # Primary: intercept the utapi JSON response triggered by page load
+    try:
+        with page.expect_response(
+            lambda r: f"utapi?trackingNumber={main_tracking}" in r.url and r.status == 200,
+            timeout=20000,
+        ) as resp_ctx:
+            page.goto(url, wait_until="domcontentloaded", timeout=30000)
+
+        ids = _dhl_extract_from_api(resp_ctx.value.json())
+        if ids:
+            logger.info(f"  Found {len(ids)} piece ID(s) via utapi JSON")
+            return deduplicate_tracking_numbers(ids)
+        logger.debug("  utapi returned 0 pieceIds — falling back to DOM")
+    except Exception as e:
+        logger.debug(f"  utapi interception failed: {e} — falling back to DOM")
+
+    # Ensure page is fully loaded before DOM fallback
+    try:
+        page.wait_for_load_state("load", timeout=15000)
+        page.wait_for_timeout(3000)
+    except Exception:
+        pass
+
+    # Fallback: click the "Piece IDs" accordion button and read content div
+    ids = []
+    try:
+        btns = page.query_selector_all("button.js--tracking-result-pieceid--header")
+        if btns:
+            btns[0].scroll_into_view_if_needed()
+            btns[0].click()
+            page.wait_for_timeout(2000)
+            logger.debug("  Clicked 'Piece IDs' expand button")
+        content_el = page.query_selector(".c-tracking-result-pieceid--content")
+        if content_el:
+            ids = _extract_dhl_piece_ids(content_el.text_content().strip())
+            logger.info(f"  Found {len(ids)} piece ID(s) via DOM fallback")
+    except Exception as e:
+        logger.debug(f"  DOM fallback failed: {e}")
+
+    if ids:
+        return deduplicate_tracking_numbers(ids)
+
+    # Last resort: full-page regex
+    try:
+        body = page.inner_text("body")
+        ids = _extract_dhl_piece_ids(body)
+        logger.info(f"  Found {len(ids)} sub-IDs via regex fallback")
+        if logs_folder:
+            Path(logs_folder).joinpath(f"dhl_page_{main_tracking}.txt").write_text(
+                body[:_LOG_PAGE_TEXT_LIMIT], encoding="utf-8"
+            )
+    except Exception as e:
+        logger.error(f"  DHL page text extraction failed: {e}")
+
+    return deduplicate_tracking_numbers(ids)
+
+
 def fetch_sub_tracking_ids(page, main_tracking: str, carrier: str,
                             logs_folder: str = None) -> list:
-    """Dispatches to UPS or FedEx scraper based on carrier string."""
+    """Dispatches to UPS, FedEx, or DHL scraper based on carrier string."""
     normalized = normalize_carrier(carrier)
     if normalized == "unknown":
         detected = _detect_carrier_from_tracking(main_tracking)
@@ -632,6 +723,8 @@ def fetch_sub_tracking_ids(page, main_tracking: str, carrier: str,
         return fetch_ups_sub_tracking(page, main_tracking, logs_folder)
     elif normalized == "fedex":
         return fetch_fedex_sub_tracking(page, main_tracking, logs_folder)
+    elif normalized == "dhl":
+        return fetch_dhl_sub_tracking(page, main_tracking, logs_folder)
     else:
         logger.warning(f"  Unknown carrier '{carrier}' for tracking {main_tracking} — skipping")
         return []

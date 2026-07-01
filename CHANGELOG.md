@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.3.0] - 2026-07-01
+
+### Added
+- DHL sub-tracking support in `fetch_sub_tracking.py` — `fetch_dhl_sub_tracking()` intercepts the `dhl.com/utapi` JSON response on page load to extract `details.pieceIds` directly (no DOM clicking needed); falls back to clicking the "Piece IDs" accordion button, then full-page regex
+- AU region support: `fc_codes/au_fc_codes.txt` (BWU2), uploads to sellercentral.amazon.com.au
+- FR region support: `fc_codes/fr_fc_codes.txt` (XCD2), uploads via sellercentral.amazon.de (same account as EU)
+- `normalize_carrier()` now returns `'dhl'` for DHL carrier strings; `_detect_carrier_from_tracking()` detects JD-format DHL numbers
+
+### Changed
+- `fetch_sub_tracking_ids()` dispatches to `fetch_dhl_sub_tracking()` for DHL entries — previously logged a warning and returned empty list
+
 ## [0.2.0] - 2026-07-01
 
 ### Added
