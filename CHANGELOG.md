@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.2.0] - 2026-07-01
+
+### Added
+- `run_verify_na()` in `verify_tracking.py` — runs US and CA verification once via the new `/amazonsell/shipments` page (unified North America account), replacing the old per-region queue page approach for both regions
+- `_collect_from_new_shipments_page()` — paginates the new Amazon shipments page via URL `pageIndex` parameter and extracts FBA IDs from page JSON data
+- `NEW_SHIPMENTS_URL_TEMPLATE` and `NA_REGIONS` constants in `verify_tracking.py`
+
+### Changed
+- Post-upload verification and standalone `--verify` mode now call `run_verify_na()` once for US+CA combined instead of running two separate queue-page passes — avoids redundant login and scraping since both regions share a unified NA account
+- UK, EU, and AWD regions continue using the existing shipping queue page (`_navigate_to_queue_page`)
+
 ## [0.1.2] - 2026-05-27
 
 ### Fixed

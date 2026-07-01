@@ -9,6 +9,19 @@ logger = logging.getLogger(__name__)
 
 FBA_ID_RE = re.compile(r'FBA[A-Z0-9]{6,}')
 
+NEW_SHIPMENTS_URL_TEMPLATE = (
+    "{base}/amazonsell/shipments"
+    "?ref=sc_shipments"
+    "&orderBy=SHIPMENT_CREATE_DATE"
+    "&isOrderAscending=false"
+    "&pageSize=50"
+    "&pageIndex={page_index}"
+    "&detailedShipmentStatuses=READY_TO_SHIP"
+)
+
+# Regions that share a unified North America account and use the new page
+NA_REGIONS = frozenset({"US", "CA"})
+
 QUEUE_SELECTORS = {
     # Apply button — kat-button inside the filter panel (confirmed from screenshot)
     "apply_button": [
@@ -531,6 +544,105 @@ def _reupload_fba(page, fba_id: str, entries: list, config: dict) -> dict:
         "filled": filled,
         "total": total,
     }
+
+
+def _collect_from_new_shipments_page(page, base_url: str, logs_folder: str) -> list:
+    """
+    Collects FBA IDs with missing tracking from the new /amazonsell/shipments page.
+    Paginates via URL pageIndex parameter (no button clicking needed).
+    FBA IDs are embedded in the page's React/JSON data and extracted via regex.
+    """
+    all_fba_ids = []
+    seen: set = set()
+
+    for page_index in range(20):  # safety ceiling — queue won't realistically exceed this
+        url = NEW_SHIPMENTS_URL_TEMPLATE.format(base=base_url, page_index=page_index)
+        logger.info(f"  New shipments page {page_index}: navigating...")
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=30000)
+        except Exception as e:
+            logger.warning(f"_collect_from_new_shipments_page: navigation failed: {e}")
+            break
+
+        page.wait_for_timeout(3000)
+        _take_screenshot(page, logs_folder, f"verify_new_page_{page_index}")
+
+        page_fba_ids = []
+        try:
+            content = page.content()
+            for m in FBA_ID_RE.finditer(content):
+                fba_id = m.group()
+                if fba_id not in seen:
+                    seen.add(fba_id)
+                    all_fba_ids.append(fba_id)
+                    page_fba_ids.append(fba_id)
+        except Exception as e:
+            logger.warning(f"_collect_from_new_shipments_page: content extraction failed: {e}")
+
+        logger.info(f"  Page {page_index}: {len(page_fba_ids)} new FBA IDs found")
+        if not page_fba_ids:
+            break
+
+    return all_fba_ids
+
+
+def run_verify_na(page, regions: list, config: dict, shipments_all: dict) -> VerifyResult:
+    """
+    Verification for US and CA using the new /amazonsell/shipments page.
+    Runs once for both regions (unified North America account) via amazon.com.
+    """
+    region_label = "/".join(r["name"] for r in regions)
+    result = VerifyResult(region=region_label)
+    logs_folder = config.get("logs_folder", "logs")
+
+    # Prefer US (amazon.com); fall back to first available region's URL
+    us = next((r for r in regions if r["name"] == "US"), regions[0])
+    base_url = us["amazon_url"]
+    region_config = dict(config)
+    region_config["amazon_base_url"] = base_url
+
+    logger.info(f"[{region_label}] Starting verification via new shipments page (unified NA)...")
+
+    missing_fba_ids = _collect_from_new_shipments_page(page, base_url, logs_folder)
+    result.total_checked = len(missing_fba_ids)
+    logger.info(f"[{region_label}] Found {len(missing_fba_ids)} FBA(s) with missing tracking")
+    print(f"\n[{region_label}] Verify (new page): {len(missing_fba_ids)} FBA(s) with missing tracking")
+
+    if not missing_fba_ids:
+        return result
+
+    buckets = _cross_reference(missing_fba_ids, shipments_all)
+    result.not_in_sheet = buckets["not_in_sheet"]
+    result.missing_in_sheet = buckets["missing_in_sheet"]
+
+    for fba_id in buckets["reupload"]:
+        entries = shipments_all[fba_id]
+        print(f"  [{region_label}] Re-uploading {fba_id}...")
+        reup = _reupload_fba(page, fba_id, entries, region_config)
+
+        if reup["status"] in ("success", "partial") and reup["total"] > 0 and reup["filled"] == reup["total"]:
+            result.re_uploaded.append(reup)
+        else:
+            result.still_incomplete.append(reup)
+
+        # Update done cache for all NA regions on full success
+        if reup["filled"] == reup["total"] and reup["total"] > 0:
+            for region in regions:
+                done_cache_file = Path(logs_folder) / f"completed_fba_{region['name']}.txt"
+                try:
+                    existing = set()
+                    if done_cache_file.exists():
+                        existing = {
+                            line.strip()
+                            for line in done_cache_file.read_text(encoding="utf-8").splitlines()
+                            if line.strip()
+                        }
+                    existing.add(fba_id)
+                    done_cache_file.write_text("\n".join(sorted(existing)), encoding="utf-8")
+                except Exception as e:
+                    logger.warning(f"[{region['name']}] Could not update done cache for {fba_id}: {e}")
+
+    return result
 
 
 def run_verify(page, region: dict, config: dict, shipments_all: dict) -> VerifyResult:
