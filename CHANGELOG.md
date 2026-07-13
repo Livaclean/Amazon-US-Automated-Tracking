@@ -3,6 +3,15 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.4.0] - 2026-07-13
+
+### Added
+- `run_verify_eu()` and `EU_REGIONS` constant in `verify_tracking.py` — runs UK, EU, and FR verification once via the new `/amazonsell/shipments` page (unified Europe account), matching Amazon's migration of these marketplaces to the same page format already used for US/CA
+- `_run_verify_unified()` — shared implementation behind `run_verify_na()` and `run_verify_eu()`, parameterized by an anchor region for the base URL
+
+### Changed
+- Post-upload verification and standalone `--verify` mode now call `run_verify_eu()` once for UK+EU+FR combined instead of the old per-region shipping-queue-page approach, which had started failing ("Filters button not found") now that Amazon serves the new page for these marketplaces too
+
 ## [0.3.0] - 2026-07-01
 
 ### Added
