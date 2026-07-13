@@ -22,6 +22,9 @@ NEW_SHIPMENTS_URL_TEMPLATE = (
 # Regions that share a unified North America account and use the new page
 NA_REGIONS = frozenset({"US", "CA"})
 
+# Regions that share a unified Europe account and use the new page
+EU_REGIONS = frozenset({"UK", "EU", "FR"})
+
 QUEUE_SELECTORS = {
     # Apply button — kat-button inside the filter panel (confirmed from screenshot)
     "apply_button": [
@@ -586,22 +589,23 @@ def _collect_from_new_shipments_page(page, base_url: str, logs_folder: str) -> l
     return all_fba_ids
 
 
-def run_verify_na(page, regions: list, config: dict, shipments_all: dict) -> VerifyResult:
+def _run_verify_unified(page, regions: list, config: dict, shipments_all: dict, anchor_name: str = None) -> VerifyResult:
     """
-    Verification for US and CA using the new /amazonsell/shipments page.
-    Runs once for both regions (unified North America account) via amazon.com.
+    Verification for a group of regions that share one unified Seller Central
+    account and the new /amazonsell/shipments page — all missing tracking IDs
+    across the group show up on a single (paginated) page.
     """
     region_label = "/".join(r["name"] for r in regions)
     result = VerifyResult(region=region_label)
     logs_folder = config.get("logs_folder", "logs")
 
-    # Prefer US (amazon.com); fall back to first available region's URL
-    us = next((r for r in regions if r["name"] == "US"), regions[0])
-    base_url = us["amazon_url"]
+    # Prefer anchor_name's URL; fall back to first available region's URL
+    anchor = next((r for r in regions if r["name"] == anchor_name), regions[0])
+    base_url = anchor["amazon_url"]
     region_config = dict(config)
     region_config["amazon_base_url"] = base_url
 
-    logger.info(f"[{region_label}] Starting verification via new shipments page (unified NA)...")
+    logger.info(f"[{region_label}] Starting verification via new shipments page (unified)...")
 
     missing_fba_ids = _collect_from_new_shipments_page(page, base_url, logs_folder)
     result.total_checked = len(missing_fba_ids)
@@ -625,7 +629,7 @@ def run_verify_na(page, regions: list, config: dict, shipments_all: dict) -> Ver
         else:
             result.still_incomplete.append(reup)
 
-        # Update done cache for all NA regions on full success
+        # Update done cache for all regions in this unified group on full success
         if reup["filled"] == reup["total"] and reup["total"] > 0:
             for region in regions:
                 done_cache_file = Path(logs_folder) / f"completed_fba_{region['name']}.txt"
@@ -643,6 +647,16 @@ def run_verify_na(page, regions: list, config: dict, shipments_all: dict) -> Ver
                     logger.warning(f"[{region['name']}] Could not update done cache for {fba_id}: {e}")
 
     return result
+
+
+def run_verify_na(page, regions: list, config: dict, shipments_all: dict) -> VerifyResult:
+    """Verification for US and CA (unified North America account) via amazon.com."""
+    return _run_verify_unified(page, regions, config, shipments_all, anchor_name="US")
+
+
+def run_verify_eu(page, regions: list, config: dict, shipments_all: dict) -> VerifyResult:
+    """Verification for UK, EU and FR (unified Europe account) via amazon.co.uk."""
+    return _run_verify_unified(page, regions, config, shipments_all, anchor_name="UK")
 
 
 def run_verify(page, region: dict, config: dict, shipments_all: dict) -> VerifyResult:
