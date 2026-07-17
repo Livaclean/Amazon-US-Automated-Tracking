@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.0] - 2026-07-18
+
+### Added
+- `--with-names` CLI flag: with `--verify`, pairs each reported FBA ID with its Amazon shipment name (US/CA and UK/EU/FR only) by walking the `/amazonsell/shipments` table rows and matching each row's FBA ID to its shipment-name link text
+- `_extract_row_name_pairs()` in `verify_tracking.py` — row-level DOM extraction used by `--with-names`
+- `VerifyResult.shipment_names` — dict of FBA ID → shipment name, populated only when `--with-names` is passed
+- `_reupload_fba()` now returns the actual `tracking_ids` used, so `format_verify_summary()` can print them for re-uploaded and still-incomplete entries
+
+### Changed
+- `_collect_from_new_shipments_page()` now returns `(fba_ids, shipment_names)` instead of a flat list; `shipment_names` is empty unless `with_names=True`
+
 ## [0.4.0] - 2026-07-13
 
 ### Added
