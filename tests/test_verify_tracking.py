@@ -4,7 +4,10 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from verify_tracking import _is_usable_tracking, _cross_reference, VerifyResult, format_verify_summary
+from verify_tracking import (
+    _is_usable_tracking, _cross_reference, VerifyResult, format_verify_summary,
+    _extract_row_name_pairs,
+)
 
 
 @pytest.mark.unit
@@ -91,6 +94,7 @@ def test_verify_result_defaults():
     assert r.still_incomplete == []
     assert r.missing_in_sheet == []
     assert r.not_in_sheet == []
+    assert r.shipment_names == {}
 
 
 @pytest.mark.unit
@@ -147,6 +151,109 @@ def test_format_verify_summary_multiple_regions():
     out = format_verify_summary([r1, r2])
     assert "US" in out
     assert "CA" in out
+
+
+@pytest.mark.unit
+def test_format_verify_summary_not_in_sheet_with_name():
+    r = VerifyResult(region="US", total_checked=1, total_ok=0)
+    r.not_in_sheet = ["FBA004"]
+    r.shipment_names = {"FBA004": "40CT Large ~ 272CT Pure - YHM1"}
+    out = format_verify_summary([r])
+    assert "FBA004" in out
+    assert "40CT Large ~ 272CT Pure - YHM1" in out
+
+
+@pytest.mark.unit
+def test_format_verify_summary_without_names_omits_name():
+    r = VerifyResult(region="US", total_checked=1, total_ok=0)
+    r.not_in_sheet = ["FBA004"]
+    out = format_verify_summary([r])
+    line = next(l for l in out.splitlines() if "FBA004" in l)
+    assert line.strip() == "FBA004"
+
+
+@pytest.mark.unit
+def test_format_verify_summary_re_uploaded_with_name_and_tracking_ids():
+    r = VerifyResult(region="US", total_checked=1, total_ok=0)
+    r.re_uploaded = [{"fba_id": "FBA001", "filled": 2, "total": 2, "tracking_ids": ["1Z999AA1", "1Z999AA2"]}]
+    r.shipment_names = {"FBA001": "Test Shipment Name"}
+    out = format_verify_summary([r])
+    assert "FBA001" in out
+    assert "Test Shipment Name" in out
+    assert "1Z999AA1" in out
+    assert "1Z999AA2" in out
+
+
+@pytest.mark.unit
+def test_extract_row_name_pairs_basic():
+    class FakeElement:
+        def __init__(self, text):
+            self._text = text
+
+        def inner_text(self):
+            return self._text
+
+    class FakeRow:
+        def __init__(self, row_text, link_text=None):
+            self._row_text = row_text
+            self._link_text = link_text
+
+        def inner_text(self):
+            return self._row_text
+
+        def query_selector(self, sel):
+            if sel == "a" and self._link_text is not None:
+                return FakeElement(self._link_text)
+            return None
+
+    class FakePage:
+        def __init__(self, rows):
+            self._rows = rows
+
+        def query_selector_all(self, sel):
+            return self._rows if sel == "tbody tr" else []
+
+    rows = [
+        FakeRow("... FBA19JB4NX21 ... Missing tracking ID", link_text="40CT Large - YHM1"),
+        FakeRow("... FBA19J5079L6 ... Missing tracking ID", link_text="PL-LC-US-CH-26097 - SMF3"),
+    ]
+    names = _extract_row_name_pairs(FakePage(rows))
+    assert names == {
+        "FBA19JB4NX21": "40CT Large - YHM1",
+        "FBA19J5079L6": "PL-LC-US-CH-26097 - SMF3",
+    }
+
+
+@pytest.mark.unit
+def test_extract_row_name_pairs_skips_row_without_fba_id():
+    class FakeRow:
+        def inner_text(self):
+            return "no shipment id here"
+
+        def query_selector(self, sel):
+            return None
+
+    class FakePage:
+        def query_selector_all(self, sel):
+            return [FakeRow()]
+
+    assert _extract_row_name_pairs(FakePage()) == {}
+
+
+@pytest.mark.unit
+def test_extract_row_name_pairs_skips_row_without_link():
+    class FakeRow:
+        def inner_text(self):
+            return "FBA19JB4NX21 present but no link"
+
+        def query_selector(self, sel):
+            return None
+
+    class FakePage:
+        def query_selector_all(self, sel):
+            return [FakeRow()]
+
+    assert _extract_row_name_pairs(FakePage()) == {}
 
 
 from verify_tracking import (

@@ -52,10 +52,11 @@ class VerifyResult:
     region: str
     total_checked: int = 0
     total_ok: int = 0
-    re_uploaded: list = field(default_factory=list)      # [{"fba_id": str, "filled": int, "total": int}]
-    still_incomplete: list = field(default_factory=list) # [{"fba_id": str, "filled": int, "total": int}]
+    re_uploaded: list = field(default_factory=list)      # [{"fba_id": str, "filled": int, "total": int, "tracking_ids": list}]
+    still_incomplete: list = field(default_factory=list) # [{"fba_id": str, "filled": int, "total": int, "tracking_ids": list}]
     missing_in_sheet: list = field(default_factory=list) # [{"fba_id": str, "reason": str}]
     not_in_sheet: list = field(default_factory=list)     # [str]
+    shipment_names: dict = field(default_factory=dict)   # {fba_id: shipment_name} — populated only with --with-names
 
 
 def _is_usable_tracking(value) -> bool:
@@ -90,6 +91,12 @@ def _cross_reference(fba_ids: list, shipments_all: dict) -> dict:
     return {"reupload": reupload, "missing_in_sheet": missing_in_sheet, "not_in_sheet": not_in_sheet}
 
 
+def _name_suffix(shipment_names: dict, fba_id: str) -> str:
+    """Returns ' — "shipment name"' if a name is known for fba_id, else ''."""
+    name = shipment_names.get(fba_id)
+    return f'  — "{name}"' if name else ""
+
+
 def format_verify_summary(results: list) -> str:
     SEP = "=" * 60
     lines = [SEP, "VERIFICATION — Missing Tracking ID Check", SEP]
@@ -113,28 +120,36 @@ def format_verify_summary(results: list) -> str:
                 lines.append("")
                 lines.append("  Re-uploaded successfully:")
                 for item in r.re_uploaded:
-                    lines.append(f"    {item['fba_id']}  — {item['filled']} tracking ID(s) filled")
+                    name = _name_suffix(r.shipment_names, item['fba_id'])
+                    ids = item.get("tracking_ids") or []
+                    ids_suffix = f" — IDs: {', '.join(ids)}" if ids else ""
+                    lines.append(f"    {item['fba_id']}{name}  — {item['filled']} tracking ID(s) filled{ids_suffix}")
 
             if r.still_incomplete:
                 lines.append("")
                 lines.append("  Still incomplete after re-upload:")
                 for item in r.still_incomplete:
+                    name = _name_suffix(r.shipment_names, item['fba_id'])
+                    ids = item.get("tracking_ids") or []
+                    ids_suffix = f" — IDs: {', '.join(ids)}" if ids else ""
                     lines.append(
-                        f"    {item['fba_id']}  — {item['filled']} of {item['total']} slots filled "
-                        f"(fewer tracking IDs than fields)"
+                        f"    {item['fba_id']}{name}  — {item['filled']} of {item['total']} slots filled "
+                        f"(fewer tracking IDs than fields){ids_suffix}"
                     )
 
             if r.missing_in_sheet:
                 lines.append("")
                 lines.append("  Tracking missing in sheet (in sheet but no usable tracking ID):")
                 for item in r.missing_in_sheet:
-                    lines.append(f"    {item['fba_id']}  — {item['reason']}")
+                    name = _name_suffix(r.shipment_names, item['fba_id'])
+                    lines.append(f"    {item['fba_id']}{name}  — {item['reason']}")
 
             if r.not_in_sheet:
                 lines.append("")
                 lines.append("  Not in sheet (FBA ID not found in sheet at all):")
                 for fba_id in r.not_in_sheet:
-                    lines.append(f"    {fba_id}")
+                    name = _name_suffix(r.shipment_names, fba_id)
+                    lines.append(f"    {fba_id}{name}")
 
         lines.append("")
 
@@ -534,7 +549,7 @@ def _reupload_fba(page, fba_id: str, entries: list, config: dict) -> dict:
 
     if not navigate_to_shipment(page, fba_id, base_url):
         logger.warning(f"  [verify] Shipment {fba_id} not found on Amazon")
-        return {"fba_id": fba_id, "status": "not_found", "filled": 0, "total": 0}
+        return {"fba_id": fba_id, "status": "not_found", "filled": 0, "total": 0, "tracking_ids": []}
 
     upload_result = upload_tracking_to_shipment(page, all_ids, fba_id, config)
 
@@ -546,17 +561,55 @@ def _reupload_fba(page, fba_id: str, entries: list, config: dict) -> dict:
         "status": upload_result.get("status", "failed"),
         "filled": filled,
         "total": total,
+        "tracking_ids": all_ids,
     }
 
 
-def _collect_from_new_shipments_page(page, base_url: str, logs_folder: str) -> list:
+def _extract_row_name_pairs(page) -> dict:
+    """
+    Row-level extraction: for each shipment <tr>, pairs the FBA ID (regex-matched
+    within the row) with the shipment name (the row's first <a> text).
+    Returns {fba_id: shipment_name}. Best-effort — rows that don't yield both are skipped.
+    """
+    names = {}
+    try:
+        rows = page.query_selector_all("tbody tr")
+    except Exception as e:
+        logger.warning(f"_extract_row_name_pairs: row query failed: {e}")
+        return names
+
+    for row in rows:
+        try:
+            row_text = row.inner_text()
+        except Exception:
+            continue
+        match = FBA_ID_RE.search(row_text)
+        if not match:
+            continue
+        fba_id = match.group()
+        try:
+            link = row.query_selector("a")
+            name = link.inner_text().strip() if link else None
+        except Exception:
+            name = None
+        if name:
+            names[fba_id] = name
+
+    return names
+
+
+def _collect_from_new_shipments_page(page, base_url: str, logs_folder: str, with_names: bool = False) -> tuple:
     """
     Collects FBA IDs with missing tracking from the new /amazonsell/shipments page.
     Paginates via URL pageIndex parameter (no button clicking needed).
     FBA IDs are embedded in the page's React/JSON data and extracted via regex.
+    When with_names=True, also pairs each FBA ID with its shipment name via
+    row-level DOM extraction (slower — walks the rendered table rows).
+    Returns (fba_ids: list, shipment_names: dict).
     """
     all_fba_ids = []
     seen: set = set()
+    shipment_names = {}
 
     for page_index in range(20):  # safety ceiling — queue won't realistically exceed this
         url = NEW_SHIPMENTS_URL_TEMPLATE.format(base=base_url, page_index=page_index)
@@ -582,14 +635,17 @@ def _collect_from_new_shipments_page(page, base_url: str, logs_folder: str) -> l
         except Exception as e:
             logger.warning(f"_collect_from_new_shipments_page: content extraction failed: {e}")
 
+        if with_names:
+            shipment_names.update(_extract_row_name_pairs(page))
+
         logger.info(f"  Page {page_index}: {len(page_fba_ids)} new FBA IDs found")
         if not page_fba_ids:
             break
 
-    return all_fba_ids
+    return all_fba_ids, shipment_names
 
 
-def _run_verify_unified(page, regions: list, config: dict, shipments_all: dict, anchor_name: str = None) -> VerifyResult:
+def _run_verify_unified(page, regions: list, config: dict, shipments_all: dict, anchor_name: str = None, with_names: bool = False) -> VerifyResult:
     """
     Verification for a group of regions that share one unified Seller Central
     account and the new /amazonsell/shipments page — all missing tracking IDs
@@ -607,7 +663,8 @@ def _run_verify_unified(page, regions: list, config: dict, shipments_all: dict, 
 
     logger.info(f"[{region_label}] Starting verification via new shipments page (unified)...")
 
-    missing_fba_ids = _collect_from_new_shipments_page(page, base_url, logs_folder)
+    missing_fba_ids, shipment_names = _collect_from_new_shipments_page(page, base_url, logs_folder, with_names=with_names)
+    result.shipment_names = shipment_names
     result.total_checked = len(missing_fba_ids)
     logger.info(f"[{region_label}] Found {len(missing_fba_ids)} FBA(s) with missing tracking")
     print(f"\n[{region_label}] Verify (new page): {len(missing_fba_ids)} FBA(s) with missing tracking")
@@ -649,14 +706,14 @@ def _run_verify_unified(page, regions: list, config: dict, shipments_all: dict, 
     return result
 
 
-def run_verify_na(page, regions: list, config: dict, shipments_all: dict) -> VerifyResult:
+def run_verify_na(page, regions: list, config: dict, shipments_all: dict, with_names: bool = False) -> VerifyResult:
     """Verification for US and CA (unified North America account) via amazon.com."""
-    return _run_verify_unified(page, regions, config, shipments_all, anchor_name="US")
+    return _run_verify_unified(page, regions, config, shipments_all, anchor_name="US", with_names=with_names)
 
 
-def run_verify_eu(page, regions: list, config: dict, shipments_all: dict) -> VerifyResult:
+def run_verify_eu(page, regions: list, config: dict, shipments_all: dict, with_names: bool = False) -> VerifyResult:
     """Verification for UK, EU and FR (unified Europe account) via amazon.co.uk."""
-    return _run_verify_unified(page, regions, config, shipments_all, anchor_name="UK")
+    return _run_verify_unified(page, regions, config, shipments_all, anchor_name="UK", with_names=with_names)
 
 
 def run_verify(page, region: dict, config: dict, shipments_all: dict) -> VerifyResult:

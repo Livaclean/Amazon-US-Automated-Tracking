@@ -344,6 +344,11 @@ def main():
         action="store_true",
         help="Check Amazon shipping queue for missing tracking IDs (runs automatically after upload; use standalone to check without uploading)",
     )
+    parser.add_argument(
+        "--with-names",
+        action="store_true",
+        help="With --verify, also fetch each shipment's name from Amazon (US/CA and UK/EU/FR only; slower)",
+    )
     args = parser.parse_args()
 
     # Pre-initialize so these are always in scope even if an early exception occurs
@@ -588,7 +593,7 @@ def main():
                 print(f"\n[{label}] Verify: logging in to {anchor['amazon_url']}...")
                 logged_in = wait_for_login(page, label, anchor["amazon_url"], timeout_seconds=300)
                 if logged_in:
-                    vr = run_verify_na(page, na_regions, config, shipments_all)
+                    vr = run_verify_na(page, na_regions, config, shipments_all, with_names=args.with_names)
                     verify_results.append(vr)
                 else:
                     print(f"[{label}] Login timed out — skipping US/CA verify.")
@@ -600,7 +605,7 @@ def main():
                 print(f"\n[{label}] Verify: logging in to {anchor['amazon_url']}...")
                 logged_in = wait_for_login(page, label, anchor["amazon_url"], timeout_seconds=300)
                 if logged_in:
-                    vr = run_verify_eu(page, eu_regions, config, shipments_all)
+                    vr = run_verify_eu(page, eu_regions, config, shipments_all, with_names=args.with_names)
                     verify_results.append(vr)
                 else:
                     print(f"[{label}] Login timed out — skipping UK/EU/FR verify.")
@@ -850,12 +855,12 @@ def main():
         if na_regions:
             label = "/".join(r["name"] for r in na_regions)
             print(f"\n[{label}] Running post-upload verification (new page, once for both)...")
-            vr = run_verify_na(page, na_regions, config, shipments_all)
+            vr = run_verify_na(page, na_regions, config, shipments_all, with_names=args.with_names)
             verify_results.append(vr)
         if eu_regions:
             label = "/".join(r["name"] for r in eu_regions)
             print(f"\n[{label}] Running post-upload verification (new page, once for all three)...")
-            vr = run_verify_eu(page, eu_regions, config, shipments_all)
+            vr = run_verify_eu(page, eu_regions, config, shipments_all, with_names=args.with_names)
             verify_results.append(vr)
         for region in other_regions:
             region_name = region["name"]
