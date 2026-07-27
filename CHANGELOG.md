@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.1] - 2026-07-28
+
+### Fixed
+- AU post-upload/standalone verification now uses `run_verify_au()` (new `/amazonsell/shipments` page, same as US/CA and UK/EU/FR) instead of the legacy per-region queue-page path, which had started failing ("Filters button not found") because AU runs the same modern Seller Central UI as US
+- Added `AU_REGIONS` constant and `run_verify_au()` in `verify_tracking.py`; `run.py` now routes AU through the unified new-page verify path in both standalone `--verify` mode and post-upload verification
+
 ## [0.5.0] - 2026-07-18
 
 ### Added
