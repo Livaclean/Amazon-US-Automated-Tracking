@@ -25,6 +25,9 @@ NA_REGIONS = frozenset({"US", "CA"})
 # Regions that share a unified Europe account and use the new page
 EU_REGIONS = frozenset({"UK", "EU", "FR"})
 
+# AU runs the same modern Seller Central UI as US and uses the new page too
+AU_REGIONS = frozenset({"AU"})
+
 QUEUE_SELECTORS = {
     # Apply button — kat-button inside the filter panel (confirmed from screenshot)
     "apply_button": [
@@ -714,6 +717,11 @@ def run_verify_na(page, regions: list, config: dict, shipments_all: dict, with_n
 def run_verify_eu(page, regions: list, config: dict, shipments_all: dict, with_names: bool = False) -> VerifyResult:
     """Verification for UK, EU and FR (unified Europe account) via amazon.co.uk."""
     return _run_verify_unified(page, regions, config, shipments_all, anchor_name="UK", with_names=with_names)
+
+
+def run_verify_au(page, regions: list, config: dict, shipments_all: dict, with_names: bool = False) -> VerifyResult:
+    """Verification for AU via amazon.com.au (same new-page UI as US)."""
+    return _run_verify_unified(page, regions, config, shipments_all, anchor_name="AU", with_names=with_names)
 
 
 def run_verify(page, region: dict, config: dict, shipments_all: dict) -> VerifyResult:

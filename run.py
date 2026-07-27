@@ -375,6 +375,7 @@ def main():
     from verify_tracking import (
         discover_queue_page, format_verify_summary, run_verify,
         run_verify_na, NA_REGIONS, run_verify_eu, EU_REGIONS,
+        run_verify_au, AU_REGIONS,
     )
 
     logger = logging.getLogger(__name__)
@@ -584,7 +585,11 @@ def main():
             verify_results = []
             na_regions = [r for r in configured_regions if r["name"] in NA_REGIONS]
             eu_regions = [r for r in configured_regions if r["name"] in EU_REGIONS]
-            other_regions = [r for r in configured_regions if r["name"] not in NA_REGIONS and r["name"] not in EU_REGIONS]
+            au_regions = [r for r in configured_regions if r["name"] in AU_REGIONS]
+            other_regions = [
+                r for r in configured_regions
+                if r["name"] not in NA_REGIONS and r["name"] not in EU_REGIONS and r["name"] not in AU_REGIONS
+            ]
 
             # US + CA: log in once to amazon.com, run new-page verify once for both
             if na_regions:
@@ -609,6 +614,18 @@ def main():
                     verify_results.append(vr)
                 else:
                     print(f"[{label}] Login timed out — skipping UK/EU/FR verify.")
+
+            # AU: same modern UI as US, uses the new-page verify path
+            if au_regions:
+                anchor = au_regions[0]
+                label = "/".join(r["name"] for r in au_regions)
+                print(f"\n[{label}] Verify: logging in to {anchor['amazon_url']}...")
+                logged_in = wait_for_login(page, label, anchor["amazon_url"], timeout_seconds=300)
+                if logged_in:
+                    vr = run_verify_au(page, au_regions, config, shipments_all, with_names=args.with_names)
+                    verify_results.append(vr)
+                else:
+                    print(f"[{label}] Login timed out — skipping AU verify.")
 
             for region in other_regions:
                 region_name = region["name"]
@@ -851,7 +868,11 @@ def main():
         verify_results = []
         na_regions = [r for r in configured_regions if r["name"] in NA_REGIONS]
         eu_regions = [r for r in configured_regions if r["name"] in EU_REGIONS]
-        other_regions = [r for r in configured_regions if r["name"] not in NA_REGIONS and r["name"] not in EU_REGIONS]
+        au_regions = [r for r in configured_regions if r["name"] in AU_REGIONS]
+        other_regions = [
+            r for r in configured_regions
+            if r["name"] not in NA_REGIONS and r["name"] not in EU_REGIONS and r["name"] not in AU_REGIONS
+        ]
         if na_regions:
             label = "/".join(r["name"] for r in na_regions)
             print(f"\n[{label}] Running post-upload verification (new page, once for both)...")
@@ -861,6 +882,11 @@ def main():
             label = "/".join(r["name"] for r in eu_regions)
             print(f"\n[{label}] Running post-upload verification (new page, once for all three)...")
             vr = run_verify_eu(page, eu_regions, config, shipments_all, with_names=args.with_names)
+            verify_results.append(vr)
+        if au_regions:
+            label = "/".join(r["name"] for r in au_regions)
+            print(f"\n[{label}] Running post-upload verification (new page)...")
+            vr = run_verify_au(page, au_regions, config, shipments_all, with_names=args.with_names)
             verify_results.append(vr)
         for region in other_regions:
             region_name = region["name"]
