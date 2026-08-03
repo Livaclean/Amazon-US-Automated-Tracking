@@ -474,9 +474,18 @@ def check_fedex_login(page) -> None:
 
 def fetch_fedex_sub_tracking(page, main_tracking: str, logs_folder: str = None) -> list:
     """
-    Opens FedEx tracking page using trkqual URL (requires FedEx login).
+    Opens FedEx tracking page and retrieves sub-package tracking IDs.
     Navigates via FedEx home first to establish proper session/cookies,
-    then loads the tracking page with trkqual to avoid bot detection.
+    then loads the tracking page to avoid bot detection.
+
+    Primary path: loads the plain trknbr URL (no trkqual) and lets FedEx's own
+    client-side redirect resolve the internal trkqual piece-qualifier itself.
+    Guessing the qualifier (the old sole approach, e.g. "12030~<num>~FDEG") can
+    land on a stuck skeleton "Loading..." page when the guess is wrong for this
+    shipment's service type — confirmed live while building tracking_status.py's
+    carrier-status checker, which hit the same bug and applies the same fix.
+    The guessed candidates are kept below as a fallback in case FedEx's own
+    redirect ever fails to resolve one.
     """
     # Navigate via FedEx home first to warm up session cookies
     try:
@@ -486,15 +495,21 @@ def fetch_fedex_sub_tracking(page, main_tracking: str, logs_folder: str = None) 
     except Exception:
         pass
 
-    # Build trkqual URL — try FDEG (Ground) first, then FDXE (Express)
-    trkqual_candidates = [
-        f"12030~{main_tracking}~FDEG",
-        f"12029~{main_tracking}~FDEG",
-        f"10800~{main_tracking}~FDXE",
-        f"10800~{main_tracking}~FXSP",
+    # (url, load_state, wait_ms) — bare URL first (FedEx resolves trkqual itself
+    # and needs longer for its SPA to hydrate), guessed trkqual URLs as fallback.
+    candidates = [
+        (f"https://www.fedex.com/fedextrack/?trknbr={main_tracking}", "domcontentloaded", 15000),
+    ] + [
+        (f"https://www.fedex.com/fedextrack/?trknbr={main_tracking}&trkqual={trkqual}", "load", 6000)
+        for trkqual in [
+            f"12030~{main_tracking}~FDEG",
+            f"12029~{main_tracking}~FDEG",
+            f"10800~{main_tracking}~FDXE",
+            f"10800~{main_tracking}~FXSP",
+        ]
     ]
 
-    logger.info(f"  Trying {len(trkqual_candidates)} trkqual candidates for {main_tracking}")
+    logger.info(f"  Trying {len(candidates)} FedEx tracking URL(s) for {main_tracking}")
 
     section_markers = [
         "Piece Shipment",
@@ -506,15 +521,14 @@ def fetch_fedex_sub_tracking(page, main_tracking: str, logs_folder: str = None) 
         "packages in this shipment",
     ]
 
-    for trkqual in trkqual_candidates:
-        candidate_url = f"https://www.fedex.com/fedextrack/?trknbr={main_tracking}&trkqual={trkqual}"
+    for attempt_num, (candidate_url, load_state, wait_ms) in enumerate(candidates, start=1):
         logger.info(f"  Loading: {candidate_url}")
         try:
             page.goto(candidate_url, timeout=30000)
-            page.wait_for_load_state("load", timeout=30000)
-            page.wait_for_timeout(6000)
+            page.wait_for_load_state(load_state, timeout=30000)
+            page.wait_for_timeout(wait_ms)
         except Exception as e:
-            logger.debug(f"  trkqual {trkqual} load error: {e}")
+            logger.debug(f"  attempt {attempt_num} load error: {e}")
             continue
 
         # Hard failures — skip to next candidate
@@ -523,12 +537,12 @@ def fetch_fedex_sub_tracking(page, main_tracking: str, logs_folder: str = None) 
         except Exception:
             continue
         if "system-error" in page.url or "can't find" in body_text.lower():
-            logger.debug(f"  trkqual {trkqual} — error page, trying next")
+            logger.debug(f"  attempt {attempt_num} — error page, trying next")
             continue
 
         # Soft signal: "Shipment is N of M pieces" on main page = correct trkqual
         has_piece_indicator = "of " in body_text.lower() and "piece" in body_text.lower()
-        logger.info(f"  trkqual {trkqual} loaded — piece indicator: {has_piece_indicator}")
+        logger.info(f"  attempt {attempt_num} loaded — piece indicator: {has_piece_indicator}")
 
         _handle_captcha(page)
 
@@ -588,19 +602,19 @@ def fetch_fedex_sub_tracking(page, main_tracking: str, logs_folder: str = None) 
                 logger.info(f"  Found {len(numbers)} sub-IDs from '{marker}' section")
                 if numbers:
                     return numbers
-                # Section found but 0 IDs — save page text for debugging before trying next trkqual
+                # Section found but 0 IDs — save page text for debugging before trying next candidate
                 if has_piece_indicator and logs_folder:
-                    debug_path = Path(logs_folder) / f"fedex_piece_debug_{main_tracking}_{trkqual.replace('~', '_')}.txt"
+                    debug_path = Path(logs_folder) / f"fedex_piece_debug_{main_tracking}_attempt{attempt_num}.txt"
                     debug_path.write_text(page_text[:_LOG_PAGE_TEXT_LIMIT], encoding="utf-8")
                     logger.debug(f"  Saved piece debug page: {debug_path.name}")
-                logger.debug(f"  Section '{marker}' found but no IDs — trying next trkqual")
+                logger.debug(f"  Section '{marker}' found but no IDs — trying next candidate")
                 break
 
         # Regex fallback on full page
         numbers = deduplicate_tracking_numbers(
             extract_fedex_tracking_from_text(page_text, exclude=main_tracking)
         )
-        logger.info(f"  Found {len(numbers)} sub-IDs via regex (trkqual {trkqual})")
+        logger.info(f"  Found {len(numbers)} sub-IDs via regex (attempt {attempt_num})")
         if numbers:
             if logs_folder:
                 Path(logs_folder).joinpath(f"fedex_page_{main_tracking}.txt").write_text(
@@ -608,11 +622,11 @@ def fetch_fedex_sub_tracking(page, main_tracking: str, logs_folder: str = None) 
                 )
             return numbers
 
-        # 0 found with this trkqual — try the next one
-        logger.debug(f"  trkqual {trkqual} gave 0 sub-IDs — trying next candidate")
+        # 0 found with this attempt — try the next one
+        logger.debug(f"  attempt {attempt_num} gave 0 sub-IDs — trying next candidate")
 
     # All candidates exhausted with 0 results
-    logger.warning(f"  All trkqual candidates tried — 0 sub-IDs found for {main_tracking}")
+    logger.warning(f"  All FedEx URL attempts tried — 0 sub-IDs found for {main_tracking}")
     try:
         page_text = page.inner_text("body")
     except Exception:

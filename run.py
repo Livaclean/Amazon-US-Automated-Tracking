@@ -43,7 +43,12 @@ def load_config(config_path: str = "config.json") -> dict:
         "column_fba_id": 4,
         "column_tracking": 7,
         "column_carrier": 8,
+        "column_name": 1,
+        "column_ctns": 5,
+        "column_shipping_way": 6,
+        "column_notes": 10,
         "us_fc_codes_file": "fc_codes/us_fc_codes.txt",
+        "tracking_status_cache": "logs/tracking_status.xlsx",
     }
     for k, v in defaults.items():
         config.setdefault(k, v)
@@ -349,6 +354,13 @@ def main():
         action="store_true",
         help="With --verify, also fetch each shipment's name from Amazon (US/CA and UK/EU/FR only; slower)",
     )
+    parser.add_argument(
+        "--check-tracking",
+        action="store_true",
+        help="Check each shipment's carrier tracking page (UPS/FedEx/DHL) for label-created/delivery dates and "
+             "current status, recording results in logs/tracking_status.xlsx. Delivered shipments are skipped on "
+             "future runs. Does not touch Amazon or upload anything.",
+    )
     args = parser.parse_args()
 
     # Pre-initialize so these are always in scope even if an early exception occurs
@@ -379,6 +391,15 @@ def main():
     )
 
     logger = logging.getLogger(__name__)
+
+    # Standalone check-tracking mode: visits carrier sites only, never touches Amazon.
+    # Dispatched before the Excel-required check and before the Amazon browser context
+    # is launched below (it opens its own browser context internally).
+    if args.check_tracking:
+        from tracking_status import run_check_tracking, format_check_tracking_summary
+        result = run_check_tracking(config)
+        print(format_check_tracking_summary(result))
+        return
 
     # Determine which regions to run
     configured_regions = config.get("regions", [])
