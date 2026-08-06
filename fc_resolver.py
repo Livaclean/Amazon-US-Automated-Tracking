@@ -39,9 +39,14 @@ def group_unmatched_by_fc(unmatched_rows: list) -> dict:
 
 def append_fc_code_to_file(fc_codes_file: str, fc_code: str, probe_fba_id: str, today: str = None) -> None:
     """
-    Appends fc_code (exact, uppercased, not a guessed prefix) to fc_codes_file with
-    an auto-added comment. Creates the file if missing. No-op if the code (case-insensitive)
-    is already present.
+    Appends fc_code (exact, uppercased, not a guessed prefix) to fc_codes_file, preceded
+    by an auto-added comment on its OWN line. Creates the file if missing. No-op if the
+    code (case-insensitive) is already present.
+
+    The comment must NOT share a line with the code: parse_excel.load_fc_prefixes() only
+    skips lines that start with "#" — it does not strip trailing inline comments — so a
+    same-line comment would become part of the stored match prefix and the code would
+    never match anything again.
     """
     today = today or datetime.now().strftime("%Y-%m-%d")
     path = Path(fc_codes_file)
@@ -58,7 +63,8 @@ def append_fc_code_to_file(fc_codes_file: str, fc_code: str, probe_fba_id: str, 
         logger.info(f"FC code {fc_code} already present in {fc_codes_file} — skipping")
         return
 
-    existing_lines.append(f"{fc_code.upper()}  # auto-added {today}, confirmed via {probe_fba_id}")
+    existing_lines.append(f"# auto-added {today}, confirmed via {probe_fba_id}")
+    existing_lines.append(fc_code.upper())
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(existing_lines) + "\n", encoding="utf-8")
     logger.info(f"Auto-added FC code {fc_code} to {fc_codes_file}")

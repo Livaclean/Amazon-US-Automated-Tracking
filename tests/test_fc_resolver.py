@@ -29,14 +29,14 @@ def test_append_fc_code_to_file_adds_new_code(tmp_path):
     f.write_text("BNA\nPHX\n")
     append_fc_code_to_file(str(f), "ITX3", "FBA19K4G0NSQ", today="2026-08-07")
     content = f.read_text()
-    assert "ITX3  # auto-added 2026-08-07, confirmed via FBA19K4G0NSQ" in content
+    assert "# auto-added 2026-08-07, confirmed via FBA19K4G0NSQ\nITX3" in content
     assert "BNA" in content
     assert "PHX" in content
 
 
 def test_append_fc_code_to_file_is_idempotent(tmp_path):
     f = tmp_path / "us_fc_codes.txt"
-    f.write_text("BNA\nITX3  # auto-added 2026-08-01, confirmed via FBA1\n")
+    f.write_text("BNA\n# auto-added 2026-08-01, confirmed via FBA1\nITX3\n")
     append_fc_code_to_file(str(f), "itx3", "FBA_NEW", today="2026-08-07")
     content = f.read_text()
     assert content.upper().count("ITX3") == 1
@@ -46,6 +46,19 @@ def test_append_fc_code_to_file_creates_file_if_missing(tmp_path):
     f = tmp_path / "new_region.txt"
     append_fc_code_to_file(str(f), "MQJ1", "FBA_X", today="2026-08-07")
     assert "MQJ1" in f.read_text()
+
+
+def test_append_fc_code_to_file_round_trips_through_load_fc_prefixes(tmp_path):
+    """The auto-added format must still be recognized by parse_excel's own matcher —
+    a comment on the same line as the code would corrupt the stored prefix, since
+    load_fc_prefixes() only skips lines that START with '#'; it doesn't strip
+    trailing inline comments."""
+    from parse_excel import load_fc_prefixes, is_region_fc
+    f = tmp_path / "us_fc_codes.txt"
+    f.write_text("BNA\n")
+    append_fc_code_to_file(str(f), "ITX3", "FBA19K4G0NSQ", today="2026-08-07")
+    prefixes = load_fc_prefixes(str(f))
+    assert is_region_fc("ITX3XXXX", prefixes)
 
 
 def test_merge_resolved_rows_adds_shipments_to_correct_region():
