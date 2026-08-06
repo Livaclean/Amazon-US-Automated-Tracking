@@ -22,10 +22,11 @@ No new flags. This runs automatically as part of the default pipeline (`python r
 
 ## Auto-Fix Behavior
 
-On a confirmed match, append a line to the matched region's fc_codes file using the **exact FC code as observed** (not a shortened/guessed prefix):
+On a confirmed match, append the matched region's fc_codes file using the **exact FC code as observed** (not a shortened/guessed prefix), with its comment on its own line above the code — never trailing on the same line, since the existing `load_fc_prefixes()` matcher only skips lines that *start* with `#` and does not strip inline comments, so a same-line comment would corrupt the stored match prefix:
 
 ```
-ITX3  # auto-added 2026-08-07, confirmed via FBA19K4G0NSQ
+# auto-added 2026-08-07, confirmed via FBA19K4G0NSQ
+ITX3
 ```
 
 Using the exact observed code (rather than inferring a shorter shared prefix like `ITX`) keeps matching precise — no risk of the auto-added entry accidentally sweeping in unrelated FCs that happen to share a shorter prefix. A human can consolidate into a shorter prefix later if they choose; the tool never does this automatically.
