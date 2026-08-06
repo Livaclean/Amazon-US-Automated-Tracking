@@ -13,6 +13,7 @@ from parse_excel import (
     load_fc_prefixes,
     is_region_fc,
     parse_and_filter_by_region,
+    parse_and_filter_by_region_full,
     find_excel_files,
     load_excel_file,
     parse_and_filter,
@@ -282,3 +283,60 @@ def test_group_by_fba_id_slash_split():
     assert "STAR-A" in result
     assert "STAR-B" in result
     assert result["STAR-A"][0]["tracking"] == "1Z001"
+
+
+def test_parse_and_filter_by_region_full_returns_unmatched_rows(tmp_path):
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["A", "B", "C", "D_fc", "E_fba", "F", "G", "H_tracking", "I_carrier"])
+    ws.append([None, None, None, "BNA6", "FBA_US", None, None, "1Z001", "UPS"])
+    ws.append([None, None, None, "ZZZ9", "FBA_UNKNOWN", None, None, "1Z002", "UPS"])
+
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    wb.save(input_dir / "test.xlsx")
+
+    us_fc = tmp_path / "us.txt"
+    us_fc.write_text("BNA\n")
+    config = {
+        "input_folder": str(input_dir),
+        "column_fc_code": 3, "column_fba_id": 4,
+        "column_tracking": 7, "column_carrier": 8,
+        "regions": [{"name": "US", "amazon_url": "https://x", "fc_codes_file": str(us_fc)}],
+    }
+
+    from parse_excel import parse_and_filter_by_region_full
+    region_dict, unmatched = parse_and_filter_by_region_full(config)
+
+    assert "FBA_US" in region_dict["US"]
+    assert len(unmatched) == 1
+    assert unmatched[0]["fba_id"] == "FBA_UNKNOWN"
+    assert unmatched[0]["fc_code"] == "ZZZ9"
+
+
+def test_parse_and_filter_by_region_still_returns_region_dict_only(tmp_path):
+    """parse_and_filter_by_region() must keep its existing return shape — no unmatched_rows leak in."""
+    import openpyxl
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["A", "B", "C", "D_fc", "E_fba", "F", "G", "H_tracking", "I_carrier"])
+    ws.append([None, None, None, "BNA6", "FBA_US", None, None, "1Z001", "UPS"])
+
+    input_dir = tmp_path / "input"
+    input_dir.mkdir()
+    wb.save(input_dir / "test.xlsx")
+
+    us_fc = tmp_path / "us.txt"
+    us_fc.write_text("BNA\n")
+    config = {
+        "input_folder": str(input_dir),
+        "column_fc_code": 3, "column_fba_id": 4,
+        "column_tracking": 7, "column_carrier": 8,
+        "regions": [{"name": "US", "amazon_url": "https://x", "fc_codes_file": str(us_fc)}],
+    }
+
+    from parse_excel import parse_and_filter_by_region
+    region_dict = parse_and_filter_by_region(config)
+    assert isinstance(region_dict, dict)
+    assert "FBA_US" in region_dict["US"]
