@@ -7,6 +7,7 @@ from fc_resolver import (
     FcResolutionResult,
     group_unmatched_by_fc,
     append_fc_code_to_file,
+    probe_fc_codes,
     merge_resolved_rows,
     format_fc_resolution_summary,
 )
@@ -96,3 +97,59 @@ def test_format_fc_resolution_summary_shows_uploaded_count():
 
 def test_format_fc_resolution_summary_empty_when_nothing_to_report():
     assert format_fc_resolution_summary(FcResolutionResult(), []) == ""
+
+
+def test_probe_fc_codes_matches_first_successful_region():
+    regions = [
+        {"name": "US", "amazon_url": "https://us.example"},
+        {"name": "CA", "amazon_url": "https://ca.example"},
+    ]
+    unresolved_by_fc = {
+        "ITX3": [
+            {"fc_code": "ITX3", "fba_id": "FBA1"},
+            {"fc_code": "ITX3", "fba_id": "FBA2"},
+        ],
+    }
+
+    def fake_login(page, region_name, amazon_url, timeout_seconds=300):
+        return True
+
+    def fake_navigate(page, fba_id, base_url):
+        return base_url == "https://ca.example"  # only CA "has" this shipment
+
+    result = probe_fc_codes(None, unresolved_by_fc, regions, fake_login, fake_navigate)
+
+    assert len(result.resolved) == 1
+    assert result.resolved[0].fc_code == "ITX3"
+    assert result.resolved[0].region == "CA"
+    assert result.resolved[0].fba_ids == ["FBA1", "FBA2"]
+    assert result.unresolved == []
+
+
+def test_probe_fc_codes_reports_unresolved_when_no_region_matches():
+    regions = [{"name": "US", "amazon_url": "https://us.example"}]
+    unresolved_by_fc = {"XYZ9": [{"fc_code": "XYZ9", "fba_id": "FBA9"}]}
+
+    result = probe_fc_codes(None, unresolved_by_fc, regions, lambda *a, **k: True, lambda *a, **k: False)
+
+    assert result.resolved == []
+    assert result.unresolved == [{"fc_code": "XYZ9", "fba_ids": ["FBA9"]}]
+
+
+def test_probe_fc_codes_skips_region_when_login_fails():
+    regions = [
+        {"name": "US", "amazon_url": "https://us.example"},
+        {"name": "CA", "amazon_url": "https://ca.example"},
+    ]
+    unresolved_by_fc = {"ITX3": [{"fc_code": "ITX3", "fba_id": "FBA1"}]}
+
+    def fake_login(page, region_name, amazon_url, timeout_seconds=300):
+        return region_name == "CA"  # US login fails, CA succeeds
+
+    def fake_navigate(page, fba_id, base_url):
+        return True  # would match whichever region actually gets probed
+
+    result = probe_fc_codes(None, unresolved_by_fc, regions, fake_login, fake_navigate)
+
+    assert len(result.resolved) == 1
+    assert result.resolved[0].region == "CA"  # US was skipped due to failed login
