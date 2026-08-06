@@ -592,7 +592,7 @@ def main():
         if unmatched_rows and not skip_fc_resolution:
             from fc_resolver import (
                 group_unmatched_by_fc, probe_fc_codes, merge_resolved_rows,
-                append_fc_code_to_file, format_fc_resolution_summary,
+                append_fc_code_to_file,
             )
             unresolved_by_fc = group_unmatched_by_fc(unmatched_rows)
             print(f"\n{len(unresolved_by_fc)} unrecognized FC code(s) found — checking which market they belong to...")

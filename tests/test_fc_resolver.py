@@ -10,6 +10,7 @@ from fc_resolver import (
     probe_fc_codes,
     merge_resolved_rows,
     format_fc_resolution_summary,
+    _dedupe_fba_ids,
 )
 
 
@@ -153,3 +154,142 @@ def test_probe_fc_codes_skips_region_when_login_fails():
 
     assert len(result.resolved) == 1
     assert result.resolved[0].region == "CA"  # US was skipped due to failed login
+
+
+def test_probe_fc_codes_resolves_star_prefix_to_awd_without_probing():
+    """AWD (STAR- prefix) shipments must resolve directly to the AWD region without
+    probing at all — even when a region sharing the same amazon_url (e.g. US) would
+    also return True if it were probed, since navigate_to_shipment routes STAR- IDs
+    to the AWD URL pattern regardless of which base_url is passed."""
+    regions = [
+        {"name": "US", "amazon_url": "https://sellercentral.amazon.com"},
+        {"name": "AWD", "amazon_url": "https://sellercentral.amazon.com"},
+    ]
+    unresolved_by_fc = {
+        "STAR9": [{"fc_code": "STAR9", "fba_id": "STAR-ABC123"}],
+    }
+
+    def fake_login(page, region_name, amazon_url, timeout_seconds=60):
+        raise AssertionError(f"login should not be attempted for AWD FC codes, got region={region_name}")
+
+    def fake_navigate(page, fba_id, base_url):
+        raise AssertionError("navigate_fn should not be called for STAR- FBA IDs")
+
+    result = probe_fc_codes(None, unresolved_by_fc, regions, fake_login, fake_navigate)
+
+    assert len(result.resolved) == 1
+    assert result.resolved[0].fc_code == "STAR9"
+    assert result.resolved[0].region == "AWD"
+    assert result.resolved[0].fba_ids == ["STAR-ABC123"]
+    assert result.unresolved == []
+
+
+def test_probe_fc_codes_leaves_ambiguous_shared_url_match_unresolved():
+    """A non-AWD FC code that matches under a region whose amazon_url is shared by
+    another configured region is genuinely ambiguous — navigate_fn can't tell EU and
+    FR apart when they use the same domain, so it must be left unresolved rather than
+    silently attributed to whichever region is tried first."""
+    regions = [
+        {"name": "EU", "amazon_url": "https://shared.example"},
+        {"name": "FR", "amazon_url": "https://shared.example"},
+    ]
+    unresolved_by_fc = {
+        "MQJ1": [{"fc_code": "MQJ1", "fba_id": "FBA1"}],
+    }
+
+    def fake_login(page, region_name, amazon_url, timeout_seconds=60):
+        return True
+
+    def fake_navigate(page, fba_id, base_url):
+        return base_url == "https://shared.example"  # matches for both EU and FR
+
+    result = probe_fc_codes(None, unresolved_by_fc, regions, fake_login, fake_navigate)
+
+    assert result.resolved == []
+    assert result.unresolved == [{"fc_code": "MQJ1", "fba_ids": ["FBA1"]}]
+
+
+def test_probe_fc_codes_default_login_timeout_is_60_seconds():
+    """Confirms the reduced default login timeout (was hardcoded 300s) is actually
+    threaded through to wait_for_login_fn when the caller doesn't override it."""
+    regions = [{"name": "US", "amazon_url": "https://us.example"}]
+    unresolved_by_fc = {"ITX3": [{"fc_code": "ITX3", "fba_id": "FBA1"}]}
+    seen_timeouts = []
+
+    def fake_login(page, region_name, amazon_url, timeout_seconds=300):
+        seen_timeouts.append(timeout_seconds)
+        return True
+
+    probe_fc_codes(None, unresolved_by_fc, regions, fake_login, lambda *a, **k: True)
+
+    assert seen_timeouts == [60]
+
+
+def test_dedupe_fba_ids_splits_combined_ids_drops_wfa_and_dedupes():
+    rows = [
+        {"fba_id": "STAR-A/STAR-B"},
+        {"fba_id": "STAR-A"},  # duplicate of a part already seen
+        {"fba_id": "WMT123WFA"},  # dropped: Walmart ID
+        {"fba_id": "  STAR-C  "},  # whitespace trimmed
+        {"fba_id": ""},  # empty, ignored
+    ]
+    assert _dedupe_fba_ids(rows) == ["STAR-A", "STAR-B", "STAR-C"]
+
+
+def test_probe_fc_codes_uses_dedupe_for_resolved_fba_ids():
+    """A resolved FcMatch's fba_ids should be deduped/split via _dedupe_fba_ids rather
+    than one raw entry per Excel row, so combined IDs and duplicate carton rows don't
+    inflate the eventual 'N shipment(s) uploaded' summary count."""
+    regions = [{"name": "US", "amazon_url": "https://us.example"}]
+    unresolved_by_fc = {
+        "ITX3": [
+            {"fc_code": "ITX3", "fba_id": "STAR-A/STAR-B"},
+            {"fc_code": "ITX3", "fba_id": "STAR-A"},
+            {"fc_code": "ITX3", "fba_id": "WMT9WFA"},
+        ],
+    }
+
+    result = probe_fc_codes(None, unresolved_by_fc, regions, lambda *a, **k: True, lambda *a, **k: True)
+
+    assert len(result.resolved) == 1
+    assert result.resolved[0].fba_ids == ["STAR-A", "STAR-B"]
+
+
+def test_merge_resolved_rows_extends_rather_than_replaces_same_fba_id():
+    """Two resolved matches touching the same FBA ID/region should have their tracking
+    entries accumulate, not have the second overwrite the first."""
+    all_regions_data = {"US": {}}
+    unresolved_by_fc = {
+        "ITX3": [
+            {"fc_code": "ITX3", "fba_id": "FBA1", "tracking_num": "1Z111", "carrier": "UPS", "row_number": 1},
+        ],
+        "MQJ1": [
+            {"fc_code": "MQJ1", "fba_id": "FBA1", "tracking_num": "1Z222", "carrier": "UPS", "row_number": 2},
+        ],
+    }
+    resolved = [
+        FcMatch(fc_code="ITX3", region="US", probe_fba_id="FBA1", fba_ids=["FBA1"]),
+        FcMatch(fc_code="MQJ1", region="US", probe_fba_id="FBA1", fba_ids=["FBA1"]),
+    ]
+
+    merged = merge_resolved_rows(resolved, unresolved_by_fc, all_regions_data)
+
+    trackings = {e["tracking"] for e in merged["US"]["FBA1"]}
+    assert trackings == {"1Z111", "1Z222"}
+    assert len(merged["US"]["FBA1"]) == 2
+
+
+def test_append_fc_code_to_file_rejects_empty_code(tmp_path):
+    f = tmp_path / "us_fc_codes.txt"
+    f.write_text("BNA\n")
+    append_fc_code_to_file(str(f), "", "FBA1", today="2026-08-07")
+    content = f.read_text()
+    assert content == "BNA\n"  # unchanged — nothing written
+
+
+def test_append_fc_code_to_file_rejects_code_with_internal_whitespace(tmp_path):
+    f = tmp_path / "us_fc_codes.txt"
+    f.write_text("BNA\n")
+    append_fc_code_to_file(str(f), "ITX3 garbage", "FBA1", today="2026-08-07")
+    content = f.read_text()
+    assert content == "BNA\n"  # unchanged — nothing written
