@@ -121,6 +121,8 @@ def probe_fc_codes(page, unresolved_by_fc: dict, configured_regions: list,
 
     url_to_regions = {}
     for region in configured_regions:
+        if region["name"] == "AWD":
+            continue
         url_to_regions.setdefault(region["amazon_url"], []).append(region["name"])
 
     awd_region = next((r for r in configured_regions if r["name"] == "AWD"), None)

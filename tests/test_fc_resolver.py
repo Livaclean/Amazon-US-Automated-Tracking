@@ -184,6 +184,37 @@ def test_probe_fc_codes_resolves_star_prefix_to_awd_without_probing():
     assert result.unresolved == []
 
 
+def test_probe_fc_codes_awd_sharing_url_with_us_does_not_block_us_resolution():
+    """Regression test: AWD and US sharing the same amazon_url (as in the real
+    config.json, both pointing at https://sellercentral.amazon.com) must NOT be
+    treated as a genuine ambiguity. AWD is always fully diverted to the AWD region
+    by the STAR- pre-pass and is explicitly skipped in the per-region probing loop,
+    so its mere presence in url_to_regions must not falsely flag ordinary US FC
+    codes as ambiguous and leave them unresolved. A STAR- prefixed code in the same
+    setup must still resolve to AWD via the pre-pass."""
+    regions = [
+        {"name": "AWD", "amazon_url": "https://sellercentral.amazon.com"},
+        {"name": "US", "amazon_url": "https://sellercentral.amazon.com"},
+    ]
+    unresolved_by_fc = {
+        "ITX3": [{"fc_code": "ITX3", "fba_id": "FBA1"}],
+        "STAR9": [{"fc_code": "STAR9", "fba_id": "STAR-ABC123"}],
+    }
+
+    def fake_login(page, region_name, amazon_url, timeout_seconds=60):
+        return True
+
+    def fake_navigate(page, fba_id, base_url):
+        return base_url == "https://sellercentral.amazon.com"  # US "has" this shipment
+
+    result = probe_fc_codes(None, unresolved_by_fc, regions, fake_login, fake_navigate)
+
+    resolved_by_fc = {m.fc_code: m for m in result.resolved}
+    assert result.unresolved == []
+    assert resolved_by_fc["ITX3"].region == "US"
+    assert resolved_by_fc["STAR9"].region == "AWD"
+
+
 def test_probe_fc_codes_leaves_ambiguous_shared_url_match_unresolved():
     """A non-AWD FC code that matches under a region whose amazon_url is shared by
     another configured region is genuinely ambiguous — navigate_fn can't tell EU and
