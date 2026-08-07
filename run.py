@@ -373,7 +373,7 @@ def main():
     setup_logging(config["logs_folder"])
 
     # Import project modules after logging is configured
-    from parse_excel import parse_and_filter, parse_and_filter_by_region, categorize_shipments
+    from parse_excel import parse_and_filter, parse_and_filter_by_region_full, categorize_shipments
     from fetch_sub_tracking import get_all_sub_tracking, check_fedex_login
     from upload_tracking import (
         create_browser_context,
@@ -382,6 +382,7 @@ def main():
         upload_all_shipments,
         check_all_shipments_on_amazon,
         get_slot_count,
+        navigate_to_shipment,
     )
     from highlight_excel import highlight_and_save
     from verify_tracking import (
@@ -420,7 +421,7 @@ def main():
 
     # Step 1: Parse Excel — load all regions at once
     logger.info("Reading Excel file from input folder...")
-    all_regions_data = parse_and_filter_by_region(config)
+    all_regions_data, unmatched_rows = parse_and_filter_by_region_full(config)
     # Also keep a flat dict for backward-compat (highlight_excel, --from-json, etc.)
     shipments_all = {}
     for region_data in all_regions_data.values():
@@ -461,7 +462,7 @@ def main():
         ])
     )
 
-    if not shipments_all and not no_excel_needed:
+    if not shipments_all and not unmatched_rows and not no_excel_needed:
         print(f"\nNo FBA shipments found in any configured region.")
         print(f"  - Drop your Excel file in:  {config['input_folder']}")
         print(f"  - Check column D has FC codes matching your regions")
@@ -576,6 +577,46 @@ def main():
     results = []
 
     try:
+        # FC code auto-resolution — runs before any mode branch below, but only for the
+        # default full pipeline. Diagnostic/narrow-scope modes are skipped deliberately.
+        fc_result = None
+        skip_fc_resolution = (
+            args.discover or getattr(args, 'discover_queue', False) or
+            args.check_only or args.collect_only or
+            args.only_fba or args.fba_list or
+            (args.verify and not any([
+                args.collect_only, args.check_only, args.from_json, args.discover,
+                getattr(args, 'discover_queue', False),
+            ]))
+        )
+        if unmatched_rows and not skip_fc_resolution:
+            from fc_resolver import (
+                group_unmatched_by_fc, probe_fc_codes, merge_resolved_rows,
+                append_fc_code_to_file,
+            )
+            unresolved_by_fc = group_unmatched_by_fc(unmatched_rows)
+            print(f"\n{len(unresolved_by_fc)} unrecognized FC code(s) found — checking which market they belong to...")
+            fc_result = probe_fc_codes(page, unresolved_by_fc, configured_regions, wait_for_login, navigate_to_shipment)
+
+            for match in fc_result.resolved:
+                region_cfg = next(r for r in configured_regions if r["name"] == match.region)
+                append_fc_code_to_file(region_cfg["fc_codes_file"], match.fc_code, match.probe_fba_id)
+                print(f"  {match.fc_code} -> {match.region} (confirmed via {match.probe_fba_id})")
+
+            if fc_result.resolved:
+                all_regions_data = merge_resolved_rows(fc_result.resolved, unresolved_by_fc, all_regions_data)
+                shipments_all = {}
+                for region_data in all_regions_data.values():
+                    shipments_all.update(region_data)
+                shipments_raw, missing_tracking = categorize_shipments(shipments_all)
+                added = sum(len(m.fba_ids) for m in fc_result.resolved)
+                print(f"  +{added} shipment(s) added to this run's queue after auto-resolving "
+                      f"{len(fc_result.resolved)} new FC code(s).")
+
+            if fc_result.unresolved:
+                print(f"  {len(fc_result.unresolved)} FC code(s) could not be matched to any "
+                      f"market — see summary at end of run.")
+
         # Discovery mode - dumps page elements for first-run selector identification
         if args.discover:
             first_fba = args.fba_id if args.fba_id else next(iter(shipments_raw))
@@ -939,6 +980,15 @@ def main():
                     print(f"WARNING: Could not confirm output file — input kept: {src_file.name}")
 
         write_summary(results, config["logs_folder"])
+
+        if fc_result is not None:
+            from fc_resolver import format_fc_resolution_summary
+            summary_text = format_fc_resolution_summary(fc_result, results)
+            if summary_text:
+                print("\n" + summary_text)
+                ts_fc = datetime.now().strftime("%Y%m%d_%H%M%S")
+                fc_log = Path(config["logs_folder"]) / f"fc_resolution_{ts_fc}.txt"
+                fc_log.write_text(summary_text, encoding="utf-8")
 
     finally:
         try:

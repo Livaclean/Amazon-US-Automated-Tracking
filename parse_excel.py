@@ -227,21 +227,23 @@ def parse_and_filter(config: dict) -> dict:
     return group_by_fba_id(all_us_rows)
 
 
-def parse_and_filter_by_region(config: dict) -> dict:
+def parse_and_filter_by_region_full(config: dict) -> tuple:
     """
-    Finds Excel files, loads all rows, then splits by region using each region's FC codes file.
-    Returns: {"US": {"FBA123": [...]}, "CA": {"FBA456": [...]}, ...}
-    Each region only contains FBA IDs whose FC code matches that region's prefixes.
+    Same as parse_and_filter_by_region, but also returns the raw rows that
+    didn't match any region's FC code prefixes.
+    Returns: (region_dict, unmatched_rows)
+      - region_dict: {"US": {"FBA123": [...]}, ...} — identical shape to parse_and_filter_by_region()
+      - unmatched_rows: [{"fc_code": ..., "fba_id": ..., "tracking_num": ..., "carrier": ..., "row_number": ...}, ...]
     """
     regions = config.get("regions", [])
     if not regions:
         logger.warning("No 'regions' key in config — falling back to US-only parse_and_filter()")
-        return {"US": parse_and_filter(config)}
+        return {"US": parse_and_filter(config)}, []
 
     excel_files = find_excel_files(config["input_folder"])
     if not excel_files:
         logger.warning(f"No Excel files found in {config['input_folder']}")
-        return {r["name"]: {} for r in regions}
+        return {r["name"]: {} for r in regions}, []
 
     all_rows = []
     for file_path in excel_files:
@@ -251,6 +253,7 @@ def parse_and_filter_by_region(config: dict) -> dict:
     logger.info(f"Loaded {len(all_rows)} total rows across {len(excel_files)} file(s)")
 
     result = {}
+    matched_row_ids = set()
     for region in regions:
         name = region["name"]
         fc_file = region.get("fc_codes_file", "")
@@ -259,6 +262,18 @@ def parse_and_filter_by_region(config: dict) -> dict:
             logger.warning(f"[{name}] No FC prefixes loaded from {fc_file!r}")
         region_rows = [r for r in all_rows if is_region_fc(r["fc_code"], prefixes)]
         logger.info(f"[{name}] {len(region_rows)} row(s) matched")
+        matched_row_ids.update(id(r) for r in region_rows)
         result[name] = group_by_fba_id(region_rows)
 
-    return result
+    unmatched_rows = [r for r in all_rows if id(r) not in matched_row_ids]
+    return result, unmatched_rows
+
+
+def parse_and_filter_by_region(config: dict) -> dict:
+    """
+    Finds Excel files, loads all rows, then splits by region using each region's FC codes file.
+    Returns: {"US": {"FBA123": [...]}, "CA": {"FBA456": [...]}, ...}
+    Each region only contains FBA IDs whose FC code matches that region's prefixes.
+    """
+    region_dict, _ = parse_and_filter_by_region_full(config)
+    return region_dict

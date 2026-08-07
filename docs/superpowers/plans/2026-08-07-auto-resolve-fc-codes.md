@@ -224,14 +224,14 @@ def test_append_fc_code_to_file_adds_new_code(tmp_path):
     f.write_text("BNA\nPHX\n")
     append_fc_code_to_file(str(f), "ITX3", "FBA19K4G0NSQ", today="2026-08-07")
     content = f.read_text()
-    assert "ITX3  # auto-added 2026-08-07, confirmed via FBA19K4G0NSQ" in content
+    assert "# auto-added 2026-08-07, confirmed via FBA19K4G0NSQ\nITX3" in content
     assert "BNA" in content
     assert "PHX" in content
 
 
 def test_append_fc_code_to_file_is_idempotent(tmp_path):
     f = tmp_path / "us_fc_codes.txt"
-    f.write_text("BNA\nITX3  # auto-added 2026-08-01, confirmed via FBA1\n")
+    f.write_text("BNA\n# auto-added 2026-08-01, confirmed via FBA1\nITX3\n")
     append_fc_code_to_file(str(f), "itx3", "FBA_NEW", today="2026-08-07")
     content = f.read_text()
     assert content.upper().count("ITX3") == 1
@@ -241,6 +241,19 @@ def test_append_fc_code_to_file_creates_file_if_missing(tmp_path):
     f = tmp_path / "new_region.txt"
     append_fc_code_to_file(str(f), "MQJ1", "FBA_X", today="2026-08-07")
     assert "MQJ1" in f.read_text()
+
+
+def test_append_fc_code_to_file_round_trips_through_load_fc_prefixes(tmp_path):
+    """The auto-added format must still be recognized by parse_excel's own matcher —
+    a comment on the same line as the code would corrupt the stored prefix, since
+    load_fc_prefixes() only skips lines that START with '#'; it doesn't strip
+    trailing inline comments."""
+    from parse_excel import load_fc_prefixes, is_region_fc
+    f = tmp_path / "us_fc_codes.txt"
+    f.write_text("BNA\n")
+    append_fc_code_to_file(str(f), "ITX3", "FBA19K4G0NSQ", today="2026-08-07")
+    prefixes = load_fc_prefixes(str(f))
+    assert is_region_fc("ITX3XXXX", prefixes)
 
 
 def test_merge_resolved_rows_adds_shipments_to_correct_region():
@@ -331,9 +344,14 @@ def group_unmatched_by_fc(unmatched_rows: list) -> dict:
 
 def append_fc_code_to_file(fc_codes_file: str, fc_code: str, probe_fba_id: str, today: str = None) -> None:
     """
-    Appends fc_code (exact, uppercased, not a guessed prefix) to fc_codes_file with
-    an auto-added comment. Creates the file if missing. No-op if the code (case-insensitive)
-    is already present.
+    Appends fc_code (exact, uppercased, not a guessed prefix) to fc_codes_file, preceded
+    by an auto-added comment on its OWN line. Creates the file if missing. No-op if the
+    code (case-insensitive) is already present.
+
+    The comment must NOT share a line with the code: parse_excel.load_fc_prefixes() only
+    skips lines that start with "#" — it does not strip trailing inline comments — so a
+    same-line comment would become part of the stored match prefix and the code would
+    never match anything again.
     """
     today = today or datetime.now().strftime("%Y-%m-%d")
     path = Path(fc_codes_file)
@@ -350,7 +368,8 @@ def append_fc_code_to_file(fc_codes_file: str, fc_code: str, probe_fba_id: str, 
         logger.info(f"FC code {fc_code} already present in {fc_codes_file} — skipping")
         return
 
-    existing_lines.append(f"{fc_code.upper()}  # auto-added {today}, confirmed via {probe_fba_id}")
+    existing_lines.append(f"# auto-added {today}, confirmed via {probe_fba_id}")
+    existing_lines.append(fc_code.upper())
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(existing_lines) + "\n", encoding="utf-8")
     logger.info(f"Auto-added FC code {fc_code} to {fc_codes_file}")
@@ -771,7 +790,7 @@ Watch console output for the new `N unrecognized FC code(s) found — checking w
 grep -n "ITX3\|IMO1\|IMS1\|MQJ1" fc_codes/us_fc_codes.txt
 ```
 
-Expected: four new lines, each ending in `# auto-added <today's date>, confirmed via FBA...`.
+Expected: four new code lines, each preceded by its own `# auto-added <today's date>, confirmed via FBA...` comment line.
 
 - [ ] **Step 4: Verify the previously-dropped shipments got tracking uploaded**
 
