@@ -97,3 +97,11 @@ SWF
 TEB
 VGT
 PSP
+# auto-added 2026-08-07, confirmed via FBA19JMCJ739
+ITX3
+# auto-added 2026-08-07, confirmed via FBA19JMBW919
+IMO1
+# auto-added 2026-08-07, confirmed via FBA19K4KTDZ6
+IMS1
+# auto-added 2026-08-07, confirmed via FBA19KCLDHG4
+MQJ1
