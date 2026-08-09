@@ -173,18 +173,18 @@ def _write_context_sheet(tmp_path):
 def test_load_row_context_extracts_descriptive_columns(tmp_path):
     path = _write_context_sheet(tmp_path)
     ctx = load_row_context(path, CONTEXT_CONFIG)
-    assert ctx["FBA001"]["name"] == "Widget Variety Pack"
-    assert ctx["FBA001"]["destination"] == "ORF2"
-    assert ctx["FBA001"]["ctns"] == 9
-    assert ctx["FBA001"]["shipping_way"] == "express"
-    assert ctx["FBA001"]["notes"] == "delivered on 2026.02.24"
+    assert ctx[("FBA001", 2)]["name"] == "Widget Variety Pack"
+    assert ctx[("FBA001", 2)]["destination"] == "ORF2"
+    assert ctx[("FBA001", 2)]["ctns"] == 9
+    assert ctx[("FBA001", 2)]["shipping_way"] == "express"
+    assert ctx[("FBA001", 2)]["notes"] == "delivered on 2026.02.24"
 
 
 @pytest.mark.unit
 def test_load_row_context_handles_blank_notes(tmp_path):
     path = _write_context_sheet(tmp_path)
     ctx = load_row_context(path, CONTEXT_CONFIG)
-    assert ctx["FBA002"]["notes"] == ""
+    assert ctx[("FBA002", 3)]["notes"] == ""
 
 
 class _FakeXlrdCell:
@@ -222,7 +222,7 @@ def test_row_context_from_xls_book_us_shape():
             9, "express", "1ZA6D7510412465060", "UPS", "", "delivered on 2026.02.24"]
     wb = _FakeXlrdBook([_FakeXlrdSheet("US", [header, data])])
     ctx = _row_context_from_xls_book(wb)
-    assert ctx["FBA1924FWPYT"] == {
+    assert ctx[("FBA1924FWPYT", 2)] == {
         "name": "Widget Variety Pack",
         "destination": "ORF2",
         "ctns": "9",
@@ -240,7 +240,7 @@ def test_row_context_from_xls_book_de_shape():
             4, "C-AIR", "1ZC51W066825252132", "ups", "", "delivered on 7.31"]
     wb = _FakeXlrdBook([_FakeXlrdSheet("DE", [header, data])])
     ctx = _row_context_from_xls_book(wb)
-    assert ctx["FBA15KK5TKDF"] == {
+    assert ctx[("FBA15KK5TKDF", 2)] == {
         "name": "Widget DE",
         "destination": "DMT2",
         "ctns": "4",
@@ -262,8 +262,8 @@ def test_row_context_from_xls_book_cross_sheet_row_number_collision_resolved_by_
         _FakeXlrdSheet("SheetB", [header, row_b]),
     ])
     ctx = _row_context_from_xls_book(wb)
-    assert ctx["FBA001"]["name"] == "Sheet A Item"
-    assert ctx["FBA002"]["name"] == "Sheet B Item"
+    assert ctx[("FBA001", 2)]["name"] == "Sheet A Item"
+    assert ctx[("FBA002", 2)]["name"] == "Sheet B Item"
 
 
 @pytest.mark.unit
@@ -282,7 +282,7 @@ def test_load_row_context_dispatches_to_xls_reader_by_extension(monkeypatch, tmp
     fake_path = str(tmp_path / "shipments.xls")
     ctx = load_row_context(fake_path, {})
     assert called["path"] == fake_path
-    assert ctx["FBA001"]["name"] == "Widget"
+    assert ctx[("FBA001", 2)]["name"] == "Widget"
 
 
 @pytest.mark.unit
@@ -333,6 +333,79 @@ def test_build_check_list_merges_shipments_with_row_context(tmp_config, tmp_path
     assert e["destination"] == "BNA6"
     assert e["ctns"] == 9
     assert e["shipping_way"] == "express"
+
+
+@pytest.mark.unit
+def test_build_check_list_keeps_each_rows_own_notes_when_fba_id_spans_multiple_rows(tmp_config):
+    """
+    Regression test for a live bug found in the real production file: two rows
+    (US rows 210/211) shared one FBA ID because the shipment was split across
+    two tracking numbers. Context was keyed by bare fba_id, so whichever row
+    was read last silently overwrote the other's notes — a genuinely
+    not-yet-delivered row inherited a sibling row's "Delivered On" note and
+    got wrongly marked Delivered (and never actually checked against the
+    carrier; see seed_delivered_from_notes/partition_by_delivered). Keying
+    context by (fba_id, row_number) instead must keep each row's own notes.
+    """
+    import openpyxl as xl
+    from pathlib import Path
+    wb = xl.Workbook()
+    ws = wb.active
+    ws.append(["SYSTEM NO", "Order No", "ITEMS", "DESTINATION", "FBA ID",
+               "NO OF CTNS", "SHIPPING WAY", "TRACKING NUMBERS", "CARRIER", "ETD", None])
+    # Row 2 (row_number=2): genuinely delivered.
+    ws.append(["A210", "Split Shipment", None, "BNA6", "FBA_SPLIT",
+               9, "express", "1Z_ROW_A", "UPS", None, "Delivered On:26.04.21"])
+    # Row 3 (row_number=3): same FBA ID, NOT delivered — must not inherit row 2's note.
+    ws.append(["A211", "Split Shipment", None, "BNA6", "FBA_SPLIT",
+               9, "express", "1Z_ROW_B", "FEDEX", None, "waiting for FEDEX updates"])
+    path = Path(tmp_config["input_folder"]) / "split_fba.xlsx"
+    wb.save(path)
+    tmp_config.update(CONTEXT_CONFIG)
+
+    entries = build_check_list(tmp_config)
+    assert len(entries) == 2
+    by_tracking = {e["tracking"]: e for e in entries}
+    assert by_tracking["1Z_ROW_A"]["notes"] == "Delivered On:26.04.21"
+    assert by_tracking["1Z_ROW_B"]["notes"] == "waiting for FEDEX updates"
+
+    # And the downstream consequence: only the genuinely-delivered row's
+    # tracking number should get seeded as Delivered / skip the carrier check.
+    grouped = group_by_tracking(entries)
+    cache = seed_delivered_from_notes(grouped, {})
+    to_check, skipped = partition_by_delivered(grouped, cache)
+    assert list(skipped.keys()) == ["1Z_ROW_A"]
+    assert list(to_check.keys()) == ["1Z_ROW_B"]
+
+
+@pytest.mark.unit
+def test_build_check_list_gives_context_to_both_halves_of_slash_combined_fba_id(tmp_config):
+    """
+    group_by_fba_id() splits a slash-combined FBA ID cell like "STAR-A/STAR-B"
+    into two separate entries ("STAR-A", "STAR-B"), but the context dict used
+    to key on the raw unsplit cell text — neither split part matched it, so
+    both entries came back with blank context. Context must also be
+    registered under each stripped part.
+    """
+    import openpyxl as xl
+    from pathlib import Path
+    wb = xl.Workbook()
+    ws = wb.active
+    ws.append(["SYSTEM NO", "Order No", "ITEMS", "DESTINATION", "FBA ID",
+               "NO OF CTNS", "SHIPPING WAY", "TRACKING NUMBERS", "CARRIER", "ETD", None])
+    ws.append(["A1", "Combined Shipment", None, "BNA6", "STAR-A/STAR-B",
+               9, "express", "1Z_COMBINED", "UPS", None, "some note"])
+    path = Path(tmp_config["input_folder"]) / "slash_combined.xlsx"
+    wb.save(path)
+    tmp_config.update(CONTEXT_CONFIG)
+
+    entries = build_check_list(tmp_config)
+    by_fba_id = {e["fba_id"]: e for e in entries}
+    assert set(by_fba_id.keys()) == {"STAR-A", "STAR-B"}
+    assert by_fba_id["STAR-A"]["name"] == "Combined Shipment"
+    assert by_fba_id["STAR-A"]["notes"] == "some note"
+    assert by_fba_id["STAR-B"]["name"] == "Combined Shipment"
+    assert by_fba_id["STAR-B"]["notes"] == "some note"
 
 
 @pytest.mark.unit

@@ -452,10 +452,19 @@ class CheckTrackingResult:
 def load_row_context(file_path: str, config: dict) -> dict:
     """
     Reads descriptive columns (name, destination, ctns, shipping_way, notes),
-    keyed by FBA ID (globally unique across the whole file — unlike a bare
-    row_number, which repeats across sheets). Dispatches to the xls or xlsx
-    reader by file extension; both key their result the same way so
-    build_check_list() can do one unified lookup regardless of source format.
+    keyed by (fba_id, row_number) — not bare FBA ID, because one FBA ID can span
+    multiple physical rows (a shipment split across several tracking numbers, a
+    shape parse_excel.group_by_fba_id() explicitly supports); keying by bare
+    fba_id would let the last row processed silently overwrite every earlier
+    row's context for that FBA ID. row_number here is the same value
+    parse_excel.load_excel_file() computes for that same physical row (xls:
+    r + 1; xlsx: idx + 2), so build_check_list()'s per-entry lookup lands on the
+    exact row. When an FBA ID cell is slash-combined (e.g. "STAR-A/STAR-B" —
+    see group_by_fba_id()'s splitting), context is ALSO registered under each
+    non-empty stripped part with that same row_number, since group_by_fba_id()
+    emits separate entries for each part. Dispatches to the xls or xlsx reader
+    by file extension; both key their result the same way so build_check_list()
+    can do one unified lookup regardless of source format.
     """
     from parse_excel import detect_excel_engine
     if detect_excel_engine(file_path) == "xlrd":
@@ -483,13 +492,23 @@ def _load_row_context_xlsx(file_path: str, config: dict) -> dict:
                 fba_id = str(row[col_fba] or "").strip()
                 if not fba_id:
                     continue
-                context[fba_id] = {
+                row_ctx = {
                     "name": str(row[col_name] or "").strip(),
                     "destination": str(row[col_fc] or "").strip(),
                     "ctns": row[col_ctns] if col_ctns < len(row) else "",
                     "shipping_way": str(row[col_shipping_way] or "").strip(),
                     "notes": str(row[col_notes] or "").strip() if col_notes < len(row) else "",
                 }
+                context[(fba_id, row_number)] = row_ctx
+                # Slash-combined FBA IDs (e.g. "STAR-A/STAR-B") are split into
+                # separate entries by group_by_fba_id() — register the same
+                # context under each part so those split entries aren't left
+                # without any context at all.
+                if "/" in fba_id:
+                    for part in fba_id.split("/"):
+                        part = part.strip()
+                        if part and part != fba_id:
+                            context[(part, row_number)] = row_ctx
             except (IndexError, TypeError):
                 logger.warning(f"Sheet {sheet.title!r} row {row_number}: IndexError/TypeError — skipping context")
                 continue
@@ -506,8 +525,9 @@ def _load_row_context_xls(file_path: str) -> dict:
 def _row_context_from_xls_book(wb) -> dict:
     """
     Builds the row-context dict from an already-open xlrd Book (or Book-like object),
-    keyed by FBA ID. Separated from _load_row_context_xls so tests can pass a fake
-    Book directly instead of needing a real .xls file on disk.
+    keyed by (fba_id, row_number) — see load_row_context()'s docstring for why bare
+    fba_id isn't safe to key on. Separated from _load_row_context_xls so tests can
+    pass a fake Book directly instead of needing a real .xls file on disk.
     """
     from parse_excel import _detect_xls_sheet_cols, _xlrd_cell_str
 
@@ -521,13 +541,23 @@ def _row_context_from_xls_book(wb) -> dict:
                 fba_id = _xlrd_cell_str(sheet, r, cols["col_fba"]).strip()
                 if not fba_id:
                     continue
-                context[fba_id] = {
+                row_ctx = {
                     "name": _xlrd_cell_str(sheet, r, cols["col_name"]).strip(),
                     "destination": _xlrd_cell_str(sheet, r, cols["col_fc"]).strip(),
                     "ctns": _xlrd_cell_str(sheet, r, cols["col_ctns"]).strip(),
                     "shipping_way": _xlrd_cell_str(sheet, r, cols["col_shipping_way"]).strip(),
                     "notes": _xlrd_cell_str(sheet, r, cols["col_notes"]).strip(),
                 }
+                context[(fba_id, row_number)] = row_ctx
+                # Slash-combined FBA IDs (e.g. "STAR-A/STAR-B") are split into
+                # separate entries by group_by_fba_id() — register the same
+                # context under each part so those split entries aren't left
+                # without any context at all.
+                if "/" in fba_id:
+                    for part in fba_id.split("/"):
+                        part = part.strip()
+                        if part and part != fba_id:
+                            context[(part, row_number)] = row_ctx
             except IndexError:
                 logger.warning(f"Sheet {sheet.name!r} row {row_number}: IndexError — skipping context")
                 continue
@@ -571,7 +601,7 @@ def build_check_list(config: dict) -> list:
                 tracking = str(entry.get("tracking") or "").strip()
                 if not tracking:
                     continue
-                row_ctx = context.get(fba_id, {})
+                row_ctx = context.get((fba_id, entry.get("row_number")), {})
                 result.append({
                     "region": region_name,
                     "fba_id": fba_id,

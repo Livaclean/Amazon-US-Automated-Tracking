@@ -129,6 +129,13 @@ def _detect_xls_sheet_cols(sheet) -> dict:
     (1, 5, 6) and logs a warning naming the sheet and field. 'notes' is never
     header-detected — every real sheet carries it in the last physical column
     regardless of that column's header text.
+    Note: those name/ctns/shipping_way fallback positions (1, 5, 6) are fixed
+    constants defined in this function, NOT read from `config` — unlike the
+    .xlsx row-context reader in tracking_status.py's _load_row_context_xlsx,
+    which DOES read column_name/column_ctns/column_shipping_way from config.
+    This asymmetry has no behavioral effect today (nothing in config.json sets
+    those keys), but config values for them would silently be ignored on the
+    .xls path.
     """
     name_default, ctns_default, shipping_way_default = 1, 5, 6
     for r in range(min(3, sheet.nrows)):
