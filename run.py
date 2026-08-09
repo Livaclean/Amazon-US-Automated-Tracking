@@ -375,6 +375,13 @@ def main():
              "Amazon shipment page and follow 'Send to Amazon (view)' to find it. A workflow covering several "
              "sibling shipments is recorded for all of them from a single visit. Logs in to Amazon per region.",
     )
+    parser.add_argument(
+        "--sync-appointments",
+        action="store_true",
+        help="For TRUCK-carrier shipments with no real tracking number yet, enter the Appointment ID already "
+             "known from the source sheet's notes into Amazon's Pro/Freight Bill Number field. Never overwrites "
+             "a value Amazon already has. Logs in to Amazon per region.",
+    )
     args = parser.parse_args()
 
     # Pre-initialize so these are always in scope even if an early exception occurs
@@ -429,6 +436,14 @@ def main():
         from workflow_discovery import run_workflow_discovery, format_workflow_discovery_summary
         result = run_workflow_discovery(config)
         print(format_workflow_discovery_summary(result))
+        return
+
+    # Standalone appointment-ID sync: logs in to Amazon per region, fills the
+    # Pro/Freight Bill Number field for TRUCK shipments missing a tracking number.
+    if args.sync_appointments:
+        from appointment_sync import run_appointment_sync, format_appointment_sync_summary
+        result = run_appointment_sync(config)
+        print(format_appointment_sync_summary(result))
         return
 
     # Determine which regions to run
