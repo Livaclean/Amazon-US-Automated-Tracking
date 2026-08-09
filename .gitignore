@@ -24,3 +24,6 @@ config.json
 # Test artifacts
 tests/test_logs/
 tests/fixtures/test_tracking_numbers.json
+
+# Local git worktrees
+.worktrees/
