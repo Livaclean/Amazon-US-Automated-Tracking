@@ -382,6 +382,14 @@ def main():
              "known from the source sheet's notes into Amazon's Pro/Freight Bill Number field. Never overwrites "
              "a value Amazon already has. Logs in to Amazon per region.",
     )
+    parser.add_argument(
+        "--sync-delivery-windows",
+        action="store_true",
+        help="For shipments in logs/shipment_tracking_master.xlsx that aren't Delivered and have a known Workflow "
+             "ID, compare Amazon's delivery window against the real carrier expected-delivery date (from "
+             "logs/tracking_status.xlsx) and edit the window on Amazon when it doesn't match. Also pushes a "
+             "window 2 weeks out if it's about to lock with no expected date yet. Logs in to Amazon per region.",
+    )
     args = parser.parse_args()
 
     # Pre-initialize so these are always in scope even if an early exception occurs
@@ -444,6 +452,15 @@ def main():
         from appointment_sync import run_appointment_sync, format_appointment_sync_summary
         result = run_appointment_sync(config)
         print(format_appointment_sync_summary(result))
+        return
+
+    # Standalone delivery-window sync: logs in to Amazon per region, compares
+    # each shipment's Amazon delivery window against its real expected delivery
+    # date and edits it on Amazon when they don't match.
+    if args.sync_delivery_windows:
+        from delivery_window_sync import run_delivery_window_sync, format_delivery_window_sync_summary
+        result = run_delivery_window_sync(config)
+        print(format_delivery_window_sync_summary(result))
         return
 
     # Determine which regions to run
