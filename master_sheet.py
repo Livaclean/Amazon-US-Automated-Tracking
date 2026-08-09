@@ -104,16 +104,50 @@ def populate_from_input(config: dict, master_sheet: dict) -> dict:
     return result
 
 
+def sync_delivered_status(sheet: dict, tracking_cache: dict) -> dict:
+    """
+    For every row not already marked "Delivered", checks whether it actually
+    is now -- either the source notes already say so (the supplier's own
+    "delivered on ..." note), or logs/tracking_status.xlsx's cache (matched by
+    tracking number) reports status == "Delivered" from a live carrier check.
+    If so, both tracking_status and delivery_date_status are set to
+    "Delivered" -- there's nothing left to track on either front once a
+    shipment has actually arrived. Returns a new dict; does not mutate sheet.
+    """
+    from tracking_status import _notes_indicate_delivered
+
+    result = {fba_id: dict(entry) for fba_id, entry in sheet.items()}
+    for entry in result.values():
+        if entry.get("tracking_status") == "Delivered":
+            continue
+        delivered = _notes_indicate_delivered(entry.get("notes", ""))
+        if not delivered:
+            cached = tracking_cache.get(str(entry.get("tracking", "")).strip())
+            delivered = bool(cached) and cached.get("status") == "Delivered"
+        if delivered:
+            entry["tracking_status"] = "Delivered"
+            entry["delivery_date_status"] = "Delivered"
+    return result
+
+
 def run_update_master_sheet(config: dict) -> dict:
     """
     Loads the persistent master sheet, populates/refreshes it from the input
-    Excel file, and saves it back. Used both as the standalone --update-master-sheet
-    CLI mode and as a step in the main pipeline. Returns {"path", "total", "new"}.
+    Excel file, syncs delivered status from notes/the tracking-status cache,
+    and saves it back. Used both as the standalone --update-master-sheet CLI
+    mode and as a step in the main pipeline. Returns {"path", "total", "new"}.
     """
+    from tracking_status import load_status_cache, STATUS_CACHE_PATH_DEFAULT
+
     path = config.get("master_sheet_path", MASTER_SHEET_PATH_DEFAULT)
     existing = load_master_sheet(path)
     before = len(existing)
     sheet = populate_from_input(config, existing)
+
+    tracking_cache_path = config.get("tracking_status_cache", STATUS_CACHE_PATH_DEFAULT)
+    tracking_cache = load_status_cache(tracking_cache_path)
+    sheet = sync_delivered_status(sheet, tracking_cache)
+
     save_master_sheet(path, sheet)
     return {"path": path, "total": len(sheet), "new": len(sheet) - before}
 

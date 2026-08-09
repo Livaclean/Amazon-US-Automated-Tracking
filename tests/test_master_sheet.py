@@ -11,6 +11,7 @@ from master_sheet import (
     populate_from_input,
     run_update_master_sheet,
     format_update_master_sheet_summary,
+    sync_delivered_status,
 )
 
 CONTEXT_CONFIG = {
@@ -254,6 +255,7 @@ def test_run_update_master_sheet_populates_saves_and_reports_counts(tmp_config):
     tmp_config = _write_input_sheet(tmp_config)
     from pathlib import Path
     tmp_config["master_sheet_path"] = str(Path(tmp_config["logs_folder"]) / "master.xlsx")
+    tmp_config["tracking_status_cache"] = str(Path(tmp_config["logs_folder"]) / "does_not_exist.xlsx")
 
     result = run_update_master_sheet(tmp_config)
 
@@ -268,6 +270,7 @@ def test_run_update_master_sheet_second_run_reports_zero_new(tmp_config):
     tmp_config = _write_input_sheet(tmp_config)
     from pathlib import Path
     tmp_config["master_sheet_path"] = str(Path(tmp_config["logs_folder"]) / "master.xlsx")
+    tmp_config["tracking_status_cache"] = str(Path(tmp_config["logs_folder"]) / "does_not_exist.xlsx")
 
     run_update_master_sheet(tmp_config)
     result = run_update_master_sheet(tmp_config)
@@ -282,3 +285,66 @@ def test_format_update_master_sheet_summary_includes_counts_and_path():
     assert "448" in text
     assert "12" in text
     assert "logs/shipment_tracking_master.xlsx" in text
+
+
+# --- sync_delivered_status -----------------------------------------------------
+
+def _sheet_row(tracking="1Z001", notes="", tracking_status="pending", delivery_date_status="pending"):
+    return {
+        "tracking": tracking, "notes": notes,
+        "tracking_status": tracking_status, "delivery_date_status": delivery_date_status,
+    }
+
+
+@pytest.mark.unit
+def test_sync_delivered_status_from_notes():
+    sheet = {"FBA001": _sheet_row(notes="delivered on 2026.02.24")}
+    result = sync_delivered_status(sheet, tracking_cache={})
+
+    assert result["FBA001"]["tracking_status"] == "Delivered"
+    assert result["FBA001"]["delivery_date_status"] == "Delivered"
+
+
+@pytest.mark.unit
+def test_sync_delivered_status_from_tracking_cache():
+    sheet = {"FBA001": _sheet_row(tracking="1Z001", notes="waiting for UPS updates")}
+    tracking_cache = {"1Z001": {"status": "Delivered"}}
+    result = sync_delivered_status(sheet, tracking_cache)
+
+    assert result["FBA001"]["tracking_status"] == "Delivered"
+    assert result["FBA001"]["delivery_date_status"] == "Delivered"
+
+
+@pytest.mark.unit
+def test_sync_delivered_status_leaves_undelivered_shipments_alone():
+    sheet = {"FBA001": _sheet_row(tracking="1Z001", notes="waiting for UPS updates")}
+    tracking_cache = {"1Z001": {"status": "In Transit"}}
+    result = sync_delivered_status(sheet, tracking_cache)
+
+    assert result["FBA001"]["tracking_status"] == "pending"
+    assert result["FBA001"]["delivery_date_status"] == "pending"
+
+
+@pytest.mark.unit
+def test_sync_delivered_status_overrides_updated_not_just_pending():
+    sheet = {"FBA001": _sheet_row(notes="delivered on 2026.02.24", tracking_status="updated", delivery_date_status="updated")}
+    result = sync_delivered_status(sheet, tracking_cache={})
+
+    assert result["FBA001"]["tracking_status"] == "Delivered"
+    assert result["FBA001"]["delivery_date_status"] == "Delivered"
+
+
+@pytest.mark.unit
+def test_sync_delivered_status_does_not_mutate_input():
+    sheet = {"FBA001": _sheet_row(notes="delivered on 2026.02.24")}
+    sync_delivered_status(sheet, tracking_cache={})
+
+    assert sheet["FBA001"]["tracking_status"] == "pending"
+
+
+@pytest.mark.unit
+def test_sync_delivered_status_missing_tracking_in_cache_does_not_crash():
+    sheet = {"FBA001": _sheet_row(tracking="1Z_NOT_IN_CACHE", notes="")}
+    result = sync_delivered_status(sheet, tracking_cache={})
+
+    assert result["FBA001"]["tracking_status"] == "pending"
