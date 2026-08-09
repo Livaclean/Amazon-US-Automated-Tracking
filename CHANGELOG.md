@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.6.0] - 2026-08-10
+
+### Added
+- `--update-master-sheet`: populates/refreshes `logs/shipment_tracking_master.xlsx`, a persistent workbook (one row per FBA ID, never recreated) consolidating tracking status, delivery-date status, and Workflow ID for every shipment. Also runs automatically as a step in any normal run, reusing the same Excel parse already done that run — no extra cost, non-fatal on failure
+- `--discover-workflows`: for shipments missing a Send-to-Amazon Workflow ID, visits the shipment page and follows "Send to Amazon (view)" to find it. A workflow covering several sibling shipments (split across destinations) is recorded for all of them from a single visit instead of opening each one separately
+- `--sync-appointments`: for TRUCK-carrier shipments with no real tracking number yet, enters the Appointment ID already known from the source sheet's notes into Amazon's Pro/Freight Bill Number field — confirmed live that Amazon treats it as the shipment's tracking identifier once saved. Never overwrites a value Amazon already has; if Amazon already has one (e.g. auto-filled via carrier integration), syncs the sheet to that real value instead of leaving it stale. Skips AWD shipments, which have no equivalent field
+
+### Fixed
+- Workflow-page sibling links (used by `--discover-workflows`) render a few seconds after the page's Workflow ID does — a fixed wait was landing in that gap and missing them; now waits for the actual content instead of a guessed delay
+
 ## [0.5.2] - 2026-08-10
 
 ### Fixed
