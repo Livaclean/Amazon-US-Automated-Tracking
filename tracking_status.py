@@ -260,6 +260,29 @@ def _fedex_status_from_api(data: dict) -> dict:
     }
 
 
+def _attempt_fedex_api_capture(page, nav_fn, tracking: str) -> dict:
+    """
+    Runs nav_fn (a page navigation — goto or reload) while listening for FedEx's
+    track/v2/shipments API response. Returns the parsed result if it has a usable
+    (non-Unknown) status, otherwise None so the caller can retry or fall back to
+    page-text scraping.
+    """
+    try:
+        with page.expect_response(
+            lambda r: r.url.rstrip("/").endswith("/track/v2/shipments") and r.status == 200,
+            timeout=25000,
+        ) as resp_ctx:
+            nav_fn()
+        result = _fedex_status_from_api(resp_ctx.value.json())
+        if result["status"] != "Unknown":
+            return result
+        logger.debug(f"  FedEx API gave no usable status for {tracking}")
+        return None
+    except Exception as e:
+        logger.debug(f"  FedEx API interception failed for {tracking}: {e}")
+        return None
+
+
 def _check_fedex_status(page, tracking: str, logs_folder: str = None) -> dict:
     """
     Loads the plain trknbr tracking URL and lets FedEx's own client-side redirect
@@ -271,25 +294,25 @@ def _check_fedex_status(page, tracking: str, logs_folder: str = None) -> dict:
     Primary path: intercepts the track/v2/shipments JSON API the page itself calls
     (same technique as fetch_dhl_sub_tracking's utapi interception) for clean
     structured data, including the label-created date the rendered page never shows.
-    Falls back to page-text scraping if interception fails.
+    If interception fails or times out, retries once via page.reload() (same URL,
+    not a fresh page.goto()) after a short backoff — intermittent interception
+    failures have been observed in live testing to clear up on a same-page reload;
+    root cause unconfirmed (possibly FedEx-side rate limiting, possibly local
+    resource contention), but the retry is cheap insurance either way. Falls back
+    to page-text scraping only if both attempts fail.
     """
     from fetch_sub_tracking import _handle_captcha
 
     url = f"https://www.fedex.com/fedextrack/?trknbr={tracking}"
     logger.info(f"  Loading: {url}")
 
-    try:
-        with page.expect_response(
-            lambda r: r.url.rstrip("/").endswith("/track/v2/shipments") and r.status == 200,
-            timeout=25000,
-        ) as resp_ctx:
-            page.goto(url, timeout=30000)
-        result = _fedex_status_from_api(resp_ctx.value.json())
-        if result["status"] != "Unknown":
-            return result
-        logger.debug(f"  FedEx API gave no usable status for {tracking} — falling back to page text")
-    except Exception as e:
-        logger.debug(f"  FedEx API interception failed for {tracking}: {e} — falling back to page text")
+    result = _attempt_fedex_api_capture(page, lambda: page.goto(url, timeout=30000), tracking)
+    if result is None:
+        logger.debug(f"  Retrying FedEx API interception for {tracking} after backoff")
+        page.wait_for_timeout(5000)
+        result = _attempt_fedex_api_capture(page, lambda: page.reload(timeout=30000), tracking)
+    if result is not None:
+        return result
 
     try:
         page.wait_for_load_state("domcontentloaded", timeout=15000)

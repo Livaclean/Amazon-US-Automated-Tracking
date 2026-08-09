@@ -24,6 +24,7 @@ from tracking_status import (
     _fedex_status_from_api,
     _dhl_status_from_api,
     _row_context_from_xls_book,
+    _check_fedex_status,
 )
 
 # Real UPS tracking-detail page text (captured live) for a shipment whose label
@@ -685,3 +686,119 @@ def test_format_check_tracking_summary_includes_counts():
     assert "2" in text
     assert "1" in text
     assert "2026-06-05 10:00" in text
+
+
+# --- _check_fedex_status retry-on-timeout -----------------------------------
+#
+# FedEx's track/v2/shipments API interception has been observed, in live
+# testing, to intermittently time out and then succeed again on a same-page
+# reload shortly after — root cause unconfirmed (possibly FedEx-side rate
+# limiting, possibly local resource contention), but a single retry-with-
+# backoff via page.reload() (not a fresh page.goto(), matching what was
+# observed to work live) is cheap insurance either way.
+
+class _FakeFedexResponse:
+    def __init__(self, data):
+        self._data = data
+
+    def json(self):
+        return self._data
+
+
+class _FakeFedexExpectResponseCM:
+    """Simulates page.expect_response()'s context manager. `outcome` is either
+    a dict (the API JSON payload, simulating a captured response) or None
+    (simulating a timeout — raises on __exit__, matching Playwright's real
+    TimeoutError-on-exit behavior for expect_response)."""
+
+    def __init__(self, outcome):
+        self._outcome = outcome
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            return False
+        if self._outcome is None:
+            raise TimeoutError("Timeout 25000ms exceeded while waiting for event \"response\"")
+        return False
+
+    @property
+    def value(self):
+        return _FakeFedexResponse(self._outcome)
+
+
+class _FakeFedexPage:
+    """Simulates just enough of Playwright's Page API for _check_fedex_status:
+    expect_response/goto/reload for the API-interception attempts, plus the
+    handful of calls the page-text fallback path makes if both attempts fail.
+    `outcomes` is consumed in order, one per expect_response call."""
+
+    def __init__(self, outcomes, fallback_text=""):
+        self._outcomes = list(outcomes)
+        self._fallback_text = fallback_text
+        self.url = ""
+        self.goto_calls = 0
+        self.reload_calls = 0
+
+    def expect_response(self, predicate, timeout=None):
+        return _FakeFedexExpectResponseCM(self._outcomes.pop(0))
+
+    def goto(self, url, timeout=None):
+        self.goto_calls += 1
+
+    def reload(self, timeout=None):
+        self.reload_calls += 1
+
+    def wait_for_timeout(self, ms):
+        pass
+
+    def wait_for_load_state(self, state, timeout=None):
+        pass
+
+    def query_selector(self, selector):
+        return None
+
+    def inner_text(self, selector):
+        return self._fallback_text
+
+
+_FEDEX_API_PAYLOAD = {
+    "output": {
+        "packages": [{
+            "keyStatus": "Delivered",
+            "scanEventList": [],
+            "displayShipDt": "",
+            "displayActDeliveryDt": "7/1/26",
+            "displayEstDeliveryDt": "",
+        }]
+    }
+}
+
+
+@pytest.mark.unit
+def test_check_fedex_status_succeeds_on_first_attempt_no_retry():
+    page = _FakeFedexPage(outcomes=[_FEDEX_API_PAYLOAD])
+    result = _check_fedex_status(page, "111", None)
+    assert result["status"] == "Delivered"
+    assert page.goto_calls == 1
+    assert page.reload_calls == 0
+
+
+@pytest.mark.unit
+def test_check_fedex_status_retries_via_reload_after_timeout_then_succeeds():
+    page = _FakeFedexPage(outcomes=[None, _FEDEX_API_PAYLOAD])
+    result = _check_fedex_status(page, "222", None)
+    assert result["status"] == "Delivered"
+    assert page.goto_calls == 1
+    assert page.reload_calls == 1
+
+
+@pytest.mark.unit
+def test_check_fedex_status_falls_back_to_page_text_after_both_attempts_fail():
+    page = _FakeFedexPage(outcomes=[None, None], fallback_text="We can't find that tracking number.")
+    result = _check_fedex_status(page, "333", None)
+    assert result["status"] == "Unknown"
+    assert page.goto_calls == 1
+    assert page.reload_calls == 1
