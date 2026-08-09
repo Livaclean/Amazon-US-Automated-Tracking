@@ -368,6 +368,13 @@ def main():
              "and exit. Also runs automatically as part of a normal run -- use this flag to do just that step "
              "on its own, without uploading or touching Amazon.",
     )
+    parser.add_argument(
+        "--discover-workflows",
+        action="store_true",
+        help="For shipments in logs/shipment_tracking_master.xlsx that don't have a Workflow ID yet, visit their "
+             "Amazon shipment page and follow 'Send to Amazon (view)' to find it. A workflow covering several "
+             "sibling shipments is recorded for all of them from a single visit. Logs in to Amazon per region.",
+    )
     args = parser.parse_args()
 
     # Pre-initialize so these are always in scope even if an early exception occurs
@@ -414,6 +421,14 @@ def main():
         from master_sheet import run_update_master_sheet, format_update_master_sheet_summary
         result = run_update_master_sheet(config)
         print(format_update_master_sheet_summary(result))
+        return
+
+    # Standalone workflow-ID discovery: logs in to Amazon per region, visits
+    # shipment pages for master-sheet rows missing a workflow_id.
+    if args.discover_workflows:
+        from workflow_discovery import run_workflow_discovery, format_workflow_discovery_summary
+        result = run_workflow_discovery(config)
+        print(format_workflow_discovery_summary(result))
         return
 
     # Determine which regions to run
