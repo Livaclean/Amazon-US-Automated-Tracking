@@ -38,8 +38,8 @@ def test_extract_appointment_id_from_notes_blank_returns_none():
 
 # --- needs_appointment_sync ----------------------------------------------------
 
-def _entry(carrier="TRUCK", tracking="/", notes="Appointment ID: 83299056997   Delivered On:07/15"):
-    return {"carrier": carrier, "tracking": tracking, "notes": notes}
+def _entry(carrier="TRUCK", tracking="/", notes="Appointment ID: 83299056997   Delivered On:07/15", fba_id="FBA001"):
+    return {"carrier": carrier, "tracking": tracking, "notes": notes, "fba_id": fba_id}
 
 
 @pytest.mark.unit
@@ -63,6 +63,12 @@ def test_needs_appointment_sync_false_when_no_appointment_id_in_notes():
 
 
 @pytest.mark.unit
+def test_needs_appointment_sync_false_for_awd_star_prefix():
+    # Live testing showed AWD shipment pages have no Pro/Freight field at all.
+    assert needs_appointment_sync(_entry(fba_id="STAR-RJSSXHFN6ZS5X")) is False
+
+
+@pytest.mark.unit
 def test_needs_appointment_sync_true_when_tracking_blank_not_just_slash():
     assert needs_appointment_sync(_entry(tracking="")) is True
 
@@ -82,7 +88,7 @@ def _row(tracking="/", tracking_status="pending"):
 def test_process_region_appointment_sync_success_updates_sheet(monkeypatch):
     monkeypatch.setattr(
         appointment_sync, "fill_pro_freight_number",
-        lambda page, fba_id, base_url, appointment_id: "filled",
+        lambda page, fba_id, base_url, appointment_id: {"status": "filled", "value": "83299056997"},
     )
     sheet = {"FBA001": _row()}
     result = _process_region_appointment_sync(page=None, base_url="https://x", items=[("FBA001", "83299056997")], sheet=sheet)
@@ -93,31 +99,33 @@ def test_process_region_appointment_sync_success_updates_sheet(monkeypatch):
 
 
 @pytest.mark.unit
-def test_process_region_appointment_sync_already_set_does_not_overwrite(monkeypatch):
+def test_process_region_appointment_sync_already_set_syncs_amazons_actual_value(monkeypatch):
+    # Amazon already had a value (e.g. auto-filled via carrier integration) --
+    # confirm the sheet gets synced to what Amazon actually has, not left stale.
     monkeypatch.setattr(
         appointment_sync, "fill_pro_freight_number",
-        lambda page, fba_id, base_url, appointment_id: "already_set",
+        lambda page, fba_id, base_url, appointment_id: {"status": "already_set", "value": "999999"},
     )
     sheet = {"FBA001": _row()}
     result = _process_region_appointment_sync(page=None, base_url="https://x", items=[("FBA001", "83299056997")], sheet=sheet)
 
     assert result == {"filled": 0, "already_set": 1, "failed": 0}
-    # tracking/tracking_status untouched -- caller didn't confirm what's actually there
-    assert sheet["FBA001"]["tracking"] == "/"
-    assert sheet["FBA001"]["tracking_status"] == "pending"
+    assert sheet["FBA001"]["tracking"] == "999999"
+    assert sheet["FBA001"]["tracking_status"] == "updated"
 
 
 @pytest.mark.unit
-def test_process_region_appointment_sync_failure_counts_failed(monkeypatch):
+def test_process_region_appointment_sync_failure_leaves_sheet_untouched(monkeypatch):
     monkeypatch.setattr(
         appointment_sync, "fill_pro_freight_number",
-        lambda page, fba_id, base_url, appointment_id: "nav_failed",
+        lambda page, fba_id, base_url, appointment_id: {"status": "nav_failed", "value": None},
     )
     sheet = {"FBA001": _row()}
     result = _process_region_appointment_sync(page=None, base_url="https://x", items=[("FBA001", "83299056997")], sheet=sheet)
 
     assert result == {"filled": 0, "already_set": 0, "failed": 1}
     assert sheet["FBA001"]["tracking"] == "/"
+    assert sheet["FBA001"]["tracking_status"] == "pending"
 
 
 # --- format_appointment_sync_summary --------------------------------------------
