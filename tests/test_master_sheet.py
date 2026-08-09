@@ -8,7 +8,34 @@ from master_sheet import (
     MASTER_SHEET_COLUMNS,
     load_master_sheet,
     save_master_sheet,
+    populate_from_input,
 )
+
+CONTEXT_CONFIG = {
+    "column_fc_code": 3,
+    "column_name": 1,
+    "column_ctns": 5,
+    "column_shipping_way": 6,
+    "column_notes": 10,
+}
+
+
+def _write_input_sheet(tmp_config, filename="shipments.xlsx"):
+    import openpyxl as xl
+    from pathlib import Path
+
+    wb = xl.Workbook()
+    ws = wb.active
+    ws.append(["SYSTEM NO", "Order No", "ITEMS", "DESTINATION", "FBA ID",
+               "NO OF CTNS", "SHIPPING WAY", "TRACKING NUMBERS", "CARRIER", "ETD", None])
+    ws.append(["A1", "Widget Variety Pack", None, "BNA6", "FBA_CL1",
+               9, "express", "1ZCL001", "UPS", None, "delivered on 2026.02.24"])
+    ws.append(["A2", "Pimple Patches", None, "YVR2", "FBA_CL2",
+               4, "C-SEA", "1ZCL002", "UPS", None, None])
+    path = Path(tmp_config["input_folder"]) / filename
+    wb.save(path)
+    tmp_config.update(CONTEXT_CONFIG)
+    return tmp_config
 
 
 @pytest.mark.unit
@@ -133,3 +160,86 @@ def test_save_master_sheet_multiple_rows_sorted_by_fba_id(tmp_path):
     ws = wb.active
     fba_ids = [row[4] for row in ws.iter_rows(min_row=2, values_only=True)]
     assert fba_ids == ["FBA001", "FBA002"]
+
+
+# --- populate_from_input -----------------------------------------------------
+
+@pytest.mark.unit
+def test_populate_from_input_creates_pending_rows_for_new_shipments(tmp_config):
+    tmp_config = _write_input_sheet(tmp_config)
+    sheet = populate_from_input(tmp_config, {})
+
+    assert set(sheet.keys()) == {"FBA_CL1", "FBA_CL2"}
+    row = sheet["FBA_CL1"]
+    assert row["tracking_status"] == "pending"
+    assert row["delivery_date_status"] == "pending"
+    assert row["workflow_id"] == ""
+    assert row["tracking"] == "1ZCL001"
+    assert row["carrier"] == "UPS"
+    assert row["fba_id"] == "FBA_CL1"
+    assert row["name"] == "Widget Variety Pack"
+    assert row["destination"] == "BNA6"
+    assert row["ctns"] == 9
+    assert row["shipping_way"] == "express"
+    assert row["notes"] == "delivered on 2026.02.24"
+    assert row["region"] == "US"
+    # Not yet checked against a carrier -- these stay blank at population time.
+    assert row["label_created_date"] == ""
+    assert row["expected_delivery_date"] == ""
+    assert row["status"] == ""
+    assert row["last_checked"] == ""
+
+
+@pytest.mark.unit
+def test_populate_from_input_preserves_status_fields_for_existing_shipment(tmp_config):
+    tmp_config = _write_input_sheet(tmp_config)
+    existing = {
+        "FBA_CL1": {
+            "tracking_status": "updated", "delivery_date_status": "updated",
+            "tracking": "1ZCL001", "carrier": "UPS", "fba_id": "FBA_CL1",
+            "name": "Widget Variety Pack", "destination": "BNA6", "ctns": 9,
+            "shipping_way": "express", "notes": "delivered on 2026.02.24",
+            "label_created_date": "2026-02-10", "expected_delivery_date": "2026-02-24",
+            "status": "Delivered", "last_checked": "2026-02-24 09:00",
+            "region": "US", "workflow_id": "wf-already-known",
+        },
+    }
+    sheet = populate_from_input(tmp_config, existing)
+
+    row = sheet["FBA_CL1"]
+    assert row["tracking_status"] == "updated"
+    assert row["delivery_date_status"] == "updated"
+    assert row["workflow_id"] == "wf-already-known"
+    assert row["label_created_date"] == "2026-02-10"
+    assert row["expected_delivery_date"] == "2026-02-24"
+    assert row["status"] == "Delivered"
+    assert row["last_checked"] == "2026-02-24 09:00"
+    # New shipment from the input still gets added alongside the preserved one.
+    assert "FBA_CL2" in sheet
+
+
+@pytest.mark.unit
+def test_populate_from_input_refreshes_source_fields_for_existing_shipment(tmp_config):
+    tmp_config = _write_input_sheet(tmp_config)
+    existing = {
+        "FBA_CL1": {
+            "tracking_status": "updated", "delivery_date_status": "pending",
+            "tracking": "OLD-TRACKING", "carrier": "OLD-CARRIER", "fba_id": "FBA_CL1",
+            "name": "Old Name", "destination": "OLD1", "ctns": 1,
+            "shipping_way": "old-way", "notes": "old note",
+            "label_created_date": "", "expected_delivery_date": "",
+            "status": "", "last_checked": "", "region": "US", "workflow_id": "",
+        },
+    }
+    sheet = populate_from_input(tmp_config, existing)
+
+    row = sheet["FBA_CL1"]
+    assert row["tracking"] == "1ZCL001"
+    assert row["carrier"] == "UPS"
+    assert row["name"] == "Widget Variety Pack"
+    assert row["destination"] == "BNA6"
+    assert row["ctns"] == 9
+    assert row["shipping_way"] == "express"
+    assert row["notes"] == "delivered on 2026.02.24"
+    # Status field untouched by the refresh even though source fields changed.
+    assert row["tracking_status"] == "updated"

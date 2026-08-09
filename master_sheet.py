@@ -56,6 +56,52 @@ def load_master_sheet(path: str) -> dict:
     return sheet
 
 
+# Fields sourced fresh from the input sheet on every populate — refreshed for
+# shipments already in the master sheet in case the supplier's data changed.
+_SOURCE_FIELDS = ["tracking", "carrier", "name", "destination", "ctns", "shipping_way", "notes", "region"]
+
+# Fields owned by later processing (carrier checks, workflow-ID discovery,
+# window sync) — never touched by populate_from_input for a shipment that's
+# already in the sheet.
+_STATUS_FIELDS = [
+    "tracking_status", "delivery_date_status", "label_created_date",
+    "expected_delivery_date", "status", "last_checked", "workflow_id",
+]
+
+
+def populate_from_input(config: dict, master_sheet: dict) -> dict:
+    """
+    Seeds/refreshes the master sheet dict from the input Excel file, one row per
+    FBA ID (shipments with blank tracking are skipped, matching build_check_list).
+    New FBA IDs get a fresh row with tracking_status/delivery_date_status
+    "pending" and no workflow_id yet. FBA IDs already present in master_sheet
+    keep their status/workflow fields untouched -- only their source fields
+    (tracking, carrier, name, destination, ctns, shipping_way, notes, region)
+    are refreshed, in case the supplier's sheet changed since the last run.
+    Returns a new dict; does not mutate master_sheet in place.
+    """
+    from tracking_status import build_check_list
+
+    result = {fba_id: dict(entry) for fba_id, entry in master_sheet.items()}
+    for entry in build_check_list(config):
+        fba_id = entry["fba_id"]
+        source = {field: entry.get(field, "") for field in _SOURCE_FIELDS}
+        if fba_id in result:
+            result[fba_id].update(source)
+        else:
+            row = dict(source)
+            row["fba_id"] = fba_id
+            row["tracking_status"] = "pending"
+            row["delivery_date_status"] = "pending"
+            row["workflow_id"] = ""
+            row["label_created_date"] = ""
+            row["expected_delivery_date"] = ""
+            row["status"] = ""
+            row["last_checked"] = ""
+            result[fba_id] = row
+    return result
+
+
 def save_master_sheet(path: str, sheet: dict) -> None:
     """Rewrites the whole master workbook from the in-memory sheet dict, sorted by FBA ID."""
     import openpyxl
