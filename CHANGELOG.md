@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.5.2] - 2026-08-10
+
+### Fixed
+- `--check-tracking` no longer crashes on the real `.xls` input file — `load_row_context()` hardcoded `openpyxl`, which can't read the legacy `.xls` format used by the actual shipment sheet
+- `--check-tracking`'s per-sheet column detection (name/destination/ctns/shipping_way/notes) now auto-detects each `.xls` sheet's own header layout instead of trusting fixed config-index columns, since the real file's sheets don't share one layout (an extra "ITEMS" column on one sheet shifted every later column on the others)
+- Fixed a row-context join bug found while fixing the above: shipment context was keyed by `row_number`, which isn't unique across a file's sheets — now keyed by `(fba_id, row_number)` so multiple tracking numbers under one FBA ID (or shipments from different sheets) never overwrite each other's notes/status. This matters because `notes` gates whether a tracking number's carrier check is skipped as already-delivered
+- FedEx tracking checks now retry once via page reload before falling back to page-text scraping, recovering the label-created date that the fallback path can't see (intermittent API-interception timeouts were observed in live testing)
+
+### Added
+- `_detect_xls_sheet_cols()` (shared with the main upload pipeline) now also detects name/ctns/shipping_way/notes columns per sheet, extending its existing FBA ID/tracking/destination/carrier detection
+
 ## [0.5.1] - 2026-07-28
 
 ### Fixed
