@@ -9,9 +9,12 @@ guess. Only acts on shipments not already marked "Delivered" in the master
 sheet, and skips windows that have already locked.
 """
 import logging
+import re
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
+
+_WINDOW_PATTERN = re.compile(r"Delivery window:\s*([A-Za-z]+ \d{1,2}, \d{4})\s*-\s*([A-Za-z]+ \d{1,2}, \d{4})")
 
 _DATE_FORMATS_WITH_YEAR = [
     "%m/%d/%Y", "%m/%d/%y",
@@ -114,3 +117,139 @@ def decide_window_action(window_start, window_end, expected_delivery_date, today
         return {"action": "push_two_weeks", "target_week_start": target_start}
 
     return {"action": "none", "target_week_start": None}
+
+
+def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str) -> dict:
+    """
+    Navigates to the shipment's workflow page, opens the tracking-details
+    section, selects fba_id's own tab, and reads its current delivery
+    window. Returns {"window_start": date, "window_end": date} on success,
+    or None if the workflow, the shipment's tab, or the window text
+    couldn't be found/parsed.
+    """
+    url = f"{base_url}/fba/sendtoamazon?wf={workflow_id}"
+    try:
+        page.goto(url, timeout=30000)
+        page.wait_for_load_state("load", timeout=15000)
+    except Exception as e:
+        logger.warning(f"  {fba_id}: failed to load workflow page {url}: {e}")
+        return None
+
+    views = page.get_by_text("View", exact=True)
+    try:
+        # The 4 "View" links (Step 1/2/3/Final step) render a moment after the
+        # rest of the page paints -- wait for the 4th to actually be there
+        # rather than checking count() once against a guessed fixed delay.
+        views.nth(3).wait_for(state="visible", timeout=15000)
+    except Exception:
+        logger.warning(f"  {fba_id}: workflow page never rendered its 'Tracking details' section")
+        return None
+    views.nth(3).click()
+
+    try:
+        page.wait_for_selector("text=Track shipment", timeout=15000)
+    except Exception:
+        logger.warning(f"  {fba_id}: tracking-details section never rendered")
+        return None
+
+    tab = page.get_by_text(f"Shipment ID: {fba_id}", exact=False)
+    if tab.count() == 0:
+        logger.warning(f"  {fba_id}: not found among this workflow's shipment tabs")
+        return None
+    tab.first.click()
+
+    try:
+        # "Delivery window" (no colon) also matches the hidden locked-window
+        # tooltip's text ("...the delivery window is not in the future
+        # anymore"), which never becomes visible when the window ISN'T
+        # locked -- Playwright then waits forever on that wrong match. The
+        # colon disambiguates: only the real "Delivery window: <dates>" label has it.
+        page.wait_for_selector("text=Delivery window:", timeout=15000)
+    except Exception:
+        logger.warning(f"  {fba_id}: 'Delivery window' never rendered after selecting its tab")
+        return None
+
+    match = _WINDOW_PATTERN.search(page.inner_text("body"))
+    if not match:
+        logger.warning(f"  {fba_id}: 'Delivery window' text found but couldn't be parsed")
+        return None
+
+    start = _parse_flexible_date(match.group(1))
+    end = _parse_flexible_date(match.group(2))
+    if start is None or end is None:
+        return None
+    return {"window_start": start, "window_end": end}
+
+
+def _current_calendar_month(page) -> tuple:
+    """
+    Returns (year, month) of the month the edit-window calendar is currently
+    showing. Inferred from the "next month" nav button's own aria-label
+    (e.g. aria-label="October 2026" on the button that navigates FROM
+    September TO October) rather than reading the heading text directly,
+    since the heading renders inside a shadow root that a plain text search
+    can miss depending on how it's queried; the nav button's accessible name
+    is reliably exposed either way.
+    """
+    aria = page.locator(".cal-rgt").first.get_attribute("aria-label")
+    next_month = datetime.strptime(aria, "%B %Y")
+    if next_month.month == 1:
+        return next_month.year - 1, 12
+    return next_month.year, next_month.month - 1
+
+
+def _navigate_calendar_to_month(page, target_year: int, target_month: int) -> bool:
+    """Clicks the edit-window calendar's month arrows until target_year/target_month is shown."""
+    for _ in range(24):  # 2 years' worth of clicks, safety cap
+        cur_year, cur_month = _current_calendar_month(page)
+        if (cur_year, cur_month) == (target_year, target_month):
+            return True
+        if (target_year, target_month) > (cur_year, cur_month):
+            page.locator(".cal-rgt").first.click()
+        else:
+            page.locator(".cal-lft").first.click()
+        page.wait_for_timeout(400)
+    return False
+
+
+def apply_window_edit(page, target_week_start) -> bool:
+    """
+    Assumes the page is already showing a shipment's own tab with its current
+    delivery window (i.e. right after read_shipment_window()). Opens "Edit
+    window", navigates the calendar to target_week_start's month if needed,
+    clicks that day, and confirms. Returns True on success. False if the
+    edit modal never opened (the window turned out locked despite our own
+    up-front check -- the live UI is the final authority), the target month
+    couldn't be reached, or the target day wasn't found.
+    """
+    edit_link = page.locator("text=Edit window")
+    if edit_link.count() == 0:
+        logger.warning("  No 'Edit window' link on this shipment's tab")
+        return False
+    edit_link.first.click()
+
+    confirm_btn = page.get_by_text("Confirm new delivery window", exact=True)
+    try:
+        confirm_btn.wait_for(state="visible", timeout=5000)
+    except Exception:
+        logger.warning("  'Edit window' did not open a modal -- window is likely locked")
+        page.keyboard.press("Escape")
+        return False
+
+    if not _navigate_calendar_to_month(page, target_week_start.year, target_week_start.month):
+        logger.warning(f"  Could not navigate the calendar to {target_week_start.strftime('%B %Y')}")
+        page.keyboard.press("Escape")
+        return False
+
+    day_label = f"{target_week_start.strftime('%B')} {target_week_start.day}, {target_week_start.year}"
+    day_btn = page.get_by_role("button", name=day_label, exact=False)
+    if day_btn.count() == 0:
+        logger.warning(f"  Target day {day_label!r} not found or not selectable")
+        page.keyboard.press("Escape")
+        return False
+    day_btn.first.click()
+    page.wait_for_timeout(500)
+
+    confirm_btn.click()
+    page.wait_for_timeout(2000)
+    return True
