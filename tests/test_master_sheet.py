@@ -9,6 +9,8 @@ from master_sheet import (
     load_master_sheet,
     save_master_sheet,
     populate_from_input,
+    run_update_master_sheet,
+    format_update_master_sheet_summary,
 )
 
 CONTEXT_CONFIG = {
@@ -243,3 +245,40 @@ def test_populate_from_input_refreshes_source_fields_for_existing_shipment(tmp_c
     assert row["notes"] == "delivered on 2026.02.24"
     # Status field untouched by the refresh even though source fields changed.
     assert row["tracking_status"] == "updated"
+
+
+# --- run_update_master_sheet / format_update_master_sheet_summary ------------
+
+@pytest.mark.unit
+def test_run_update_master_sheet_populates_saves_and_reports_counts(tmp_config):
+    tmp_config = _write_input_sheet(tmp_config)
+    from pathlib import Path
+    tmp_config["master_sheet_path"] = str(Path(tmp_config["logs_folder"]) / "master.xlsx")
+
+    result = run_update_master_sheet(tmp_config)
+
+    assert result["total"] == 2
+    assert result["new"] == 2
+    assert result["path"] == tmp_config["master_sheet_path"]
+    assert load_master_sheet(tmp_config["master_sheet_path"]) != {}
+
+
+@pytest.mark.unit
+def test_run_update_master_sheet_second_run_reports_zero_new(tmp_config):
+    tmp_config = _write_input_sheet(tmp_config)
+    from pathlib import Path
+    tmp_config["master_sheet_path"] = str(Path(tmp_config["logs_folder"]) / "master.xlsx")
+
+    run_update_master_sheet(tmp_config)
+    result = run_update_master_sheet(tmp_config)
+
+    assert result["total"] == 2
+    assert result["new"] == 0
+
+
+@pytest.mark.unit
+def test_format_update_master_sheet_summary_includes_counts_and_path():
+    text = format_update_master_sheet_summary({"total": 448, "new": 12, "path": "logs/shipment_tracking_master.xlsx"})
+    assert "448" in text
+    assert "12" in text
+    assert "logs/shipment_tracking_master.xlsx" in text

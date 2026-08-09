@@ -8,6 +8,8 @@ that FBA ID, save.
 """
 from pathlib import Path
 
+MASTER_SHEET_PATH_DEFAULT = "logs/shipment_tracking_master.xlsx"
+
 MASTER_SHEET_COLUMNS = [
     "Tracking Status", "Delivery Date Status", "Tracking Number", "Carrier",
     "FBA ID", "Shipment Name", "Destination", "Ctns", "Shipping Way",
@@ -100,6 +102,33 @@ def populate_from_input(config: dict, master_sheet: dict) -> dict:
             row["last_checked"] = ""
             result[fba_id] = row
     return result
+
+
+def run_update_master_sheet(config: dict) -> dict:
+    """
+    Loads the persistent master sheet, populates/refreshes it from the input
+    Excel file, and saves it back. Used both as the standalone --update-master-sheet
+    CLI mode and as a step in the main pipeline. Returns {"path", "total", "new"}.
+    """
+    path = config.get("master_sheet_path", MASTER_SHEET_PATH_DEFAULT)
+    existing = load_master_sheet(path)
+    before = len(existing)
+    sheet = populate_from_input(config, existing)
+    save_master_sheet(path, sheet)
+    return {"path": path, "total": len(sheet), "new": len(sheet) - before}
+
+
+def format_update_master_sheet_summary(result: dict) -> str:
+    lines = [
+        "=" * 60,
+        "MASTER SHEET UPDATE SUMMARY",
+        "=" * 60,
+        f"Total shipments in sheet: {result['total']}",
+        f"New shipments added:      {result['new']}",
+        f"Saved to:                 {result['path']}",
+        "=" * 60,
+    ]
+    return "\n".join(lines)
 
 
 def save_master_sheet(path: str, sheet: dict) -> None:

@@ -361,6 +361,13 @@ def main():
              "current status, recording results in logs/tracking_status.xlsx. Delivered shipments are skipped on "
              "future runs. Does not touch Amazon or upload anything.",
     )
+    parser.add_argument(
+        "--update-master-sheet",
+        action="store_true",
+        help="Populate/refresh logs/shipment_tracking_master.xlsx from the input Excel file (one row per FBA ID) "
+             "and exit. Also runs automatically as part of a normal run -- use this flag to do just that step "
+             "on its own, without uploading or touching Amazon.",
+    )
     args = parser.parse_args()
 
     # Pre-initialize so these are always in scope even if an early exception occurs
@@ -400,6 +407,13 @@ def main():
         from tracking_status import run_check_tracking, format_check_tracking_summary
         result = run_check_tracking(config)
         print(format_check_tracking_summary(result))
+        return
+
+    # Standalone master-sheet update: pure Excel parsing, never touches Amazon.
+    if args.update_master_sheet:
+        from master_sheet import run_update_master_sheet, format_update_master_sheet_summary
+        result = run_update_master_sheet(config)
+        print(format_update_master_sheet_summary(result))
         return
 
     # Determine which regions to run
@@ -481,6 +495,18 @@ def main():
 
     total_main = sum(len(v) for v in shipments_raw.values())
     print(f"\nFound {len(shipments_raw)} FBA shipments with {total_main} trackable entries across {len(configured_regions)} region(s).")
+
+    # Keep the master sheet (logs/shipment_tracking_master.xlsx) in sync as a side
+    # effect of any normal run, reusing the Excel parsing already done above --
+    # no extra Amazon/carrier requests. Non-fatal: a failure here shouldn't stop
+    # the actual upload/verify run.
+    if not no_excel_needed:
+        try:
+            from master_sheet import run_update_master_sheet
+            master_result = run_update_master_sheet(config)
+            print(f"Master sheet updated: {master_result['total']} total, {master_result['new']} new -> {master_result['path']}")
+        except Exception as e:
+            logger.warning(f"Master sheet update failed (continuing with the main run): {e}")
 
     # --from-json: skip Excel + carrier scraping, load tracking directly from JSON
     if args.from_json:
