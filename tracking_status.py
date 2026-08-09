@@ -451,12 +451,23 @@ class CheckTrackingResult:
 
 def load_row_context(file_path: str, config: dict) -> dict:
     """
-    Reads descriptive columns (name, destination, ctns, shipping_way, notes) from an
-    xlsx file, keyed by 1-indexed row_number, matching parse_excel.load_excel_file's
-    row_number convention (min_row=2, row_number = idx + 2).
+    Reads descriptive columns (name, destination, ctns, shipping_way, notes),
+    keyed by FBA ID (globally unique across the whole file — unlike a bare
+    row_number, which repeats across sheets). Dispatches to the xls or xlsx
+    reader by file extension; both key their result the same way so
+    build_check_list() can do one unified lookup regardless of source format.
     """
+    from parse_excel import detect_excel_engine
+    if detect_excel_engine(file_path) == "xlrd":
+        return _load_row_context_xls(file_path)
+    return _load_row_context_xlsx(file_path, config)
+
+
+def _load_row_context_xlsx(file_path: str, config: dict) -> dict:
+    """xlsx reader: fixed config-index columns (unchanged since --check-tracking shipped)."""
     from openpyxl import load_workbook
 
+    col_fba = config.get("column_fba_id", 4)
     col_fc = config.get("column_fc_code", 3)
     col_name = config.get("column_name", 1)
     col_ctns = config.get("column_ctns", 5)
@@ -469,7 +480,10 @@ def load_row_context(file_path: str, config: dict) -> dict:
         for idx, row in enumerate(sheet.iter_rows(min_row=2, values_only=True)):
             row_number = idx + 2
             try:
-                context[row_number] = {
+                fba_id = str(row[col_fba] or "").strip()
+                if not fba_id:
+                    continue
+                context[fba_id] = {
                     "name": str(row[col_name] or "").strip(),
                     "destination": str(row[col_fc] or "").strip(),
                     "ctns": row[col_ctns] if col_ctns < len(row) else "",
@@ -478,6 +492,44 @@ def load_row_context(file_path: str, config: dict) -> dict:
                 }
             except (IndexError, TypeError):
                 logger.warning(f"Sheet {sheet.title!r} row {row_number}: IndexError/TypeError — skipping context")
+                continue
+    return context
+
+
+def _load_row_context_xls(file_path: str) -> dict:
+    """xls reader: per-sheet header auto-detection via parse_excel._detect_xls_sheet_cols."""
+    import xlrd
+    wb = xlrd.open_workbook(file_path)
+    return _row_context_from_xls_book(wb)
+
+
+def _row_context_from_xls_book(wb) -> dict:
+    """
+    Builds the row-context dict from an already-open xlrd Book (or Book-like object),
+    keyed by FBA ID. Separated from _load_row_context_xls so tests can pass a fake
+    Book directly instead of needing a real .xls file on disk.
+    """
+    from parse_excel import _detect_xls_sheet_cols, _xlrd_cell_str
+
+    context = {}
+    for sheet_idx in range(wb.nsheets):
+        sheet = wb.sheet_by_index(sheet_idx)
+        cols = _detect_xls_sheet_cols(sheet)
+        for r in range(cols["header_row"] + 1, sheet.nrows):
+            row_number = r + 1
+            try:
+                fba_id = _xlrd_cell_str(sheet, r, cols["col_fba"]).strip()
+                if not fba_id:
+                    continue
+                context[fba_id] = {
+                    "name": _xlrd_cell_str(sheet, r, cols["col_name"]).strip(),
+                    "destination": _xlrd_cell_str(sheet, r, cols["col_fc"]).strip(),
+                    "ctns": _xlrd_cell_str(sheet, r, cols["col_ctns"]).strip(),
+                    "shipping_way": _xlrd_cell_str(sheet, r, cols["col_shipping_way"]).strip(),
+                    "notes": _xlrd_cell_str(sheet, r, cols["col_notes"]).strip(),
+                }
+            except IndexError:
+                logger.warning(f"Sheet {sheet.name!r} row {row_number}: IndexError — skipping context")
                 continue
     return context
 
@@ -519,7 +571,7 @@ def build_check_list(config: dict) -> list:
                 tracking = str(entry.get("tracking") or "").strip()
                 if not tracking:
                     continue
-                row_ctx = context.get(entry.get("row_number"), {})
+                row_ctx = context.get(fba_id, {})
                 result.append({
                     "region": region_name,
                     "fba_id": fba_id,

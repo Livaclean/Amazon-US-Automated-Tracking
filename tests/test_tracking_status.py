@@ -4,6 +4,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import pytest
 import openpyxl
+import xlrd
 
 from tracking_status import (
     load_row_context,
@@ -22,6 +23,7 @@ from tracking_status import (
     seed_delivered_from_notes,
     _fedex_status_from_api,
     _dhl_status_from_api,
+    _row_context_from_xls_book,
 )
 
 # Real UPS tracking-detail page text (captured live) for a shipment whose label
@@ -171,18 +173,116 @@ def _write_context_sheet(tmp_path):
 def test_load_row_context_extracts_descriptive_columns(tmp_path):
     path = _write_context_sheet(tmp_path)
     ctx = load_row_context(path, CONTEXT_CONFIG)
-    assert ctx[2]["name"] == "Widget Variety Pack"
-    assert ctx[2]["destination"] == "ORF2"
-    assert ctx[2]["ctns"] == 9
-    assert ctx[2]["shipping_way"] == "express"
-    assert ctx[2]["notes"] == "delivered on 2026.02.24"
+    assert ctx["FBA001"]["name"] == "Widget Variety Pack"
+    assert ctx["FBA001"]["destination"] == "ORF2"
+    assert ctx["FBA001"]["ctns"] == 9
+    assert ctx["FBA001"]["shipping_way"] == "express"
+    assert ctx["FBA001"]["notes"] == "delivered on 2026.02.24"
 
 
 @pytest.mark.unit
 def test_load_row_context_handles_blank_notes(tmp_path):
     path = _write_context_sheet(tmp_path)
     ctx = load_row_context(path, CONTEXT_CONFIG)
-    assert ctx[3]["notes"] == ""
+    assert ctx["FBA002"]["notes"] == ""
+
+
+class _FakeXlrdCell:
+    def __init__(self, value):
+        self.value = value
+        self.ctype = xlrd.XL_CELL_NUMBER if isinstance(value, (int, float)) else xlrd.XL_CELL_TEXT
+
+
+class _FakeXlrdSheet:
+    def __init__(self, name, rows):
+        self.name = name
+        self._rows = rows
+        self.nrows = len(rows)
+        self.ncols = max((len(r) for r in rows), default=0)
+
+    def cell(self, r, c):
+        row = self._rows[r]
+        return _FakeXlrdCell(row[c] if c < len(row) else "")
+
+
+class _FakeXlrdBook:
+    def __init__(self, sheets):
+        self._sheets = sheets
+        self.nsheets = len(sheets)
+
+    def sheet_by_index(self, i):
+        return self._sheets[i]
+
+
+@pytest.mark.unit
+def test_row_context_from_xls_book_us_shape():
+    header = ["SYSTEM NO", "Order No", "ITEMS", "DESTINATION", "FBA ID",
+              "NO OF CTNS ", "SHIPPING  WAY", "TRACKING NUMBERS", "CARRIER", "ETD", ""]
+    data = ["A251014HX059", "Widget Variety Pack", "", "ORF2", "FBA1924FWPYT",
+            9, "express", "1ZA6D7510412465060", "UPS", "", "delivered on 2026.02.24"]
+    wb = _FakeXlrdBook([_FakeXlrdSheet("US", [header, data])])
+    ctx = _row_context_from_xls_book(wb)
+    assert ctx["FBA1924FWPYT"] == {
+        "name": "Widget Variety Pack",
+        "destination": "ORF2",
+        "ctns": "9",
+        "shipping_way": "express",
+        "notes": "delivered on 2026.02.24",
+    }
+
+
+@pytest.mark.unit
+def test_row_context_from_xls_book_de_shape():
+    """10-column sheet, merged Order No-ITEMS, named ETAs last column — column positions differ from US."""
+    header = ["SYSTEM NO", "Order No-ITEMS", "DESTINATION", "FBA ID",
+              "NO OF CTNS ", "SHIPPING  WAY", "TRACKING NUMBERS", "CARRIER", "ETD", "ETAs"]
+    data = ["A250710HX090", "Widget DE", "DMT2", "FBA15KK5TKDF",
+            4, "C-AIR", "1ZC51W066825252132", "ups", "", "delivered on 7.31"]
+    wb = _FakeXlrdBook([_FakeXlrdSheet("DE", [header, data])])
+    ctx = _row_context_from_xls_book(wb)
+    assert ctx["FBA15KK5TKDF"] == {
+        "name": "Widget DE",
+        "destination": "DMT2",
+        "ctns": "4",
+        "shipping_way": "C-AIR",
+        "notes": "delivered on 7.31",
+    }
+
+
+@pytest.mark.unit
+def test_row_context_from_xls_book_cross_sheet_row_number_collision_resolved_by_fba_id():
+    """Two sheets both have a physical 'row 2' with different FBA IDs — proves the join no longer
+    collides now that it's keyed by FBA ID instead of the (non-unique-across-sheets) row_number."""
+    header = ["SYSTEM NO", "Order No", "ITEMS", "DESTINATION", "FBA ID",
+              "NO OF CTNS ", "SHIPPING  WAY", "TRACKING NUMBERS", "CARRIER", "ETD", ""]
+    row_a = ["A1", "Sheet A Item", "", "ORF2", "FBA001", 1, "air", "1Z001", "UPS", "", ""]
+    row_b = ["A2", "Sheet B Item", "", "ORF3", "FBA002", 2, "sea", "1Z002", "UPS", "", ""]
+    wb = _FakeXlrdBook([
+        _FakeXlrdSheet("SheetA", [header, row_a]),
+        _FakeXlrdSheet("SheetB", [header, row_b]),
+    ])
+    ctx = _row_context_from_xls_book(wb)
+    assert ctx["FBA001"]["name"] == "Sheet A Item"
+    assert ctx["FBA002"]["name"] == "Sheet B Item"
+
+
+@pytest.mark.unit
+def test_load_row_context_dispatches_to_xls_reader_by_extension(monkeypatch, tmp_path):
+    """load_row_context() picks the xlrd path for a .xls filename without opening a real file."""
+    called = {}
+
+    def fake_open_workbook(path):
+        called["path"] = path
+        header = ["SYSTEM NO", "Order No", "ITEMS", "DESTINATION", "FBA ID",
+                  "NO OF CTNS ", "SHIPPING  WAY", "TRACKING NUMBERS", "CARRIER", "ETD", ""]
+        data = ["A1", "Widget", "", "ORF2", "FBA001", 1, "air", "1Z001", "UPS", "", ""]
+        return _FakeXlrdBook([_FakeXlrdSheet("US", [header, data])])
+
+    monkeypatch.setattr(xlrd, "open_workbook", fake_open_workbook)
+    fake_path = str(tmp_path / "shipments.xls")
+    ctx = load_row_context(fake_path, {})
+    assert called["path"] == fake_path
+    assert ctx["FBA001"]["name"] == "Widget"
 
 
 @pytest.mark.unit
