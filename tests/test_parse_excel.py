@@ -2,6 +2,8 @@ import pytest
 import os
 import sys
 from pathlib import Path
+import xlrd
+import logging
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from parse_excel import (
@@ -17,6 +19,7 @@ from parse_excel import (
     find_excel_files,
     load_excel_file,
     parse_and_filter,
+    _detect_xls_sheet_cols,
 )
 
 
@@ -340,3 +343,87 @@ def test_parse_and_filter_by_region_still_returns_region_dict_only(tmp_path):
     region_dict = parse_and_filter_by_region(config)
     assert isinstance(region_dict, dict)
     assert "FBA_US" in region_dict["US"]
+
+
+# ---------------------------------------------------------------------------
+# NEW: _detect_xls_sheet_cols extended column detection tests
+# ---------------------------------------------------------------------------
+
+class _FakeXlrdCell:
+    def __init__(self, value):
+        self.value = value
+        self.ctype = xlrd.XL_CELL_NUMBER if isinstance(value, (int, float)) else xlrd.XL_CELL_TEXT
+
+
+class _FakeXlrdSheet:
+    def __init__(self, name, rows):
+        self.name = name
+        self._rows = rows
+        self.nrows = len(rows)
+        self.ncols = max((len(r) for r in rows), default=0)
+
+    def cell(self, r, c):
+        row = self._rows[r]
+        return _FakeXlrdCell(row[c] if c < len(row) else "")
+
+
+def test_detect_xls_sheet_cols_us_shape():
+    """11 columns, separate ITEMS column, blank last-column header — matches the real US sheet."""
+    header = ["SYSTEM NO", "Order No", "ITEMS", "DESTINATION", "FBA ID",
+              "NO OF CTNS ", "SHIPPING  WAY", "TRACKING NUMBERS", "CARRIER", "ETD", ""]
+    data = ["A251014HX059", "Widget Variety Pack", "", "ORF2", "FBA1924FWPYT",
+            9, "express", "1ZA6D7510412465060", "UPS", "", "delivered on 2026.02.24"]
+    sheet = _FakeXlrdSheet("US", [header, data])
+    cols = _detect_xls_sheet_cols(sheet)
+    assert cols == {
+        "header_row": 0, "col_fc": 3, "col_fba": 4, "col_tracking": 7,
+        "col_carrier": 8, "col_name": 1, "col_ctns": 5, "col_shipping_way": 6,
+        "col_notes": 10,
+    }
+
+
+def test_detect_xls_sheet_cols_de_shape():
+    """10 columns, merged 'Order No-ITEMS' column, named 'ETAs' last column — matches the real DE sheet."""
+    header = ["SYSTEM NO", "Order No-ITEMS", "DESTINATION", "FBA ID",
+              "NO OF CTNS ", "SHIPPING  WAY", "TRACKING NUMBERS", "CARRIER", "ETD", "ETAs"]
+    data = ["A250710HX090", "Widget DE", "DMT2", "FBA15KK5TKDF",
+            4, "C-AIR", "1ZC51W066825252132", "ups", "", "delivered on 7.31"]
+    sheet = _FakeXlrdSheet("DE", [header, data])
+    cols = _detect_xls_sheet_cols(sheet)
+    assert cols == {
+        "header_row": 0, "col_fc": 2, "col_fba": 3, "col_tracking": 6,
+        "col_carrier": 7, "col_name": 1, "col_ctns": 4, "col_shipping_way": 5,
+        "col_notes": 9,
+    }
+
+
+def test_detect_xls_sheet_cols_falls_back_with_warning_when_field_missing(caplog):
+    """Header row has FBA ID + TRACKING but no recognizable name/ctns/shipping_way labels."""
+    header = ["SYSTEM NO", "X", "Y", "FBA ID", "Z", "TRACKING NUMBERS", "CARRIER"]
+    data = ["A1", "b", "c", "FBA001", "d", "1Z001", "UPS"]
+    sheet = _FakeXlrdSheet("ODD", [header, data])
+    with caplog.at_level(logging.WARNING):
+        cols = _detect_xls_sheet_cols(sheet)
+    assert cols["col_name"] == 1
+    assert cols["col_ctns"] == 5
+    assert cols["col_shipping_way"] == 6
+    assert cols["col_notes"] == 6  # last column (ncols=7, so index 6)
+    assert "ODD" in caplog.text
+    assert "name" in caplog.text.lower()
+    assert "ctns" in caplog.text.lower()
+    assert "shipping_way" in caplog.text.lower()
+
+
+def test_detect_xls_sheet_cols_full_fallback_when_no_header_found():
+    """No row in the first 3 has both 'FBA ID' and 'TRACKING' — full default fallback, unchanged behavior."""
+    sheet = _FakeXlrdSheet("WEIRD", [["nothing", "here", "matches"]])
+    cols = _detect_xls_sheet_cols(sheet)
+    assert cols["header_row"] == 0
+    assert cols["col_fc"] == 3
+    assert cols["col_fba"] == 4
+    assert cols["col_tracking"] == 7
+    assert cols["col_carrier"] == 8
+    assert cols["col_name"] == 1
+    assert cols["col_ctns"] == 5
+    assert cols["col_shipping_way"] == 6
+    assert cols["col_notes"] == 2  # last column (ncols=3, so index 2)

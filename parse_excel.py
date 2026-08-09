@@ -117,25 +117,62 @@ def _xlrd_cell_str(sheet, row, col) -> str:
     return str(cell.value).strip()
 
 
-def _detect_xls_sheet_cols(sheet) -> tuple:
+def _detect_xls_sheet_cols(sheet) -> dict:
     """
     Scans the first 3 rows of an xls sheet for a header row containing
-    'FBA ID' and 'TRACKING'. Returns (header_row_idx, col_fc, col_fba, col_tracking, col_carrier).
-    Falls back to config-default positions (3, 4, 7, 8) if header not found.
+    'FBA ID' and 'TRACKING'. Returns a dict:
+      {header_row, col_fc, col_fba, col_tracking, col_carrier,
+       col_name, col_ctns, col_shipping_way, col_notes}
+    Falls back to config-default positions (3, 4, 7, 8) for the core columns if no
+    header row is found at all. If a header row IS found but name/ctns/shipping_way
+    individually aren't in it, each falls back to its own config-default position
+    (1, 5, 6) and logs a warning naming the sheet and field. 'notes' is never
+    header-detected — every real sheet carries it in the last physical column
+    regardless of that column's header text.
     """
+    name_default, ctns_default, shipping_way_default = 1, 5, 6
     for r in range(min(3, sheet.nrows)):
         vals = [str(sheet.cell(r, c).value).strip().upper() for c in range(sheet.ncols)]
         fba_cols  = [i for i, v in enumerate(vals) if v == "FBA ID"]
         trk_cols  = [i for i, v in enumerate(vals) if "TRACKING" in v]
         dest_cols = [i for i, v in enumerate(vals) if "DESTINATION" in v]
         carr_cols = [i for i, v in enumerate(vals) if v == "CARRIER"]
+        name_cols = [i for i, v in enumerate(vals) if "ORDER NO" in v]
+        ctns_cols = [i for i, v in enumerate(vals) if "CTNS" in v]
+        ship_cols = [i for i, v in enumerate(vals) if "SHIPPING" in v]
         if fba_cols and trk_cols:
-            col_fc  = dest_cols[0] if dest_cols else max(0, fba_cols[0] - 1)
-            col_fba = fba_cols[0]
             col_trk = trk_cols[0]
-            col_car = carr_cols[0] if carr_cols else col_trk + 1
-            return r, col_fc, col_fba, col_trk, col_car
-    return 0, 3, 4, 7, 8  # default fallback
+            if name_cols:
+                col_name = name_cols[0]
+            else:
+                logger.warning(f"Sheet {sheet.name!r}: could not detect 'name' column from header, falling back to column {name_default}")
+                col_name = name_default
+            if ctns_cols:
+                col_ctns = ctns_cols[0]
+            else:
+                logger.warning(f"Sheet {sheet.name!r}: could not detect 'ctns' column from header, falling back to column {ctns_default}")
+                col_ctns = ctns_default
+            if ship_cols:
+                col_shipping_way = ship_cols[0]
+            else:
+                logger.warning(f"Sheet {sheet.name!r}: could not detect 'shipping_way' column from header, falling back to column {shipping_way_default}")
+                col_shipping_way = shipping_way_default
+            return {
+                "header_row": r,
+                "col_fc": dest_cols[0] if dest_cols else max(0, fba_cols[0] - 1),
+                "col_fba": fba_cols[0],
+                "col_tracking": col_trk,
+                "col_carrier": carr_cols[0] if carr_cols else col_trk + 1,
+                "col_name": col_name,
+                "col_ctns": col_ctns,
+                "col_shipping_way": col_shipping_way,
+                "col_notes": max(0, sheet.ncols - 1),
+            }
+    return {
+        "header_row": 0, "col_fc": 3, "col_fba": 4, "col_tracking": 7, "col_carrier": 8,
+        "col_name": name_default, "col_ctns": ctns_default, "col_shipping_way": shipping_way_default,
+        "col_notes": max(0, sheet.ncols - 1),
+    }
 
 
 def load_excel_file(file_path: str, config: dict) -> list:
@@ -157,7 +194,9 @@ def load_excel_file(file_path: str, config: dict) -> list:
         wb = xlrd.open_workbook(file_path)
         for sheet_idx in range(wb.nsheets):
             sheet = wb.sheet_by_index(sheet_idx)
-            header_row, col_fc, col_fba, col_tracking, col_carrier = _detect_xls_sheet_cols(sheet)
+            cols = _detect_xls_sheet_cols(sheet)
+            header_row, col_fc, col_fba = cols["header_row"], cols["col_fc"], cols["col_fba"]
+            col_tracking, col_carrier = cols["col_tracking"], cols["col_carrier"]
             for r in range(header_row + 1, sheet.nrows):
                 try:
                     fc  = _xlrd_cell_str(sheet, r, col_fc).strip()
