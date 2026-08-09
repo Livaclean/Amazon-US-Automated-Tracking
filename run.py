@@ -361,6 +361,27 @@ def main():
              "current status, recording results in logs/tracking_status.xlsx. Delivered shipments are skipped on "
              "future runs. Does not touch Amazon or upload anything.",
     )
+    parser.add_argument(
+        "--update-master-sheet",
+        action="store_true",
+        help="Populate/refresh logs/shipment_tracking_master.xlsx from the input Excel file (one row per FBA ID) "
+             "and exit. Also runs automatically as part of a normal run -- use this flag to do just that step "
+             "on its own, without uploading or touching Amazon.",
+    )
+    parser.add_argument(
+        "--discover-workflows",
+        action="store_true",
+        help="For shipments in logs/shipment_tracking_master.xlsx that don't have a Workflow ID yet, visit their "
+             "Amazon shipment page and follow 'Send to Amazon (view)' to find it. A workflow covering several "
+             "sibling shipments is recorded for all of them from a single visit. Logs in to Amazon per region.",
+    )
+    parser.add_argument(
+        "--sync-appointments",
+        action="store_true",
+        help="For TRUCK-carrier shipments with no real tracking number yet, enter the Appointment ID already "
+             "known from the source sheet's notes into Amazon's Pro/Freight Bill Number field. Never overwrites "
+             "a value Amazon already has. Logs in to Amazon per region.",
+    )
     args = parser.parse_args()
 
     # Pre-initialize so these are always in scope even if an early exception occurs
@@ -400,6 +421,29 @@ def main():
         from tracking_status import run_check_tracking, format_check_tracking_summary
         result = run_check_tracking(config)
         print(format_check_tracking_summary(result))
+        return
+
+    # Standalone master-sheet update: pure Excel parsing, never touches Amazon.
+    if args.update_master_sheet:
+        from master_sheet import run_update_master_sheet, format_update_master_sheet_summary
+        result = run_update_master_sheet(config)
+        print(format_update_master_sheet_summary(result))
+        return
+
+    # Standalone workflow-ID discovery: logs in to Amazon per region, visits
+    # shipment pages for master-sheet rows missing a workflow_id.
+    if args.discover_workflows:
+        from workflow_discovery import run_workflow_discovery, format_workflow_discovery_summary
+        result = run_workflow_discovery(config)
+        print(format_workflow_discovery_summary(result))
+        return
+
+    # Standalone appointment-ID sync: logs in to Amazon per region, fills the
+    # Pro/Freight Bill Number field for TRUCK shipments missing a tracking number.
+    if args.sync_appointments:
+        from appointment_sync import run_appointment_sync, format_appointment_sync_summary
+        result = run_appointment_sync(config)
+        print(format_appointment_sync_summary(result))
         return
 
     # Determine which regions to run
@@ -481,6 +525,18 @@ def main():
 
     total_main = sum(len(v) for v in shipments_raw.values())
     print(f"\nFound {len(shipments_raw)} FBA shipments with {total_main} trackable entries across {len(configured_regions)} region(s).")
+
+    # Keep the master sheet (logs/shipment_tracking_master.xlsx) in sync as a side
+    # effect of any normal run, reusing the Excel parsing already done above --
+    # no extra Amazon/carrier requests. Non-fatal: a failure here shouldn't stop
+    # the actual upload/verify run.
+    if not no_excel_needed:
+        try:
+            from master_sheet import run_update_master_sheet
+            master_result = run_update_master_sheet(config)
+            print(f"Master sheet updated: {master_result['total']} total, {master_result['new']} new -> {master_result['path']}")
+        except Exception as e:
+            logger.warning(f"Master sheet update failed (continuing with the main run): {e}")
 
     # --from-json: skip Excel + carrier scraping, load tracking directly from JSON
     if args.from_json:
