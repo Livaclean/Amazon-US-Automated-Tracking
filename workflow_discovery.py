@@ -77,7 +77,14 @@ def discover_workflow_for_shipment(page, fba_id: str, base_url: str) -> dict:
         return None
 
     link.first.click()
-    page.wait_for_timeout(2000)
+    try:
+        # The "Workflow ID:" summary renders quickly, but the sibling "Track
+        # shipment" links load a few seconds later via a separate fetch --
+        # wait for them specifically rather than guessing at a fixed delay.
+        page.wait_for_selector("text=Track shipment", timeout=15000)
+    except Exception:
+        logger.debug(f"  {fba_id}: 'Track shipment' links never appeared (single-shipment workflow, or slow page)")
+    page.wait_for_timeout(500)
 
     result = _extract_workflow_from_page(page)
     if result is None:

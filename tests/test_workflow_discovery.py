@@ -137,6 +137,11 @@ class _FakeDiscoveryPage(_FakeWorkflowPage):
     def wait_for_timeout(self, ms):
         pass
 
+    def wait_for_selector(self, selector, timeout=None):
+        # Simulates Playwright: raises if the text never appears in link_texts.
+        if selector == "text=Track shipment" and not any("- " in t for t in self._link_texts):
+            raise TimeoutError(f"Timeout {timeout}ms exceeded waiting for {selector!r}")
+
 
 @pytest.mark.unit
 def test_discover_workflow_for_shipment_success(monkeypatch):
