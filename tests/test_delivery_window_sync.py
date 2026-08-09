@@ -6,10 +6,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 import pytest
 
+import delivery_window_sync
 from delivery_window_sync import (
     _parse_flexible_date,
     _week_bounds,
     decide_window_action,
+    sync_window_for_shipment,
+    format_delivery_window_sync_summary,
 )
 
 
@@ -168,3 +171,112 @@ def test_decide_window_action_none_boundary_eight_days_out():
         expected_delivery_date=None, today=date(2026, 8, 10),
     )
     assert result == {"action": "none", "target_week_start": None}
+
+
+# --- sync_window_for_shipment ----------------------------------------------------
+
+@pytest.mark.unit
+def test_sync_window_for_shipment_read_failed(monkeypatch):
+    monkeypatch.setattr(delivery_window_sync, "read_shipment_window", lambda *a, **kw: None)
+    result = sync_window_for_shipment(
+        page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
+        expected_delivery_date=None, today=date(2026, 8, 10),
+    )
+    assert result == {"outcome": "read_failed", "new_delivery_date_status": "pending"}
+
+
+@pytest.mark.unit
+def test_sync_window_for_shipment_matched_no_action_needed(monkeypatch):
+    # expected date already inside the window -- confirmed correct, no edit needed
+    monkeypatch.setattr(
+        delivery_window_sync, "read_shipment_window",
+        lambda *a, **kw: {"window_start": date(2026, 9, 13), "window_end": date(2026, 9, 19)},
+    )
+    result = sync_window_for_shipment(
+        page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
+        expected_delivery_date=date(2026, 9, 15), today=date(2026, 8, 10),
+    )
+    assert result == {"outcome": "matched", "new_delivery_date_status": "updated"}
+
+
+@pytest.mark.unit
+def test_sync_window_for_shipment_no_action_needed_no_expected_date(monkeypatch):
+    monkeypatch.setattr(
+        delivery_window_sync, "read_shipment_window",
+        lambda *a, **kw: {"window_start": date(2026, 9, 13), "window_end": date(2026, 9, 19)},
+    )
+    result = sync_window_for_shipment(
+        page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
+        expected_delivery_date=None, today=date(2026, 8, 10),
+    )
+    assert result == {"outcome": "no_action_needed", "new_delivery_date_status": "pending"}
+
+
+@pytest.mark.unit
+def test_sync_window_for_shipment_locked(monkeypatch):
+    monkeypatch.setattr(
+        delivery_window_sync, "read_shipment_window",
+        lambda *a, **kw: {"window_start": date(2026, 8, 9), "window_end": date(2026, 8, 15)},
+    )
+    result = sync_window_for_shipment(
+        page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
+        expected_delivery_date=date(2026, 8, 8), today=date(2026, 8, 10),
+    )
+    assert result == {"outcome": "locked", "new_delivery_date_status": "pending"}
+
+
+@pytest.mark.unit
+def test_sync_window_for_shipment_edit_success(monkeypatch):
+    monkeypatch.setattr(
+        delivery_window_sync, "read_shipment_window",
+        lambda *a, **kw: {"window_start": date(2026, 9, 13), "window_end": date(2026, 9, 19)},
+    )
+    monkeypatch.setattr(delivery_window_sync, "apply_window_edit", lambda page, target: True)
+    result = sync_window_for_shipment(
+        page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
+        expected_delivery_date=date(2026, 8, 8), today=date(2026, 8, 1),
+    )
+    assert result == {"outcome": "edit", "new_delivery_date_status": "updated"}
+
+
+@pytest.mark.unit
+def test_sync_window_for_shipment_edit_failed(monkeypatch):
+    monkeypatch.setattr(
+        delivery_window_sync, "read_shipment_window",
+        lambda *a, **kw: {"window_start": date(2026, 9, 13), "window_end": date(2026, 9, 19)},
+    )
+    monkeypatch.setattr(delivery_window_sync, "apply_window_edit", lambda page, target: False)
+    result = sync_window_for_shipment(
+        page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
+        expected_delivery_date=date(2026, 8, 8), today=date(2026, 8, 1),
+    )
+    assert result == {"outcome": "edit_failed", "new_delivery_date_status": "pending"}
+
+
+@pytest.mark.unit
+def test_sync_window_for_shipment_push_two_weeks_success(monkeypatch):
+    monkeypatch.setattr(
+        delivery_window_sync, "read_shipment_window",
+        lambda *a, **kw: {"window_start": date(2026, 8, 16), "window_end": date(2026, 8, 22)},
+    )
+    monkeypatch.setattr(delivery_window_sync, "apply_window_edit", lambda page, target: True)
+    result = sync_window_for_shipment(
+        page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
+        expected_delivery_date=None, today=date(2026, 8, 10),
+    )
+    # push_two_weeks is a stopgap, not a real resolution -- stays "pending" so
+    # it keeps getting rechecked for a real expected date.
+    assert result == {"outcome": "push_two_weeks", "new_delivery_date_status": "pending"}
+
+
+# --- format_delivery_window_sync_summary ------------------------------------------
+
+@pytest.mark.unit
+def test_format_delivery_window_sync_summary_includes_counts():
+    text = format_delivery_window_sync_summary({
+        "matched": 2, "updated": 0, "pushed": 0, "locked": 1,
+        "no_action_needed": 3, "read_failed": 1, "edit_failed": 0,
+    })
+    assert "2" in text
+    assert "1" in text
+    assert "3" in text

@@ -253,3 +253,139 @@ def apply_window_edit(page, target_week_start) -> bool:
     confirm_btn.click()
     page.wait_for_timeout(2000)
     return True
+
+
+def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str, expected_delivery_date, today) -> dict:
+    """
+    Reads fba_id's current delivery window, decides what to do via
+    decide_window_action(), and applies an edit if one is called for.
+    Returns {"outcome": ..., "new_delivery_date_status": "updated" | "pending"}.
+
+    Outcomes: "read_failed" (couldn't read the current window), "matched"
+    (expected date already inside the window -- confirmed correct, no edit
+    needed), "no_action_needed" (no expected date yet, window not urgent),
+    "locked" (window's start date has passed, can't be edited), "edit" /
+    "push_two_weeks" (the corresponding decide_window_action action was
+    successfully applied), "edit_failed" (the live edit didn't go through).
+
+    Status is "updated" only for "matched" and a successful "edit" -- both
+    mean the window now demonstrably reflects a real expected date.
+    "push_two_weeks" stays "pending": it's a stopgap so the window doesn't
+    lock while we wait for a real date, not a real resolution.
+    """
+    window = read_shipment_window(page, workflow_id, fba_id, base_url)
+    if window is None:
+        return {"outcome": "read_failed", "new_delivery_date_status": "pending"}
+
+    decision = decide_window_action(window["window_start"], window["window_end"], expected_delivery_date, today)
+    action = decision["action"]
+
+    if action == "locked":
+        return {"outcome": "locked", "new_delivery_date_status": "pending"}
+
+    if action == "none":
+        if expected_delivery_date is not None:
+            return {"outcome": "matched", "new_delivery_date_status": "updated"}
+        return {"outcome": "no_action_needed", "new_delivery_date_status": "pending"}
+
+    # action is "edit" or "push_two_weeks"
+    if not apply_window_edit(page, decision["target_week_start"]):
+        return {"outcome": "edit_failed", "new_delivery_date_status": "pending"}
+    status = "updated" if action == "edit" else "pending"
+    return {"outcome": action, "new_delivery_date_status": status}
+
+
+def run_delivery_window_sync(config: dict) -> dict:
+    """
+    For every master-sheet shipment not already "Delivered" and with a known
+    Workflow ID, syncs its Amazon delivery window against its real carrier-
+    reported expected delivery date -- pulled from logs/tracking_status.xlsx's
+    cache (matched by tracking number), not re-checked live here. One region
+    at a time (its own browser login); saves the master sheet after each
+    region so progress survives a mid-run crash.
+    Returns counts by outcome (see sync_window_for_shipment's docstring).
+    """
+    from datetime import date as _date
+    from master_sheet import load_master_sheet, save_master_sheet, MASTER_SHEET_PATH_DEFAULT
+    from tracking_status import load_status_cache, STATUS_CACHE_PATH_DEFAULT
+    from upload_tracking import create_browser_context
+    from run import wait_for_login
+
+    path = config.get("master_sheet_path", MASTER_SHEET_PATH_DEFAULT)
+    sheet = load_master_sheet(path)
+    tracking_cache_path = config.get("tracking_status_cache", STATUS_CACHE_PATH_DEFAULT)
+    tracking_cache = load_status_cache(tracking_cache_path)
+    region_by_name = {r["name"]: r for r in config.get("regions", [])}
+    today = _date.today()
+
+    pending_by_region = {}
+    for fba_id, entry in sheet.items():
+        if entry.get("tracking_status") == "Delivered" or entry.get("delivery_date_status") == "Delivered":
+            continue
+        if not entry.get("workflow_id"):
+            continue
+        pending_by_region.setdefault(entry.get("region"), []).append(fba_id)
+
+    totals = {"matched": 0, "updated": 0, "pushed": 0, "locked": 0, "no_action_needed": 0, "read_failed": 0, "edit_failed": 0}
+    if not pending_by_region:
+        return totals
+
+    def _bump(outcome):
+        key = {"edit": "updated", "push_two_weeks": "pushed"}.get(outcome, outcome)
+        totals[key] = totals.get(key, 0) + 1
+
+    playwright, context = create_browser_context(config)
+    try:
+        page = context.new_page()
+        for region_name, fba_ids in pending_by_region.items():
+            region = region_by_name.get(region_name)
+            if not region:
+                logger.warning(f"No config entry for region {region_name!r} -- skipping {len(fba_ids)} shipment(s)")
+                for _ in fba_ids:
+                    _bump("read_failed")
+                continue
+
+            base_url = region["amazon_url"]
+            if not wait_for_login(page, region_name, base_url):
+                logger.warning(f"Could not log in to {region_name} -- skipping {len(fba_ids)} shipment(s)")
+                for _ in fba_ids:
+                    _bump("read_failed")
+                continue
+
+            for fba_id in fba_ids:
+                entry = sheet[fba_id]
+                tracking = str(entry.get("tracking", "")).strip()
+                cached = tracking_cache.get(tracking, {})
+                expected_str = cached.get("expected_delivery_date")
+                expected_date = _parse_flexible_date(expected_str, today) if expected_str else None
+
+                result = sync_window_for_shipment(page, base_url, fba_id, entry["workflow_id"], expected_date, today)
+                _bump(result["outcome"])
+                entry["delivery_date_status"] = result["new_delivery_date_status"]
+
+            save_master_sheet(path, sheet)
+    finally:
+        try:
+            context.close()
+            playwright.stop()
+        except Exception:
+            pass
+
+    return totals
+
+
+def format_delivery_window_sync_summary(result: dict) -> str:
+    lines = [
+        "=" * 60,
+        "DELIVERY WINDOW SYNC SUMMARY",
+        "=" * 60,
+        f"Matched (already correct):  {result['matched']}",
+        f"Updated (edited to match):  {result['updated']}",
+        f"Pushed 2 weeks (no date yet, was about to lock): {result['pushed']}",
+        f"No action needed:           {result['no_action_needed']}",
+        f"Locked (can't be edited):   {result['locked']}",
+        f"Read failed:                {result['read_failed']}",
+        f"Edit failed:                {result['edit_failed']}",
+        "=" * 60,
+    ]
+    return "\n".join(lines)
