@@ -39,6 +39,14 @@ def test_parse_flexible_date_month_name_with_year():
 
 
 @pytest.mark.unit
+def test_parse_flexible_date_day_month_year_no_comma():
+    # EU/FR region shipments render "Delivery window:" dates this way
+    # (day-month-year, no comma) rather than the US "Month Day, Year" style.
+    assert _parse_flexible_date("1 Jul 2026") == date(2026, 7, 1)
+    assert _parse_flexible_date("14 Jul 2026") == date(2026, 7, 14)
+
+
+@pytest.mark.unit
 def test_parse_flexible_date_weekday_month_day_no_year_infers_current_year():
     # "today" is well within the same year as the inferred date -- no rollover needed
     result = _parse_flexible_date("Friday, July 17", today=date(2026, 7, 10))

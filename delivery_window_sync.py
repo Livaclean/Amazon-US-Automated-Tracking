@@ -14,13 +14,18 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
-_WINDOW_PATTERN = re.compile(r"Delivery window:\s*([A-Za-z]+ \d{1,2}, \d{4})\s*-\s*([A-Za-z]+ \d{1,2}, \d{4})")
+
+# US-style renders "Jul 1, 2026"; EU/FR-region shipments render the
+# day-first "1 Jul 2026" (no comma) instead -- both need to be matched here.
+_WINDOW_DATE = r"(?:[A-Za-z]+ \d{1,2}, \d{4}|\d{1,2} [A-Za-z]+ \d{4})"
+_WINDOW_PATTERN = re.compile(rf"Delivery window:\s*({_WINDOW_DATE})\s*-\s*({_WINDOW_DATE})")
 
 _DATE_FORMATS_WITH_YEAR = [
     "%m/%d/%Y", "%m/%d/%y",
     "%Y-%m-%d",
     "%b %d, %Y", "%B %d, %Y",
     "%b %d %Y", "%B %d %Y",
+    "%d %b %Y", "%d %B %Y",
 ]
 _DATE_FORMATS_NO_YEAR = [
     "%A, %B %d", "%a, %b %d",
