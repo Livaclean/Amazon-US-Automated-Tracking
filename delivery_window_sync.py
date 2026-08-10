@@ -119,6 +119,23 @@ def decide_window_action(window_start, window_end, expected_delivery_date, today
     return {"action": "none", "target_week_start": None}
 
 
+def _dismiss_onboarding_modal(page) -> None:
+    """
+    Amazon occasionally shows a "Save time with Send to Amazon" onboarding
+    tour modal on this page (seen live -- a kat-modal overlay with a single
+    close button, aria-label "close"). Its overlay intercepts pointer events
+    for everything behind it, so a stray click on "View" times out entirely
+    if it's not dismissed first. Absent on most visits -- a short wait, not
+    an error, if it never appears.
+    """
+    modal = page.locator("kat-modal[visible='true']").locator("button[aria-label='close']")
+    try:
+        modal.first.wait_for(state="visible", timeout=3000)
+    except Exception:
+        return
+    modal.first.click()
+
+
 def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str) -> dict:
     """
     Navigates to the shipment's workflow page, opens the tracking-details
@@ -134,6 +151,8 @@ def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str) -> 
     except Exception as e:
         logger.warning(f"  {fba_id}: failed to load workflow page {url}: {e}")
         return None
+
+    _dismiss_onboarding_modal(page)
 
     views = page.get_by_text("View", exact=True)
     try:
