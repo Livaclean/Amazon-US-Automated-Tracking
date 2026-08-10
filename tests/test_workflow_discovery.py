@@ -11,6 +11,7 @@ from workflow_discovery import (
     _extract_workflow_from_page,
     discover_workflow_for_shipment,
     _process_region_discoveries,
+    _pending_fba_ids_by_region,
     format_workflow_discovery_summary,
 )
 
@@ -263,6 +264,55 @@ def test_process_region_discoveries_ignores_sibling_not_in_sheet(monkeypatch):
 
     assert result == {"discovered": 1, "resolved_via_sibling": 0, "unresolved": 0}
     assert "FBA_NOT_IN_SHEET" not in sheet
+
+
+# --- _pending_fba_ids_by_region -------------------------------------------------
+
+@pytest.mark.unit
+def test_pending_fba_ids_by_region_groups_by_region():
+    sheet = {
+        "FBA001": {"region": "US", "workflow_id": ""},
+        "FBA002": {"region": "CA", "workflow_id": ""},
+    }
+    result = _pending_fba_ids_by_region(sheet)
+    assert result == {"US": ["FBA001"], "CA": ["FBA002"]}
+
+
+@pytest.mark.unit
+def test_pending_fba_ids_by_region_skips_already_has_workflow_id():
+    sheet = {
+        "FBA001": {"region": "US", "workflow_id": "wf-1"},
+        "FBA002": {"region": "US", "workflow_id": ""},
+    }
+    result = _pending_fba_ids_by_region(sheet)
+    assert result == {"US": ["FBA002"]}
+
+
+@pytest.mark.unit
+def test_pending_fba_ids_by_region_skips_delivered_tracking_status():
+    # A workflow_id only exists to support delivery-window sync, which skips
+    # Delivered shipments entirely -- discovering one for them is wasted work.
+    sheet = {
+        "FBA001": {"region": "US", "workflow_id": "", "tracking_status": "Delivered"},
+        "FBA002": {"region": "US", "workflow_id": ""},
+    }
+    result = _pending_fba_ids_by_region(sheet)
+    assert result == {"US": ["FBA002"]}
+
+
+@pytest.mark.unit
+def test_pending_fba_ids_by_region_skips_delivered_delivery_date_status():
+    sheet = {
+        "FBA001": {"region": "US", "workflow_id": "", "delivery_date_status": "Delivered"},
+        "FBA002": {"region": "US", "workflow_id": ""},
+    }
+    result = _pending_fba_ids_by_region(sheet)
+    assert result == {"US": ["FBA002"]}
+
+
+@pytest.mark.unit
+def test_pending_fba_ids_by_region_empty_sheet_returns_empty_dict():
+    assert _pending_fba_ids_by_region({}) == {}
 
 
 # --- format_workflow_discovery_summary ----------------------------------------

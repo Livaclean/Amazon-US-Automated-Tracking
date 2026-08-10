@@ -127,11 +127,29 @@ def _process_region_discoveries(page, base_url: str, fba_ids: list, sheet: dict)
     return {"discovered": discovered, "resolved_via_sibling": resolved_via_sibling, "unresolved": unresolved}
 
 
+def _pending_fba_ids_by_region(sheet: dict) -> dict:
+    """
+    Groups FBA IDs needing workflow-ID discovery by region: those missing a
+    workflow_id and not already marked Delivered in either status column. A
+    workflow_id only exists to support delivery-window sync, which skips
+    Delivered shipments entirely -- discovering one for them is wasted work.
+    """
+    pending_by_region = {}
+    for fba_id, entry in sheet.items():
+        if entry.get("workflow_id"):
+            continue
+        if entry.get("tracking_status") == "Delivered" or entry.get("delivery_date_status") == "Delivered":
+            continue
+        pending_by_region.setdefault(entry.get("region"), []).append(fba_id)
+    return pending_by_region
+
+
 def run_workflow_discovery(config: dict) -> dict:
     """
     Discovers workflow IDs for every shipment in the master sheet that doesn't
-    have one yet, one region at a time (its own browser login). Saves the
-    master sheet after each region so progress survives a mid-run crash.
+    have one yet and isn't already Delivered, one region at a time (its own
+    browser login). Saves the master sheet after each region so progress
+    survives a mid-run crash.
     Returns {"discovered", "resolved_via_sibling", "unresolved"}.
     """
     from master_sheet import load_master_sheet, save_master_sheet, MASTER_SHEET_PATH_DEFAULT
@@ -142,11 +160,7 @@ def run_workflow_discovery(config: dict) -> dict:
     sheet = load_master_sheet(path)
     region_by_name = {r["name"]: r for r in config.get("regions", [])}
 
-    pending_by_region = {}
-    for fba_id, entry in sheet.items():
-        if entry.get("workflow_id"):
-            continue
-        pending_by_region.setdefault(entry.get("region"), []).append(fba_id)
+    pending_by_region = _pending_fba_ids_by_region(sheet)
 
     totals = {"discovered": 0, "resolved_via_sibling": 0, "unresolved": 0}
     if not pending_by_region:
