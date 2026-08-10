@@ -173,6 +173,38 @@ def test_decide_window_action_none_boundary_eight_days_out():
     assert result == {"action": "none", "target_week_start": None}
 
 
+@pytest.mark.unit
+def test_decide_window_action_stale_expected_date_falls_back_to_none():
+    # An overdue "In Transit" package's cached expected date has already
+    # passed -- Amazon's calendar won't let us pick a past target week, so
+    # a stale date must be treated the same as not having one at all.
+    result = decide_window_action(
+        window_start=date(2026, 9, 13), window_end=date(2026, 9, 19),
+        expected_delivery_date=date(2026, 8, 2), today=date(2026, 8, 10),
+    )
+    assert result == {"action": "none", "target_week_start": None}
+
+
+@pytest.mark.unit
+def test_decide_window_action_stale_expected_date_falls_back_to_push_two_weeks():
+    result = decide_window_action(
+        window_start=date(2026, 8, 16), window_end=date(2026, 8, 22),
+        expected_delivery_date=date(2026, 8, 2), today=date(2026, 8, 10),
+    )
+    assert result == {"action": "push_two_weeks", "target_week_start": date(2026, 8, 23)}
+
+
+@pytest.mark.unit
+def test_decide_window_action_expected_date_equal_to_today_is_not_stale():
+    # today itself is still a usable expected date -- only strictly-past dates
+    # are unusable (the day hasn't ended yet).
+    result = decide_window_action(
+        window_start=date(2026, 9, 13), window_end=date(2026, 9, 19),
+        expected_delivery_date=date(2026, 8, 10), today=date(2026, 8, 10),
+    )
+    assert result == {"action": "edit", "target_week_start": date(2026, 8, 9)}
+
+
 # --- sync_window_for_shipment ----------------------------------------------------
 
 @pytest.mark.unit
@@ -267,6 +299,21 @@ def test_sync_window_for_shipment_push_two_weeks_success(monkeypatch):
     # push_two_weeks is a stopgap, not a real resolution -- stays "pending" so
     # it keeps getting rechecked for a real expected date.
     assert result == {"outcome": "push_two_weeks", "new_delivery_date_status": "pending"}
+
+
+@pytest.mark.unit
+def test_sync_window_for_shipment_stale_expected_date_reports_no_action_needed_not_matched(monkeypatch):
+    # An overdue expected date can't be used to confirm the window is
+    # correct -- "matched" would overclaim confidence we don't have.
+    monkeypatch.setattr(
+        delivery_window_sync, "read_shipment_window",
+        lambda *a, **kw: {"window_start": date(2026, 9, 13), "window_end": date(2026, 9, 19)},
+    )
+    result = sync_window_for_shipment(
+        page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
+        expected_delivery_date=date(2026, 8, 2), today=date(2026, 8, 10),
+    )
+    assert result == {"outcome": "no_action_needed", "new_delivery_date_status": "pending"}
 
 
 # --- format_delivery_window_sync_summary ------------------------------------------

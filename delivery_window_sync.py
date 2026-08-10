@@ -102,9 +102,17 @@ def decide_window_action(window_start, window_end, expected_delivery_date, today
     - "push_two_weeks": no expected date yet, and the window starts within
       the next 7 days (about to lock) -- push it out two weeks so it doesn't
       lock on a guess while we wait for a real date.
+
+    A strictly-past expected_delivery_date (an overdue "In Transit" package
+    whose cached date has already gone by) is treated the same as having no
+    expected date at all -- Amazon's calendar won't let us pick a past target
+    week, so acting on stale info isn't possible.
     """
     if today >= window_start:
         return {"action": "locked", "target_week_start": None}
+
+    if expected_delivery_date is not None and expected_delivery_date < today:
+        expected_delivery_date = None
 
     if expected_delivery_date is not None:
         if window_start <= expected_delivery_date <= window_end:
@@ -303,7 +311,11 @@ def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str,
         return {"outcome": "locked", "new_delivery_date_status": "pending"}
 
     if action == "none":
-        if expected_delivery_date is not None:
+        # A stale (strictly-past) expected date doesn't confirm the window is
+        # correct -- decide_window_action() ignored it the same way -- so
+        # "matched" would overclaim confidence we don't actually have.
+        has_usable_expected_date = expected_delivery_date is not None and expected_delivery_date >= today
+        if has_usable_expected_date:
             return {"outcome": "matched", "new_delivery_date_status": "updated"}
         return {"outcome": "no_action_needed", "new_delivery_date_status": "pending"}
 
