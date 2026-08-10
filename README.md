@@ -84,6 +84,11 @@ python run.py --rewrite                          # Force overwrite tracking inpu
 python run.py --discover                         # Dump Amazon page elements to logs/ (for debugging)
 python run.py --discover --fba-id FBA197HGGQXC   # Discover page elements for a specific FBA ID
 python run.py --config path/to/config.json       # Use a different config file
+python run.py --check-tracking                   # Check UPS/FedEx/DHL carrier pages, cache to logs/tracking_status.xlsx
+python run.py --update-master-sheet              # Populate/refresh logs/shipment_tracking_master.xlsx from the input Excel
+python run.py --discover-workflows               # Find each shipment's Send to Amazon Workflow ID
+python run.py --sync-appointments                # Enter known Appointment IDs into Amazon's Pro/Freight field (TRUCK only)
+python run.py --sync-delivery-windows            # Sync Amazon's delivery window to match the real carrier expected-delivery date
 ```
 
 | Flag | Description |
@@ -99,6 +104,11 @@ python run.py --config path/to/config.json       # Use a different config file
 | `--discover` | Dump Amazon page elements to `logs/` for debugging selectors. |
 | `--fba-id ID` | Specific FBA ID for `--discover` (default: first from Excel). |
 | `--config FILE` | Path to config.json (default: `config.json` in current directory). |
+| `--check-tracking` | Visit each shipment's carrier tracking page (UPS/FedEx/DHL) for label-created/delivery dates and current status, caching results in `logs/tracking_status.xlsx`. Delivered shipments are skipped on future runs. Never touches Amazon. |
+| `--update-master-sheet` | Populate/refresh `logs/shipment_tracking_master.xlsx` (one row per FBA ID) from the input Excel file. Also runs automatically as part of a normal run. |
+| `--discover-workflows` | For master-sheet shipments without a Workflow ID yet (and not already Delivered), visit their Amazon shipment page and follow "Send to Amazon (view)" to find it. A workflow covering several sibling shipments is recorded for all of them from one visit. Logs in to Amazon per region. |
+| `--sync-appointments` | For TRUCK-carrier shipments with no real tracking number yet, enter the Appointment ID already known from the source sheet's notes into Amazon's Pro/Freight Bill Number field. Never overwrites a value Amazon already has. Logs in to Amazon per region. |
+| `--sync-delivery-windows` | For master-sheet shipments that aren't Delivered and have a known Workflow ID, compare Amazon's delivery window against the real carrier expected-delivery date (from `logs/tracking_status.xlsx`) and edit the window on Amazon when it doesn't match. Also pushes a window 2 weeks out if it's about to lock with no expected date yet. Logs in to Amazon per region. |
 
 ---
 
@@ -121,6 +131,8 @@ Before uploading, the script checks each shipment's current tracking status on A
 | `logs/shipments_with_tracking_*.txt` | FBA IDs that had tracking numbers |
 | `logs/shipments_missing_tracking_*.txt` | FBA IDs with no tracking numbers |
 | `logs/completed_fba_<REGION>.txt` | Persistent done cache per region |
+| `logs/tracking_status.xlsx` | Carrier tracking-check cache (one row per tracking number), used by `--check-tracking` and `--sync-delivery-windows` |
+| `logs/shipment_tracking_master.xlsx` | Persistent master tracking sheet, one row per FBA ID |
 | `logs/tracking_upload_YYYY-MM-DD.log` | Full debug log |
 | `logs/screenshots/` | Screenshots taken at key steps |
 | `output/filename_processed_TIMESTAMP.xlsx` | Highlighted Excel file after processing |
