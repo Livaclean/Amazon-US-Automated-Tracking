@@ -3,6 +3,19 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.7.0] - 2026-08-10
+
+### Added
+- `--sync-delivery-windows`: for master-sheet shipments that aren't Delivered and have a known Workflow ID, compares Amazon's delivery window against the real carrier expected-delivery date (from `logs/tracking_status.xlsx`) and edits the window on Amazon when it doesn't match. If there's no expected date yet and the window is about to lock (within 7 days of its own start), pushes it 2 weeks out as a defensive stopgap rather than let it lock on a guess
+- `--discover-workflows` now skips shipments already marked Delivered in either status column, since a Workflow ID only exists to support delivery-window sync, which itself skips Delivered shipments -- cut a live 448-shipment run down to 88 candidates
+- Master sheet's `Tracking Status` and `Delivery Date Status` columns now recognize a third state, "Delivered" (superseding "pending"/"updated"), detected from source notes or the `tracking_status.xlsx` cache -- delivery-window sync skips these shipments entirely
+
+### Fixed
+- Delivery-window sync no longer crashes when Amazon shows its "Save time with Send to Amazon" onboarding tour modal on the workflow page -- the modal's overlay was intercepting every click behind it; now dismissed automatically if present
+- A stale (already-past) cached expected-delivery date -- an overdue "In Transit" package -- no longer causes an unclickable calendar-day target; Amazon correctly disables past dates, so a strictly-past expected date is now treated the same as not having one at all
+- EU/FR-region shipment pages render "Delivery window: 1 Jul 2026 - 14 Jul 2026" (day-month-year, no comma) instead of the US-style "Jul 1, 2026" -- both formats are now parsed
+- Documented 5 previously-undocumented CLI flags in the README (`--check-tracking`, `--update-master-sheet`, `--discover-workflows`, `--sync-appointments`, `--sync-delivery-windows`)
+
 ## [0.6.0] - 2026-08-10
 
 ### Added
