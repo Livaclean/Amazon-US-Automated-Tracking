@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.7.1] - 2026-08-12
+
+### Fixed
+- TikTok shipment IDs (prefixed `IBR`) are no longer treated as Amazon FBA shipments — they don't exist on Amazon and were wasting a pre-check/upload visit per region on every run; now skipped in `group_by_fba_id` and the FC-resolver's `_dedupe_fba_ids`, the same way Walmart IDs (suffixed `WFA`) already were
+- Console output no longer crashes with `UnicodeEncodeError` when a log/print message contains a character outside Windows' default `cp1252` codepage (e.g. CJK text in a supplier sheet's product name) — `stdout`/`stderr` are now reconfigured to UTF-8 at startup
+
 ## [0.7.0] - 2026-08-10
 
 ### Added
