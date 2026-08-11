@@ -288,6 +288,17 @@ def test_group_by_fba_id_slash_split():
     assert result["STAR-A"][0]["tracking"] == "1Z001"
 
 
+def test_group_by_fba_id_skips_walmart_and_tiktok_ids():
+    rows = [
+        {"fba_id": "WMT123WFA", "tracking_num": "1Z001", "carrier": "UPS"},
+        {"fba_id": "IBR5766196157831222022", "tracking_num": "1Z002", "carrier": "UPS"},
+        {"fba_id": "STAR-A/IBR999", "tracking_num": "1Z003", "carrier": "UPS"},
+        {"fba_id": "FBA123", "tracking_num": "1Z004", "carrier": "UPS"},
+    ]
+    result = group_by_fba_id(rows)
+    assert list(result.keys()) == ["STAR-A", "FBA123"]
+
+
 def test_parse_and_filter_by_region_full_returns_unmatched_rows(tmp_path):
     import openpyxl
     wb = openpyxl.Workbook()

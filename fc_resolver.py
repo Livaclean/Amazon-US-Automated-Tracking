@@ -80,15 +80,15 @@ def _dedupe_fba_ids(rows: list) -> list:
     """
     Normalizes a group of unmatched rows into the distinct FBA IDs they represent,
     mirroring parse_excel.group_by_fba_id: splits combined IDs like "STAR-A/STAR-B"
-    into separate IDs, drops Walmart IDs ending in "WFA", and de-duplicates while
-    preserving first-seen order.
+    into separate IDs, drops Walmart IDs ending in "WFA" and TikTok IDs starting
+    with "IBR", and de-duplicates while preserving first-seen order.
     """
     seen = []
     for row in rows:
         fba_id_raw = str(row.get("fba_id") or "").strip()
         for part in fba_id_raw.split("/"):
             part = part.strip()
-            if not part or part.upper().endswith("WFA"):
+            if not part or part.upper().endswith("WFA") or part.upper().startswith("IBR"):
                 continue
             if part not in seen:
                 seen.append(part)

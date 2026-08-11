@@ -261,6 +261,7 @@ def test_dedupe_fba_ids_splits_combined_ids_drops_wfa_and_dedupes():
         {"fba_id": "STAR-A/STAR-B"},
         {"fba_id": "STAR-A"},  # duplicate of a part already seen
         {"fba_id": "WMT123WFA"},  # dropped: Walmart ID
+        {"fba_id": "IBR5766196157831222022"},  # dropped: TikTok ID
         {"fba_id": "  STAR-C  "},  # whitespace trimmed
         {"fba_id": ""},  # empty, ignored
     ]
