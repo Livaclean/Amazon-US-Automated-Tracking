@@ -6,6 +6,14 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
+# Windows consoles default stdout/stderr to the system codepage (e.g. cp1252),
+# which can't encode CJK/other non-ASCII characters that show up in supplier
+# sheet data (product names, etc.) and crashes print()/logging with a
+# UnicodeEncodeError. Force UTF-8 so any character we log or print is safe.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
+
 
 def setup_logging(logs_folder: str) -> None:
     """Creates logger writing to console (INFO) and timestamped file in logs/ (DEBUG)."""
