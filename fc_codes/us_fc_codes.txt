@@ -105,3 +105,29 @@ IMO1
 IMS1
 # auto-added 2026-08-07, confirmed via FBA19KCLDHG4
 MQJ1
+# auto-added 2026-08-12, confirmed via FBA199H9JRPX
+AKR1
+# auto-added 2026-08-12, confirmed via FBA199H9Z5XH
+FOE1
+# auto-added 2026-08-12, confirmed via FBA199K5FCDG
+JVL1
+# auto-added 2026-08-12, confirmed via FBA199K2L3W5
+CHO1
+# auto-added 2026-08-12, confirmed via FBA199MXB74G
+HSV1
+# auto-added 2026-08-12, confirmed via FBA199MWDK0W
+MKC4
+# auto-added 2026-08-12, confirmed via FBA199MQ24T0
+YXU1
+# auto-added 2026-08-12, confirmed via FBA19BSK320H
+LBE1
+# auto-added 2026-08-12, confirmed via FBA19CC0QV2M
+TOL3
+# auto-added 2026-08-12, confirmed via FBA19CFG0M1R
+SLT4
+# auto-added 2026-08-12, confirmed via FBA19CF84JVF
+MCE1
+# auto-added 2026-08-12, confirmed via FBA19GR7ZWWF
+HGR6
+# auto-added 2026-08-12, confirmed via FBA19H27JTXX
+XYY4

@@ -9,3 +9,5 @@ LCY
 LTN
 MAN
 XUK
+# auto-added 2026-08-12, confirmed via FBA15LZ0GH9Z
+LPL2

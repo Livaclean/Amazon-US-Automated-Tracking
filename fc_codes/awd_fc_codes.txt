@@ -36,3 +36,5 @@ IUTG
 IUTH
 IUTI
 IUTJ
+# auto-added 2026-08-12, confirmed via STAR-S3AX53NVREKBU
+IUTL
