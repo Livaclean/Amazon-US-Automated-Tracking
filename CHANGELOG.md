@@ -3,6 +3,17 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.8.0] - 2026-08-19
+
+### Added
+- Carton-tracking from source column L: when a source `.xls` sheet carries a trailing "carton tracking" blob (`TRACKING-FBAID+seq`, e.g. `1ZK6B4420338604208-FBA19L9DHD1SU000001`), the pipeline now parses it and uses those ground-truth per-carton tracking IDs directly instead of scraping UPS/FedEx or splitting a flat sub-tracking pool by Amazon's slot count — in both the main upload flow and `--verify`'s re-upload path. Malformed/ambiguous blob lines fall back to the carrier scrape rather than being guessed. Shortfalls (fewer cartons matched than the sheet's own carton count) upload what's available and are reported in a new end-of-run summary section
+- FC-code ignore list (`fc_codes/ignored_fc_codes.txt`): FC codes that probe as unresolvable in every configured region (3PL/TikTok warehouses, freeform notes, etc. — not real Amazon FCs) are now persisted and skipped on future runs instead of being re-probed against every region every time
+
+### Fixed
+- `navigate_to_shipment()` now recognizes Amazon's cross-marketplace redirect ("The shipment you're trying to open is for Canada...") as a rejection instead of reading it as a successful page load — this had silently caused `fc_resolver.probe_fc_codes()` to misattribute a Canada-only FC code (`XYY4`) to the US region a week earlier, permanently misrouting two real shipments (confirmed live via screenshot)
+- `check_amazon_tracking_status()` no longer reports an ambiguous detection failure (couldn't locate the tracking iframe/inputs after a successful navigation) as `"not_found"` — that value was being treated identically to "genuinely complete" by `check_all_shipments_on_amazon()`, silently caching shipments as done when they'd never actually received tracking. Now returns a distinct `"check_failed"` status that routes back into the upload queue instead
+- `_detect_xls_sheet_cols()`'s "notes = last physical column" heuristic no longer collides with a sheet's carton-tracking column when both are present (as on the current US sheet, which added a 12th trailing column) — the carton-tracking column is now detected by content, and notes falls back one column earlier when it would otherwise land on it
+
 ## [0.7.1] - 2026-08-12
 
 ### Fixed
