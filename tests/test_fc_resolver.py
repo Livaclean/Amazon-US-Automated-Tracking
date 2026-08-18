@@ -11,6 +11,9 @@ from fc_resolver import (
     merge_resolved_rows,
     format_fc_resolution_summary,
     _dedupe_fba_ids,
+    load_ignored_fc_codes,
+    filter_ignored_fc_codes,
+    append_ignored_fc_codes,
 )
 
 
@@ -61,6 +64,71 @@ def test_append_fc_code_to_file_round_trips_through_load_fc_prefixes(tmp_path):
     append_fc_code_to_file(str(f), "ITX3", "FBA19K4G0NSQ", today="2026-08-07")
     prefixes = load_fc_prefixes(str(f))
     assert is_region_fc("ITX3XXXX", prefixes)
+
+
+# ---------------------------------------------------------------------------
+# Ignored FC codes — persists FC codes that probed as unresolvable in every
+# region, so future runs stop re-probing known non-Amazon codes (3PL, TikTok,
+# freeform notes, etc.)
+# ---------------------------------------------------------------------------
+
+def test_load_ignored_fc_codes_missing_file_returns_empty_set(tmp_path):
+    assert load_ignored_fc_codes(str(tmp_path / "missing.txt")) == set()
+
+
+def test_load_ignored_fc_codes_skips_comments_and_uppercases(tmp_path):
+    f = tmp_path / "ignored.txt"
+    f.write_text("# auto-added 2026-08-19\n3pl-us\nTIKTOK(GA)\n")
+    assert load_ignored_fc_codes(str(f)) == {"3PL-US", "TIKTOK(GA)"}
+
+
+def test_filter_ignored_fc_codes_removes_known_ignored_entries():
+    unresolved = {
+        "3PL-US": [{"fc_code": "3PL-US", "fba_id": "FBA1"}],
+        "IMI1": [{"fc_code": "IMI1", "fba_id": "FBA2"}],
+    }
+    filtered = filter_ignored_fc_codes(unresolved, {"3PL-US"})
+    assert set(filtered.keys()) == {"IMI1"}
+
+
+def test_filter_ignored_fc_codes_no_ignored_set_returns_all():
+    unresolved = {"IMI1": [{"fc_code": "IMI1", "fba_id": "FBA2"}]}
+    assert filter_ignored_fc_codes(unresolved, set()) == unresolved
+
+
+def test_append_ignored_fc_codes_writes_new_codes(tmp_path):
+    f = tmp_path / "ignored.txt"
+    append_ignored_fc_codes(str(f), ["3PL-US", "TIKTOK(GA)"], today="2026-08-19")
+    content = f.read_text()
+    assert "3PL-US" in content
+    assert "TIKTOK(GA)" in content
+    assert "# auto-added 2026-08-19" in content
+
+
+def test_append_ignored_fc_codes_accepts_codes_with_no_valid_prefix_shape(tmp_path):
+    """Unlike append_fc_code_to_file, this must accept garbage-shaped codes
+    as-is (slashes, spaces, non-ASCII) — the point is remembering the exact
+    string that failed to resolve, not validating it as a real FC prefix."""
+    f = tmp_path / "ignored.txt"
+    append_ignored_fc_codes(str(f), ["/", "US - 3PL", "TIKTOK（KY)"], today="2026-08-19")
+    content = f.read_text(encoding="utf-8")
+    assert "/" in content
+    assert "US - 3PL" in content
+    assert "TIKTOK（KY)" in content
+
+
+def test_append_ignored_fc_codes_is_idempotent(tmp_path):
+    f = tmp_path / "ignored.txt"
+    append_ignored_fc_codes(str(f), ["3PL-US"], today="2026-08-19")
+    append_ignored_fc_codes(str(f), ["3pl-us"], today="2026-08-19")
+    content = f.read_text()
+    assert content.upper().count("3PL-US") == 1
+
+
+def test_append_ignored_fc_codes_round_trips_through_load_ignored_fc_codes(tmp_path):
+    f = tmp_path / "ignored.txt"
+    append_ignored_fc_codes(str(f), ["3PL-US", "TIKTOK(GA)"], today="2026-08-19")
+    assert load_ignored_fc_codes(str(f)) == {"3PL-US", "TIKTOK(GA)"}
 
 
 def test_merge_resolved_rows_adds_shipments_to_correct_region():

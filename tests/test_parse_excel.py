@@ -389,7 +389,25 @@ def test_detect_xls_sheet_cols_us_shape():
     assert cols == {
         "header_row": 0, "col_fc": 3, "col_fba": 4, "col_tracking": 7,
         "col_carrier": 8, "col_name": 1, "col_ctns": 5, "col_shipping_way": 6,
-        "col_notes": 10,
+        "col_notes": 10, "col_cartons": None,
+    }
+
+
+def test_detect_xls_sheet_cols_us_shape_with_trailing_carton_tracking_column():
+    """12 columns: K holds freeform notes, L holds a carton-tracking blob —
+    matches the real US sheet as of the 2026-08-18 input file. col_notes
+    must land on K (10), not the cartons column L (11)."""
+    header = ["SYSTEM NO", "Order No", "ITEMS", "DESTINATION", "FBA ID",
+              "NO OF CTNS ", "SHIPPING  WAY", "TRACKING NUMBERS", "CARRIER", "ETD", "", ""]
+    data = ["A260814HX088", "Widget", "", "IMI1", "FBA19L9DHD1S",
+            2, "C-SEA", "1ZK6B4420336908189", "UPS", "", "",
+            "1ZK6B4420338604208-FBA19L9DHD1SU000001\n1ZK6B4420322022616-FBA19L9DHD1SU000002"]
+    sheet = _FakeXlrdSheet("US", [header, data])
+    cols = _detect_xls_sheet_cols(sheet)
+    assert cols == {
+        "header_row": 0, "col_fc": 3, "col_fba": 4, "col_tracking": 7,
+        "col_carrier": 8, "col_name": 1, "col_ctns": 5, "col_shipping_way": 6,
+        "col_notes": 10, "col_cartons": 11,
     }
 
 
@@ -404,7 +422,7 @@ def test_detect_xls_sheet_cols_de_shape():
     assert cols == {
         "header_row": 0, "col_fc": 2, "col_fba": 3, "col_tracking": 6,
         "col_carrier": 7, "col_name": 1, "col_ctns": 4, "col_shipping_way": 5,
-        "col_notes": 9,
+        "col_notes": 9, "col_cartons": None,
     }
 
 
@@ -419,6 +437,7 @@ def test_detect_xls_sheet_cols_falls_back_with_warning_when_field_missing(caplog
     assert cols["col_ctns"] == 5
     assert cols["col_shipping_way"] == 6
     assert cols["col_notes"] == 6  # last column (ncols=7, so index 6)
+    assert cols["col_cartons"] is None
     assert "ODD" in caplog.text
     assert "name" in caplog.text.lower()
     assert "ctns" in caplog.text.lower()
@@ -438,3 +457,4 @@ def test_detect_xls_sheet_cols_full_fallback_when_no_header_found():
     assert cols["col_ctns"] == 5
     assert cols["col_shipping_way"] == 6
     assert cols["col_notes"] == 2  # last column (ncols=3, so index 2)
+    assert cols["col_cartons"] is None

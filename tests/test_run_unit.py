@@ -17,6 +17,10 @@ from run import (
     write_region_summary,
     write_shipment_records,
     collect_updated_row_numbers,
+    merge_carton_tracking_for_fba,
+    expected_carton_count_for_fba,
+    format_carton_shortfall_summary,
+    split_carton_matched_shipments,
 )
 
 
@@ -79,6 +83,7 @@ def test_load_config_applies_defaults(tmp_path):
     assert result["column_carrier"] == 8
     assert result["delay_between_shipments_seconds"] == 2
     assert result["us_fc_codes_file"] == "fc_codes/us_fc_codes.txt"
+    assert result["ignored_fc_codes_file"] == "fc_codes/ignored_fc_codes.txt"
 
 
 @pytest.mark.unit
@@ -194,6 +199,126 @@ def test_collect_updated_row_numbers_all_failed():
     results = [{"fba_id": "FBA001", "status": "failed"}]
     rows = collect_updated_row_numbers(shipments, results)
     assert rows == set()
+
+
+@pytest.mark.unit
+def test_merge_carton_tracking_for_fba_merges_across_multiple_rows():
+    carton_map = {
+        ("FBA001", 2): ["1Z001", "1Z002"],
+        ("FBA001", 3): ["1Z003"],
+    }
+    entries = [{"row_number": 2}, {"row_number": 3}]
+    result = merge_carton_tracking_for_fba(carton_map, "FBA001", entries)
+    assert result == ["1Z001", "1Z002", "1Z003"]
+
+
+@pytest.mark.unit
+def test_merge_carton_tracking_for_fba_dedupes_preserving_order():
+    carton_map = {("FBA001", 2): ["1Z001", "1Z002", "1Z001"]}
+    entries = [{"row_number": 2}]
+    result = merge_carton_tracking_for_fba(carton_map, "FBA001", entries)
+    assert result == ["1Z001", "1Z002"]
+
+
+@pytest.mark.unit
+def test_merge_carton_tracking_for_fba_returns_empty_when_no_match():
+    carton_map = {}
+    entries = [{"row_number": 2}]
+    result = merge_carton_tracking_for_fba(carton_map, "FBA001", entries)
+    assert result == []
+
+
+@pytest.mark.unit
+def test_expected_carton_count_for_fba_sums_ctns_across_rows():
+    row_ctx = {
+        ("FBA001", 2): {"ctns": "2"},
+        ("FBA001", 3): {"ctns": "1"},
+    }
+    entries = [{"row_number": 2}, {"row_number": 3}]
+    assert expected_carton_count_for_fba(row_ctx, "FBA001", entries) == 3
+
+
+@pytest.mark.unit
+def test_expected_carton_count_for_fba_returns_none_when_no_context():
+    row_ctx = {}
+    entries = [{"row_number": 2}]
+    assert expected_carton_count_for_fba(row_ctx, "FBA001", entries) is None
+
+
+@pytest.mark.unit
+def test_expected_carton_count_for_fba_ignores_unparseable_ctns():
+    row_ctx = {("FBA001", 2): {"ctns": "not-a-number"}}
+    entries = [{"row_number": 2}]
+    assert expected_carton_count_for_fba(row_ctx, "FBA001", entries) is None
+
+
+@pytest.mark.unit
+def test_format_carton_shortfall_summary_empty_returns_empty_string():
+    assert format_carton_shortfall_summary([]) == ""
+
+
+@pytest.mark.unit
+def test_format_carton_shortfall_summary_lists_each_shortfall():
+    shortfalls = [
+        {"region": "US", "fba_id": "FBA001", "matched": 2, "expected": 3},
+        {"region": "UK", "fba_id": "FBA002", "matched": 1, "expected": 4},
+    ]
+    text = format_carton_shortfall_summary(shortfalls)
+    assert "FBA001" in text
+    assert "2/3" in text
+    assert "FBA002" in text
+    assert "1/4" in text
+    assert "US" in text
+    assert "UK" in text
+
+
+@pytest.mark.unit
+def test_split_carton_matched_shipments_separates_matched_from_remaining():
+    """A shipment with column L data is fully assigned and excluded from the
+    carrier-scrape pool; a shipment with no column L data goes to remaining
+    (where get_all_sub_tracking() would still be called for it)."""
+    region_shipments_raw = {
+        "FBA_MATCHED": [{"tracking": "1Z001", "carrier": "UPS", "row_number": 2}],
+        "FBA_UNMATCHED": [{"tracking": "1Z002", "carrier": "UPS", "row_number": 3}],
+    }
+    carton_map = {("FBA_MATCHED", 2): ["1ZAAA", "1ZBBB"]}
+    row_ctx = {("FBA_MATCHED", 2): {"ctns": "2"}}
+
+    shipments_with_subs, remaining, shortfalls = split_carton_matched_shipments(
+        region_shipments_raw, carton_map, row_ctx, "US"
+    )
+
+    assert shipments_with_subs == {"FBA_MATCHED": ["1ZAAA", "1ZBBB"]}
+    assert remaining == {"FBA_UNMATCHED": region_shipments_raw["FBA_UNMATCHED"]}
+    assert shortfalls == []
+
+
+def test_split_carton_matched_shipments_flags_shortfall():
+    region_shipments_raw = {
+        "FBA_SHORT": [{"tracking": "1Z001", "carrier": "UPS", "row_number": 2}],
+    }
+    carton_map = {("FBA_SHORT", 2): ["1ZAAA"]}
+    row_ctx = {("FBA_SHORT", 2): {"ctns": "3"}}
+
+    shipments_with_subs, remaining, shortfalls = split_carton_matched_shipments(
+        region_shipments_raw, carton_map, row_ctx, "US"
+    )
+
+    assert shipments_with_subs == {"FBA_SHORT": ["1ZAAA"]}
+    assert remaining == {}
+    assert shortfalls == [{"region": "US", "fba_id": "FBA_SHORT", "matched": 1, "expected": 3}]
+
+
+def test_split_carton_matched_shipments_all_remaining_when_no_carton_data():
+    region_shipments_raw = {
+        "FBA001": [{"tracking": "1Z001", "carrier": "UPS", "row_number": 2}],
+    }
+    shipments_with_subs, remaining, shortfalls = split_carton_matched_shipments(
+        region_shipments_raw, {}, {}, "US"
+    )
+    assert shipments_with_subs == {}
+    assert remaining == region_shipments_raw
+    assert shortfalls == []
 
 
 from verify_tracking import VerifyResult, format_verify_summary

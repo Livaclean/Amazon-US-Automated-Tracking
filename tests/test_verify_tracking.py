@@ -95,6 +95,17 @@ def test_verify_result_defaults():
     assert r.missing_in_sheet == []
     assert r.not_in_sheet == []
     assert r.shipment_names == {}
+    assert r.carton_shortfalls == []
+
+
+@pytest.mark.unit
+def test_format_verify_summary_includes_carton_shortfalls():
+    r = VerifyResult(region="US", total_checked=1, total_ok=0)
+    r.re_uploaded = [{"fba_id": "FBA001", "filled": 1, "total": 1}]
+    r.carton_shortfalls = [{"fba_id": "FBA001", "matched": 1, "expected": 3}]
+    out = format_verify_summary([r])
+    assert "FBA001" in out
+    assert "1/3" in out
 
 
 @pytest.mark.unit
@@ -277,6 +288,63 @@ def test_reupload_fba_not_found(browser_page, tmp_config, test_logger):
     test_logger.info(f"_reupload_fba result: {result}")
     assert result["fba_id"] == "FBA_NONEXISTENT_TEST_ID"
     assert result["status"] == "not_found"
+
+
+def _stub_reupload_deps(monkeypatch, upload_result=None):
+    """Monkeypatches _reupload_fba's lazily-imported dependencies so its
+    carton-vs-scrape branching can be unit-tested without a real browser."""
+    import fetch_sub_tracking
+    import upload_tracking as upload_tracking_module
+
+    scrape_calls = []
+    monkeypatch.setattr(
+        fetch_sub_tracking, "get_all_sub_tracking",
+        lambda *a, **k: scrape_calls.append(True) or ["SCRAPED_ID"],
+    )
+    monkeypatch.setattr(upload_tracking_module, "navigate_to_shipment", lambda page, fba_id, base_url: True)
+    monkeypatch.setattr(
+        upload_tracking_module, "upload_tracking_to_shipment",
+        lambda page, ids, fba_id, config: upload_result or {
+            "status": "success", "already_existed": 0, "succeeded": len(ids), "empty_slots_remaining": 0,
+        },
+    )
+    return scrape_calls
+
+
+@pytest.mark.unit
+def test_reupload_fba_uses_carton_data_and_skips_carrier_scrape(monkeypatch, tmp_config):
+    scrape_calls = _stub_reupload_deps(monkeypatch)
+    carton_map = {("FBA001", 2): ["1ZAAA", "1ZBBB"]}
+    entries = [{"tracking": "1Z000", "carrier": "UPS", "row_number": 2}]
+
+    result = _reupload_fba(None, "FBA001", entries, tmp_config, carton_map=carton_map)
+
+    assert scrape_calls == []
+    assert result["tracking_ids"] == ["1ZAAA", "1ZBBB"]
+    assert result["carton_shortfall"] is None
+
+
+@pytest.mark.unit
+def test_reupload_fba_falls_back_to_scrape_when_no_carton_data(monkeypatch, tmp_config):
+    scrape_calls = _stub_reupload_deps(monkeypatch)
+    entries = [{"tracking": "1Z000", "carrier": "UPS", "row_number": 2}]
+
+    result = _reupload_fba(None, "FBA001", entries, tmp_config, carton_map={})
+
+    assert scrape_calls == [True]
+    assert "SCRAPED_ID" in result["tracking_ids"]
+
+
+@pytest.mark.unit
+def test_reupload_fba_reports_carton_shortfall(monkeypatch, tmp_config):
+    _stub_reupload_deps(monkeypatch)
+    carton_map = {("FBA001", 2): ["1ZAAA"]}
+    row_ctx = {("FBA001", 2): {"ctns": "3"}}
+    entries = [{"tracking": "1Z000", "carrier": "UPS", "row_number": 2}]
+
+    result = _reupload_fba(None, "FBA001", entries, tmp_config, carton_map=carton_map, row_ctx=row_ctx)
+
+    assert result["carton_shortfall"] == {"fba_id": "FBA001", "matched": 1, "expected": 3}
 
 
 @pytest.mark.integration

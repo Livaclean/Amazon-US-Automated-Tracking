@@ -6,6 +6,8 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
+from carton_tracking import merge_carton_tracking_for_fba, expected_carton_count_for_fba
+
 # Windows consoles default stdout/stderr to the system codepage (e.g. cp1252),
 # which can't encode CJK/other non-ASCII characters that show up in supplier
 # sheet data (product names, etc.) and crashes print()/logging with a
@@ -56,6 +58,7 @@ def load_config(config_path: str = "config.json") -> dict:
         "column_shipping_way": 6,
         "column_notes": 10,
         "us_fc_codes_file": "fc_codes/us_fc_codes.txt",
+        "ignored_fc_codes_file": "fc_codes/ignored_fc_codes.txt",
         "tracking_status_cache": "logs/tracking_status.xlsx",
     }
     for k, v in defaults.items():
@@ -288,6 +291,58 @@ def collect_updated_row_numbers(shipments_all: dict, results: list) -> set:
     return rows
 
 
+def split_carton_matched_shipments(region_shipments_raw: dict, carton_map: dict, row_ctx: dict, region_name: str) -> tuple:
+    """
+    Splits a region's shipments into those fully resolved from column-L carton
+    data (no carrier scrape needed) and those with none (still need the
+    UPS/FedEx scrape). Pure decision logic, factored out of the carrier-scrape
+    block in main() so it's testable without a browser/page.
+    Returns (shipments_with_subs, remaining_shipments, shortfalls):
+      shipments_with_subs: {fba_id: [tracking, ...]} for carton-matched FBAs.
+      remaining_shipments: {fba_id: entries} for FBAs with no carton match —
+        get_all_sub_tracking() is only ever called for these.
+      shortfalls: [{"region", "fba_id", "matched", "expected"}] for matched
+        FBAs where fewer cartons were found than the row's own ctns count.
+    """
+    shipments_with_subs = {}
+    remaining_shipments = {}
+    shortfalls = []
+    for fba_id, entries in region_shipments_raw.items():
+        carton_ids = merge_carton_tracking_for_fba(carton_map, fba_id, entries)
+        if not carton_ids:
+            remaining_shipments[fba_id] = entries
+            continue
+        shipments_with_subs[fba_id] = carton_ids
+        expected = expected_carton_count_for_fba(row_ctx, fba_id, entries)
+        if expected is not None and len(carton_ids) < expected:
+            shortfalls.append({
+                "region": region_name, "fba_id": fba_id,
+                "matched": len(carton_ids), "expected": expected,
+            })
+    return shipments_with_subs, remaining_shipments, shortfalls
+
+
+def format_carton_shortfall_summary(shortfalls: list) -> str:
+    """
+    Formats the end-of-run notice for FBAs where column-L carton data matched
+    fewer tracking IDs than the row's own "NO OF CTNS" count. These are
+    uploaded with only the matched IDs — the remainder is left empty rather
+    than guessed or backfilled via carrier scrape (by design).
+    Returns "" when there's nothing to report.
+    """
+    if not shortfalls:
+        return ""
+    lines = [
+        "=" * 60,
+        "CARTON TRACKING SHORTFALL — column L matched fewer cartons than expected",
+        "=" * 60,
+    ]
+    for s in shortfalls:
+        lines.append(f"  [{s['region']}] {s['fba_id']}: {s['matched']}/{s['expected']} cartons matched")
+    lines.append("=" * 60)
+    return "\n".join(lines)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Amazon FBA Tracking Number Uploader")
     parser.add_argument(
@@ -410,7 +465,7 @@ def main():
     setup_logging(config["logs_folder"])
 
     # Import project modules after logging is configured
-    from parse_excel import parse_and_filter, parse_and_filter_by_region_full, categorize_shipments
+    from parse_excel import parse_and_filter, parse_and_filter_by_region_full, categorize_shipments, find_excel_files
     from fetch_sub_tracking import get_all_sub_tracking, check_fedex_login
     from upload_tracking import (
         create_browser_context,
@@ -495,6 +550,18 @@ def main():
     shipments_all = {}
     for region_data in all_regions_data.values():
         shipments_all.update(region_data)
+
+    # Column-L carton-tracking data (when a source sheet carries it): built once for
+    # the whole run — used both by the main upload flow and by --verify. Shipments
+    # matched here skip the UPS/FedEx carrier scrape entirely — see carton_tracking.py.
+    from carton_tracking import build_carton_tracking_map
+    from tracking_status import load_row_context
+    input_files = find_excel_files(config["input_folder"])
+    carton_map = build_carton_tracking_map(input_files, config)
+    row_ctx = {}
+    for file_path in input_files:
+        row_ctx.update(load_row_context(file_path, config))
+    carton_shortfalls = []  # [{"region", "fba_id", "matched", "expected"}]
 
     if args.only_fba:
         for name in all_regions_data:
@@ -673,30 +740,39 @@ def main():
         if unmatched_rows and not skip_fc_resolution:
             from fc_resolver import (
                 group_unmatched_by_fc, probe_fc_codes, merge_resolved_rows,
-                append_fc_code_to_file,
+                append_fc_code_to_file, load_ignored_fc_codes, filter_ignored_fc_codes,
+                append_ignored_fc_codes,
             )
-            unresolved_by_fc = group_unmatched_by_fc(unmatched_rows)
-            print(f"\n{len(unresolved_by_fc)} unrecognized FC code(s) found — checking which market they belong to...")
-            fc_result = probe_fc_codes(page, unresolved_by_fc, configured_regions, wait_for_login, navigate_to_shipment)
+            ignored_fc_codes_file = config["ignored_fc_codes_file"]
+            ignored_fc_codes = load_ignored_fc_codes(ignored_fc_codes_file)
+            unresolved_by_fc = filter_ignored_fc_codes(group_unmatched_by_fc(unmatched_rows), ignored_fc_codes)
 
-            for match in fc_result.resolved:
-                region_cfg = next(r for r in configured_regions if r["name"] == match.region)
-                append_fc_code_to_file(region_cfg["fc_codes_file"], match.fc_code, match.probe_fba_id)
-                print(f"  {match.fc_code} -> {match.region} (confirmed via {match.probe_fba_id})")
+            if not unresolved_by_fc:
+                fc_result = None
+            else:
+                print(f"\n{len(unresolved_by_fc)} unrecognized FC code(s) found — checking which market they belong to...")
+                fc_result = probe_fc_codes(page, unresolved_by_fc, configured_regions, wait_for_login, navigate_to_shipment)
 
-            if fc_result.resolved:
-                all_regions_data = merge_resolved_rows(fc_result.resolved, unresolved_by_fc, all_regions_data)
-                shipments_all = {}
-                for region_data in all_regions_data.values():
-                    shipments_all.update(region_data)
-                shipments_raw, missing_tracking = categorize_shipments(shipments_all)
-                added = sum(len(m.fba_ids) for m in fc_result.resolved)
-                print(f"  +{added} shipment(s) added to this run's queue after auto-resolving "
-                      f"{len(fc_result.resolved)} new FC code(s).")
+                for match in fc_result.resolved:
+                    region_cfg = next(r for r in configured_regions if r["name"] == match.region)
+                    append_fc_code_to_file(region_cfg["fc_codes_file"], match.fc_code, match.probe_fba_id)
+                    print(f"  {match.fc_code} -> {match.region} (confirmed via {match.probe_fba_id})")
 
-            if fc_result.unresolved:
-                print(f"  {len(fc_result.unresolved)} FC code(s) could not be matched to any "
-                      f"market — see summary at end of run.")
+                if fc_result.resolved:
+                    all_regions_data = merge_resolved_rows(fc_result.resolved, unresolved_by_fc, all_regions_data)
+                    shipments_all = {}
+                    for region_data in all_regions_data.values():
+                        shipments_all.update(region_data)
+                    shipments_raw, missing_tracking = categorize_shipments(shipments_all)
+                    added = sum(len(m.fba_ids) for m in fc_result.resolved)
+                    print(f"  +{added} shipment(s) added to this run's queue after auto-resolving "
+                          f"{len(fc_result.resolved)} new FC code(s).")
+
+                if fc_result.unresolved:
+                    append_ignored_fc_codes(ignored_fc_codes_file, [u["fc_code"] for u in fc_result.unresolved])
+                    print(f"  {len(fc_result.unresolved)} FC code(s) could not be matched to any "
+                          f"market — saved to {ignored_fc_codes_file} so they won't be re-probed next run "
+                          f"(see summary at end of run).")
 
         # Discovery mode - dumps page elements for first-run selector identification
         if args.discover:
@@ -741,7 +817,7 @@ def main():
                 print(f"\n[{label}] Verify: logging in to {anchor['amazon_url']}...")
                 logged_in = wait_for_login(page, label, anchor["amazon_url"], timeout_seconds=300)
                 if logged_in:
-                    vr = run_verify_na(page, na_regions, config, shipments_all, with_names=args.with_names)
+                    vr = run_verify_na(page, na_regions, config, shipments_all, with_names=args.with_names, carton_map=carton_map, row_ctx=row_ctx)
                     verify_results.append(vr)
                 else:
                     print(f"[{label}] Login timed out — skipping US/CA verify.")
@@ -753,7 +829,7 @@ def main():
                 print(f"\n[{label}] Verify: logging in to {anchor['amazon_url']}...")
                 logged_in = wait_for_login(page, label, anchor["amazon_url"], timeout_seconds=300)
                 if logged_in:
-                    vr = run_verify_eu(page, eu_regions, config, shipments_all, with_names=args.with_names)
+                    vr = run_verify_eu(page, eu_regions, config, shipments_all, with_names=args.with_names, carton_map=carton_map, row_ctx=row_ctx)
                     verify_results.append(vr)
                 else:
                     print(f"[{label}] Login timed out — skipping UK/EU/FR verify.")
@@ -765,7 +841,7 @@ def main():
                 print(f"\n[{label}] Verify: logging in to {anchor['amazon_url']}...")
                 logged_in = wait_for_login(page, label, anchor["amazon_url"], timeout_seconds=300)
                 if logged_in:
-                    vr = run_verify_au(page, au_regions, config, shipments_all, with_names=args.with_names)
+                    vr = run_verify_au(page, au_regions, config, shipments_all, with_names=args.with_names, carton_map=carton_map, row_ctx=row_ctx)
                     verify_results.append(vr)
                 else:
                     print(f"[{label}] Login timed out — skipping AU verify.")
@@ -778,7 +854,7 @@ def main():
                 if not logged_in:
                     print(f"[{region_name}] Login timed out — skipping verify for this region.")
                     continue
-                vr = run_verify(page, region, config, shipments_all)
+                vr = run_verify(page, region, config, shipments_all, carton_map=carton_map, row_ctx=row_ctx)
                 verify_results.append(vr)
 
             print(format_verify_summary(verify_results))
@@ -827,6 +903,8 @@ def main():
             print(f"{'='*60}")
             return
 
+        # Column-L carton-tracking data (when a source sheet carries it): built once for
+        # the whole run since it's not region-specific. Shipments matched here skip the
         # Step 3: Region loop — for each region: login → pre-check Amazon → carrier scrape → upload
         ts_run = datetime.now().strftime("%Y%m%d_%H%M%S")
         all_results = []
@@ -898,55 +976,69 @@ def main():
                     logger.info(f"FBA {fba_id}: using {len(main_ids)} main tracking number(s) directly")
                     shipments_with_subs[fba_id] = main_ids
             else:
-                has_fedex = any(
-                    "fedex" in str(e.get("carrier", "")).lower()
-                    for entries in region_shipments_raw.values()
-                    for e in entries
+                # Column-L carton data first: ground-truth per-carton tracking IDs,
+                # no carrier-website scrape or Amazon-slot-count guessing needed.
+                shipments_with_subs, remaining_shipments, region_shortfalls = split_carton_matched_shipments(
+                    region_shipments_raw, carton_map, row_ctx, region_name
                 )
-                if has_fedex:
-                    print(f"\n[{region_name}] Checking FedEx login...")
-                    check_fedex_login(page)
+                carton_shortfalls.extend(region_shortfalls)
+                if shipments_with_subs:
+                    for fba_id, carton_ids in shipments_with_subs.items():
+                        logger.info(
+                            f"FBA {fba_id}: using {len(carton_ids)} tracking ID(s) from column L "
+                            f"carton data (skipping carrier scrape)"
+                        )
+                    print(f"\n[{region_name}] {len(shipments_with_subs)} shipment(s) matched column L carton data — carrier scrape skipped for those.")
 
-                print(f"\n[{region_name}] Fetching sub-package tracking IDs from UPS/FedEx...")
-                # Step 1: Fetch full pool per unique main tracking number
-                # (avoid hitting the same carrier URL twice for shared tracking)
-                pool_by_main = {}  # main_tracking -> [all IDs]
-                fba_to_main = {}   # fba_id -> main_tracking
-                for fba_id, entries in region_shipments_raw.items():
-                    logger.info(f"\nFBA {fba_id}: {len(entries)} main tracking entries")
-                    main_ids = [e["tracking"] for e in entries if e.get("tracking")]
-                    main = main_ids[0] if main_ids else None
-                    fba_to_main[fba_id] = main
-                    if main and main not in pool_by_main:
-                        sub_ids = get_all_sub_tracking(page, entries, config["logs_folder"])
-                        all_ids = list(dict.fromkeys(main_ids + sub_ids))
-                        logger.info(f"  -> {len(all_ids)} total tracking IDs ({len(main_ids)} main + {len(sub_ids)} sub)")
-                        pool_by_main[main] = all_ids
-                    elif main:
-                        logger.info(f"  -> reusing already-fetched pool for shared tracking {main}")
+                if remaining_shipments:
+                    has_fedex = any(
+                        "fedex" in str(e.get("carrier", "")).lower()
+                        for entries in remaining_shipments.values()
+                        for e in entries
+                    )
+                    if has_fedex:
+                        print(f"\n[{region_name}] Checking FedEx login...")
+                        check_fedex_login(page)
 
-                # Step 2: Group FBAs that share the same main tracking
-                groups = {}  # main -> [fba_ids]
-                for fba_id, main in fba_to_main.items():
-                    groups.setdefault(main, []).append(fba_id)
+                    print(f"\n[{region_name}] Fetching sub-package tracking IDs from UPS/FedEx...")
+                    # Step 1: Fetch full pool per unique main tracking number
+                    # (avoid hitting the same carrier URL twice for shared tracking)
+                    pool_by_main = {}  # main_tracking -> [all IDs]
+                    fba_to_main = {}   # fba_id -> main_tracking
+                    for fba_id, entries in remaining_shipments.items():
+                        logger.info(f"\nFBA {fba_id}: {len(entries)} main tracking entries")
+                        main_ids = [e["tracking"] for e in entries if e.get("tracking")]
+                        main = main_ids[0] if main_ids else None
+                        fba_to_main[fba_id] = main
+                        if main and main not in pool_by_main:
+                            sub_ids = get_all_sub_tracking(page, entries, config["logs_folder"])
+                            all_ids = list(dict.fromkeys(main_ids + sub_ids))
+                            logger.info(f"  -> {len(all_ids)} total tracking IDs ({len(main_ids)} main + {len(sub_ids)} sub)")
+                            pool_by_main[main] = all_ids
+                        elif main:
+                            logger.info(f"  -> reusing already-fetched pool for shared tracking {main}")
 
-                # Step 3: Distribute pool across FBAs that share the same tracking
-                shipments_with_subs = {}
-                for main, fba_ids in groups.items():
-                    pool = pool_by_main.get(main, [])
-                    if len(fba_ids) == 1:
-                        shipments_with_subs[fba_ids[0]] = pool
-                    else:
-                        print(f"\n  Shared tracking {main}: {fba_ids} — checking Amazon slot counts to split pool of {len(pool)}...")
-                        pool_idx = 0
-                        for fba_id in fba_ids:
-                            n = get_slot_count(page, fba_id, region_config["amazon_base_url"])
-                            assigned = pool[pool_idx: pool_idx + n]
-                            pool_idx += n
-                            shipments_with_subs[fba_id] = assigned
-                            print(f"    {fba_id}: {n} slot(s) -> assigned {assigned}")
-                        if pool_idx < len(pool):
-                            logger.warning(f"  Pool has {len(pool)} IDs but only {pool_idx} slots — leftover: {pool[pool_idx:]}")
+                    # Step 2: Group FBAs that share the same main tracking
+                    groups = {}  # main -> [fba_ids]
+                    for fba_id, main in fba_to_main.items():
+                        groups.setdefault(main, []).append(fba_id)
+
+                    # Step 3: Distribute pool across FBAs that share the same tracking
+                    for main, fba_ids in groups.items():
+                        pool = pool_by_main.get(main, [])
+                        if len(fba_ids) == 1:
+                            shipments_with_subs[fba_ids[0]] = pool
+                        else:
+                            print(f"\n  Shared tracking {main}: {fba_ids} — checking Amazon slot counts to split pool of {len(pool)}...")
+                            pool_idx = 0
+                            for fba_id in fba_ids:
+                                n = get_slot_count(page, fba_id, region_config["amazon_base_url"])
+                                assigned = pool[pool_idx: pool_idx + n]
+                                pool_idx += n
+                                shipments_with_subs[fba_id] = assigned
+                                print(f"    {fba_id}: {n} slot(s) -> assigned {assigned}")
+                            if pool_idx < len(pool):
+                                logger.warning(f"  Pool has {len(pool)} IDs but only {pool_idx} slots — leftover: {pool[pool_idx:]}")
 
             # Save tracking IDs to JSON
             ts_ids = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1019,22 +1111,22 @@ def main():
         if na_regions:
             label = "/".join(r["name"] for r in na_regions)
             print(f"\n[{label}] Running post-upload verification (new page, once for both)...")
-            vr = run_verify_na(page, na_regions, config, shipments_all, with_names=args.with_names)
+            vr = run_verify_na(page, na_regions, config, shipments_all, with_names=args.with_names, carton_map=carton_map, row_ctx=row_ctx)
             verify_results.append(vr)
         if eu_regions:
             label = "/".join(r["name"] for r in eu_regions)
             print(f"\n[{label}] Running post-upload verification (new page, once for all three)...")
-            vr = run_verify_eu(page, eu_regions, config, shipments_all, with_names=args.with_names)
+            vr = run_verify_eu(page, eu_regions, config, shipments_all, with_names=args.with_names, carton_map=carton_map, row_ctx=row_ctx)
             verify_results.append(vr)
         if au_regions:
             label = "/".join(r["name"] for r in au_regions)
             print(f"\n[{label}] Running post-upload verification (new page)...")
-            vr = run_verify_au(page, au_regions, config, shipments_all, with_names=args.with_names)
+            vr = run_verify_au(page, au_regions, config, shipments_all, with_names=args.with_names, carton_map=carton_map, row_ctx=row_ctx)
             verify_results.append(vr)
         for region in other_regions:
             region_name = region["name"]
             print(f"\n[{region_name}] Running post-upload verification...")
-            vr = run_verify(page, region, config, shipments_all)
+            vr = run_verify(page, region, config, shipments_all, carton_map=carton_map, row_ctx=row_ctx)
             verify_results.append(vr)
         print(format_verify_summary(verify_results))
 
@@ -1061,6 +1153,14 @@ def main():
                     print(f"WARNING: Could not confirm output file — input kept: {src_file.name}")
 
         write_summary(results, config["logs_folder"])
+
+        shortfall_summary = format_carton_shortfall_summary(carton_shortfalls)
+        if shortfall_summary:
+            print("\n" + shortfall_summary)
+            ts_cs = datetime.now().strftime("%Y%m%d_%H%M%S")
+            (Path(config["logs_folder"]) / f"carton_shortfall_{ts_cs}.txt").write_text(
+                shortfall_summary, encoding="utf-8"
+            )
 
         if fc_result is not None:
             from fc_resolver import format_fc_resolution_summary

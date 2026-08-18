@@ -41,6 +41,13 @@ SELECTORS = {
 LOGIN_SELECTORS = ["input#ap_email", "input[name='email']", "form[name='signIn']"]
 ALREADY_EXISTS_TEXTS = ["already exists", "already been added", "duplicate"]
 NOT_FOUND_TEXTS = ["not found", "does not exist", "invalid shipment"]
+# Amazon shows this (not a NOT_FOUND_TEXTS phrase) when a shipment belongs to a
+# different marketplace than the one being browsed, e.g. probing a Canada
+# shipment against sellercentral.amazon.com: "The shipment you're trying to
+# open is for Canada. Please switch to Amazon.ca to work on it." Confirmed live
+# 2026-08-19 — this previously read as a successful page load, which let
+# fc_resolver.probe_fc_codes() misattribute a Canada-only FC code to US.
+WRONG_MARKETPLACE_TEXTS = ["please switch to", "you're trying to open is for"]
 
 
 def _screenshot(page, step_name: str, logs_folder: str) -> None:
@@ -244,6 +251,9 @@ def navigate_to_shipment(page, fba_id: str, base_url: str) -> bool:
 
     if _page_contains(page, NOT_FOUND_TEXTS):
         logger.warning(f"  Shipment {fba_id} not found on Amazon")
+        return False
+    if _page_contains(page, WRONG_MARKETPLACE_TEXTS):
+        logger.warning(f"  Shipment {fba_id} belongs to a different marketplace than {base_url}")
         return False
     return True
 
@@ -655,7 +665,21 @@ def discover_page_elements(page, fba_id: str, base_url: str, logs_folder: str) -
 def check_amazon_tracking_status(page, fba_id: str, config: dict) -> str:
     """
     Checks whether tracking is already uploaded on Amazon for a shipment.
-    Returns: "complete", "partial", "empty", or "not_found".
+    Returns: "complete", "partial", "empty", "not_found", or "check_failed".
+
+    "not_found" means navigate_to_shipment() itself rejected the page (genuinely
+    nonexistent shipment, wrong marketplace, or a confirmed "not found" page) —
+    the caller can safely treat this as needing no further action.
+
+    "check_failed" means navigation succeeded (right shipment, right
+    marketplace) but the tracking iframe/inputs could never be located or
+    queried — an ambiguous detection failure, NOT a confirmed status. This must
+    stay distinct from "not_found": conflating the two previously caused
+    check_all_shipments_on_amazon() to cache genuinely-unresolved shipments as
+    "already complete" and silently skip them forever (confirmed live — this is
+    exactly how FBA19KXC9R76/FBA19H27JTXX went undetected for a week after
+    fc_resolver misattributed their FC code to the wrong marketplace).
+
     Does NOT modify anything on Amazon.
     """
     base_url = config.get("amazon_base_url", "https://sellercentral.amazon.com")
@@ -672,7 +696,7 @@ def check_amazon_tracking_status(page, fba_id: str, config: dict) -> str:
 
     if not tracking_frame:
         logger.warning(f"  [check] No tracking context found for {fba_id}")
-        return "not_found"
+        return "check_failed"
 
     try:
         tracking_frame.wait_for_selector("input[placeholder*='auto fill'], input[placeholder*='Enter tracking']", timeout=10000)
@@ -698,10 +722,10 @@ def check_amazon_tracking_status(page, fba_id: str, config: dict) -> str:
         inputs = tracking_frame.query_selector_all("input[placeholder*='auto fill'], input[placeholder*='Enter tracking']")
     except Exception as e:
         logger.warning(f"  [check] Could not query inputs for {fba_id}: {e}")
-        return "not_found"
+        return "check_failed"
 
     if not inputs:
-        return "not_found"
+        return "check_failed"
 
     filled_count = 0
     for inp in inputs:
@@ -777,7 +801,8 @@ def check_all_shipments_on_amazon(shipments_raw: dict, config: dict, page) -> tu
             print(f"  [DONE]    {fba_id} — {label}")
         else:
             needs_upload[fba_id] = entries
-            label = "partial" if status == "partial" else "pending (empty)"
+            labels = {"partial": "partial", "check_failed": "status check failed — will retry"}
+            label = labels.get(status, "pending (empty)")
             print(f"  [PENDING] {fba_id} — {label}")
 
     return needs_upload, already_complete

@@ -60,6 +60,7 @@ class VerifyResult:
     missing_in_sheet: list = field(default_factory=list) # [{"fba_id": str, "reason": str}]
     not_in_sheet: list = field(default_factory=list)     # [str]
     shipment_names: dict = field(default_factory=dict)   # {fba_id: shipment_name} — populated only with --with-names
+    carton_shortfalls: list = field(default_factory=list) # [{"fba_id": str, "matched": int, "expected": int}]
 
 
 def _is_usable_tracking(value) -> bool:
@@ -153,6 +154,13 @@ def format_verify_summary(results: list) -> str:
                 for fba_id in r.not_in_sheet:
                     name = _name_suffix(r.shipment_names, fba_id)
                     lines.append(f"    {fba_id}{name}")
+
+        if r.carton_shortfalls:
+            lines.append("")
+            lines.append("  Carton tracking shortfall (column L matched fewer cartons than expected):")
+            for item in r.carton_shortfalls:
+                name = _name_suffix(r.shipment_names, item['fba_id'])
+                lines.append(f"    {item['fba_id']}{name}  — {item['matched']}/{item['expected']} cartons matched")
 
         lines.append("")
 
@@ -529,30 +537,48 @@ def _collect_all_missing_fba_ids(page) -> list:
     return list(dict.fromkeys(all_fba_ids))
 
 
-def _reupload_fba(page, fba_id: str, entries: list, config: dict) -> dict:
+def _reupload_fba(page, fba_id: str, entries: list, config: dict,
+                   carton_map: dict = None, row_ctx: dict = None) -> dict:
     """
-    Runs full carrier scrape then uploads tracking for one FBA with missing tracking.
-    Returns {"fba_id": str, "status": str, "filled": int, "total": int}.
+    Uploads tracking for one FBA with missing tracking. If column-L carton
+    data is available for this FBA (carton_map), uses those tracking IDs
+    directly — ground-truth per-carton assignment, no carrier-website scrape.
+    Otherwise falls back to the full carrier scrape (unchanged behavior).
+    Returns {"fba_id", "status", "filled", "total", "tracking_ids",
+    "carton_shortfall"} — carton_shortfall is {"fba_id", "matched", "expected"}
+    when carton data covered fewer cartons than the row's own ctns count,
+    else None.
     """
     from fetch_sub_tracking import get_all_sub_tracking
     from upload_tracking import navigate_to_shipment, upload_tracking_to_shipment
+    from carton_tracking import merge_carton_tracking_for_fba, expected_carton_count_for_fba
 
     base_url = config.get("amazon_base_url", "https://sellercentral.amazon.com")
     logs_folder = config.get("logs_folder", "logs")
 
-    logger.info(f"  [verify] Re-uploading {fba_id}: running carrier scrape...")
-    try:
-        sub_ids = get_all_sub_tracking(page, entries, logs_folder)
-    except Exception as e:
-        logger.warning(f"  [verify] Carrier scrape failed for {fba_id}: {e}")
-        sub_ids = []
+    shortfall = None
+    carton_ids = merge_carton_tracking_for_fba(carton_map or {}, fba_id, entries)
+    if carton_ids:
+        logger.info(f"  [verify] {fba_id}: using {len(carton_ids)} tracking ID(s) from column L carton data (skipping carrier scrape)")
+        all_ids = carton_ids
+        expected = expected_carton_count_for_fba(row_ctx or {}, fba_id, entries)
+        if expected is not None and len(carton_ids) < expected:
+            shortfall = {"fba_id": fba_id, "matched": len(carton_ids), "expected": expected}
+    else:
+        logger.info(f"  [verify] Re-uploading {fba_id}: running carrier scrape...")
+        try:
+            sub_ids = get_all_sub_tracking(page, entries, logs_folder)
+        except Exception as e:
+            logger.warning(f"  [verify] Carrier scrape failed for {fba_id}: {e}")
+            sub_ids = []
 
-    main_ids = [e["tracking"] for e in entries if _is_usable_tracking(e.get("tracking"))]
-    all_ids = list(dict.fromkeys(main_ids + sub_ids))
+        main_ids = [e["tracking"] for e in entries if _is_usable_tracking(e.get("tracking"))]
+        all_ids = list(dict.fromkeys(main_ids + sub_ids))
 
     if not navigate_to_shipment(page, fba_id, base_url):
         logger.warning(f"  [verify] Shipment {fba_id} not found on Amazon")
-        return {"fba_id": fba_id, "status": "not_found", "filled": 0, "total": 0, "tracking_ids": []}
+        return {"fba_id": fba_id, "status": "not_found", "filled": 0, "total": 0,
+                "tracking_ids": [], "carton_shortfall": shortfall}
 
     upload_result = upload_tracking_to_shipment(page, all_ids, fba_id, config)
 
@@ -565,6 +591,7 @@ def _reupload_fba(page, fba_id: str, entries: list, config: dict) -> dict:
         "filled": filled,
         "total": total,
         "tracking_ids": all_ids,
+        "carton_shortfall": shortfall,
     }
 
 
@@ -648,7 +675,8 @@ def _collect_from_new_shipments_page(page, base_url: str, logs_folder: str, with
     return all_fba_ids, shipment_names
 
 
-def _run_verify_unified(page, regions: list, config: dict, shipments_all: dict, anchor_name: str = None, with_names: bool = False) -> VerifyResult:
+def _run_verify_unified(page, regions: list, config: dict, shipments_all: dict, anchor_name: str = None,
+                         with_names: bool = False, carton_map: dict = None, row_ctx: dict = None) -> VerifyResult:
     """
     Verification for a group of regions that share one unified Seller Central
     account and the new /amazonsell/shipments page — all missing tracking IDs
@@ -682,7 +710,10 @@ def _run_verify_unified(page, regions: list, config: dict, shipments_all: dict, 
     for fba_id in buckets["reupload"]:
         entries = shipments_all[fba_id]
         print(f"  [{region_label}] Re-uploading {fba_id}...")
-        reup = _reupload_fba(page, fba_id, entries, region_config)
+        reup = _reupload_fba(page, fba_id, entries, region_config, carton_map=carton_map, row_ctx=row_ctx)
+        shortfall = reup.pop("carton_shortfall", None)
+        if shortfall:
+            result.carton_shortfalls.append(shortfall)
 
         if reup["status"] in ("success", "partial") and reup["total"] > 0 and reup["filled"] == reup["total"]:
             result.re_uploaded.append(reup)
@@ -709,22 +740,29 @@ def _run_verify_unified(page, regions: list, config: dict, shipments_all: dict, 
     return result
 
 
-def run_verify_na(page, regions: list, config: dict, shipments_all: dict, with_names: bool = False) -> VerifyResult:
+def run_verify_na(page, regions: list, config: dict, shipments_all: dict, with_names: bool = False,
+                   carton_map: dict = None, row_ctx: dict = None) -> VerifyResult:
     """Verification for US and CA (unified North America account) via amazon.com."""
-    return _run_verify_unified(page, regions, config, shipments_all, anchor_name="US", with_names=with_names)
+    return _run_verify_unified(page, regions, config, shipments_all, anchor_name="US", with_names=with_names,
+                                carton_map=carton_map, row_ctx=row_ctx)
 
 
-def run_verify_eu(page, regions: list, config: dict, shipments_all: dict, with_names: bool = False) -> VerifyResult:
+def run_verify_eu(page, regions: list, config: dict, shipments_all: dict, with_names: bool = False,
+                   carton_map: dict = None, row_ctx: dict = None) -> VerifyResult:
     """Verification for UK, EU and FR (unified Europe account) via amazon.co.uk."""
-    return _run_verify_unified(page, regions, config, shipments_all, anchor_name="UK", with_names=with_names)
+    return _run_verify_unified(page, regions, config, shipments_all, anchor_name="UK", with_names=with_names,
+                                carton_map=carton_map, row_ctx=row_ctx)
 
 
-def run_verify_au(page, regions: list, config: dict, shipments_all: dict, with_names: bool = False) -> VerifyResult:
+def run_verify_au(page, regions: list, config: dict, shipments_all: dict, with_names: bool = False,
+                   carton_map: dict = None, row_ctx: dict = None) -> VerifyResult:
     """Verification for AU via amazon.com.au (same new-page UI as US)."""
-    return _run_verify_unified(page, regions, config, shipments_all, anchor_name="AU", with_names=with_names)
+    return _run_verify_unified(page, regions, config, shipments_all, anchor_name="AU", with_names=with_names,
+                                carton_map=carton_map, row_ctx=row_ctx)
 
 
-def run_verify(page, region: dict, config: dict, shipments_all: dict) -> VerifyResult:
+def run_verify(page, region: dict, config: dict, shipments_all: dict,
+                carton_map: dict = None, row_ctx: dict = None) -> VerifyResult:
     """
     Main entry point. Checks Amazon's shipping queue for this region,
     cross-references against shipments_all, re-uploads where possible.
@@ -775,7 +813,10 @@ def run_verify(page, region: dict, config: dict, shipments_all: dict) -> VerifyR
     for fba_id in buckets["reupload"]:
         entries = shipments_all[fba_id]
         print(f"  [{region_name}] Re-uploading {fba_id}...")
-        reup = _reupload_fba(page, fba_id, entries, region_config)
+        reup = _reupload_fba(page, fba_id, entries, region_config, carton_map=carton_map, row_ctx=row_ctx)
+        shortfall = reup.pop("carton_shortfall", None)
+        if shortfall:
+            result.carton_shortfalls.append(shortfall)
 
         if reup["status"] in ("success", "partial") and reup["total"] > 0 and reup["filled"] == reup["total"]:
             result.re_uploaded.append(reup)

@@ -76,6 +76,67 @@ def append_fc_code_to_file(fc_codes_file: str, fc_code: str, probe_fba_id: str, 
     logger.info(f"Auto-added FC code {fc_code} to {fc_codes_file}")
 
 
+def load_ignored_fc_codes(path: str) -> set:
+    """
+    Reads the ignore file of FC codes that probed as unresolvable in every
+    configured region (3PL/TikTok warehouses, freeform notes, etc. — not real
+    Amazon FCs, so re-probing them every run is pure wasted time). Returns an
+    uppercased set. Missing file -> empty set (nothing ignored yet).
+    """
+    codes = set()
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    codes.add(line.upper())
+    except FileNotFoundError:
+        pass
+    return codes
+
+
+def filter_ignored_fc_codes(unresolved_by_fc: dict, ignored: set) -> dict:
+    """Returns unresolved_by_fc with any keys present in `ignored` removed."""
+    return {fc: rows for fc, rows in unresolved_by_fc.items() if fc not in ignored}
+
+
+def append_ignored_fc_codes(path: str, fc_codes: list, today: str = None) -> None:
+    """
+    Appends fc_codes (as-is, uppercased for storage — NOT validated as a real
+    FC-prefix shape, unlike append_fc_code_to_file: these are exact strings
+    that failed to resolve in any region, including garbage-shaped ones like
+    "/" or "US - 3PL", and the point is remembering them verbatim so they're
+    never re-probed, not asserting they look like a real FC code). Each is
+    preceded by an auto-added comment on its own line, same format as
+    append_fc_code_to_file. Creates the file if missing. Codes already
+    present (case-insensitive) are skipped.
+    """
+    today = today or datetime.now().strftime("%Y-%m-%d")
+
+    path_obj = Path(path)
+    existing_lines = []
+    existing_codes = set()
+    if path_obj.exists():
+        existing_lines = path_obj.read_text(encoding="utf-8").splitlines()
+        for line in existing_lines:
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                existing_codes.add(stripped.upper())
+
+    new_codes = [c for c in dict.fromkeys(fc_codes) if c.upper() not in existing_codes]
+    if not new_codes:
+        return
+
+    for code in new_codes:
+        existing_lines.append(f"# auto-added {today}, unresolved in every configured region")
+        existing_lines.append(code.upper())
+        existing_codes.add(code.upper())
+
+    path_obj.parent.mkdir(parents=True, exist_ok=True)
+    path_obj.write_text("\n".join(existing_lines) + "\n", encoding="utf-8")
+    logger.info(f"Added {len(new_codes)} FC code(s) to ignore list: {path}")
+
+
 def _dedupe_fba_ids(rows: list) -> list:
     """
     Normalizes a group of unmatched rows into the distinct FBA IDs they represent,

@@ -125,13 +125,20 @@ def _detect_xls_sheet_cols(sheet) -> dict:
     Scans the first 3 rows of an xls sheet for a header row containing
     'FBA ID' and 'TRACKING'. Returns a dict:
       {header_row, col_fc, col_fba, col_tracking, col_carrier,
-       col_name, col_ctns, col_shipping_way, col_notes}
+       col_name, col_ctns, col_shipping_way, col_notes, col_cartons}
     Falls back to config-default positions (3, 4, 7, 8) for the core columns if no
     header row is found at all. If a header row IS found but name/ctns/shipping_way
     individually aren't in it, each falls back to its own config-default position
-    (1, 5, 6) and logs a warning naming the sheet and field. 'notes' is never
-    header-detected — every real sheet carries it in the last physical column
-    regardless of that column's header text.
+    (1, 5, 6) and logs a warning naming the sheet and field.
+    'col_cartons' is detected by content (carton_tracking.detect_carton_tracking_column),
+    not header text, since sheets that carry it never label it — it's whichever trailing
+    column actually contains parseable "tracking-FBAID+carton-seq" blob entries, or None
+    if the sheet has no such column. 'col_notes' defaults to the last physical column
+    (every real sheet carries freeform notes there regardless of that column's header
+    text) UNLESS that last column turned out to be col_cartons, in which case notes
+    falls back one column earlier — this is what keeps the two from colliding on sheets
+    (like the current US sheet) that carry both a notes column and a trailing
+    carton-tracking column.
     Note: those name/ctns/shipping_way fallback positions (1, 5, 6) are fixed
     constants defined in this function, NOT read from `config` — unlike the
     .xlsx row-context reader in tracking_status.py's _load_row_context_xlsx,
@@ -140,6 +147,8 @@ def _detect_xls_sheet_cols(sheet) -> dict:
     those keys), but config values for them would silently be ignored on the
     .xls path.
     """
+    from carton_tracking import detect_carton_tracking_column
+
     name_default, ctns_default, shipping_way_default = 1, 5, 6
     for r in range(min(3, sheet.nrows)):
         vals = [str(sheet.cell(r, c).value).strip().upper() for c in range(sheet.ncols)]
@@ -152,6 +161,8 @@ def _detect_xls_sheet_cols(sheet) -> dict:
         ship_cols = [i for i, v in enumerate(vals) if "SHIPPING" in v]
         if fba_cols and trk_cols:
             col_trk = trk_cols[0]
+            col_fc = dest_cols[0] if dest_cols else max(0, fba_cols[0] - 1)
+            col_carrier = carr_cols[0] if carr_cols else col_trk + 1
             if name_cols:
                 col_name = name_cols[0]
             else:
@@ -167,21 +178,30 @@ def _detect_xls_sheet_cols(sheet) -> dict:
             else:
                 logger.warning(f"Sheet {sheet.name!r}: could not detect 'shipping_way' column from header, falling back to column {shipping_way_default}")
                 col_shipping_way = shipping_way_default
+
+            col_cartons = detect_carton_tracking_column(
+                sheet, r,
+                exclude_cols={col_fc, fba_cols[0], col_trk, col_carrier, col_name, col_ctns, col_shipping_way},
+            )
+            last_col = max(0, sheet.ncols - 1)
+            col_notes = max(0, last_col - 1) if col_cartons == last_col else last_col
+
             return {
                 "header_row": r,
-                "col_fc": dest_cols[0] if dest_cols else max(0, fba_cols[0] - 1),
+                "col_fc": col_fc,
                 "col_fba": fba_cols[0],
                 "col_tracking": col_trk,
-                "col_carrier": carr_cols[0] if carr_cols else col_trk + 1,
+                "col_carrier": col_carrier,
                 "col_name": col_name,
                 "col_ctns": col_ctns,
                 "col_shipping_way": col_shipping_way,
-                "col_notes": max(0, sheet.ncols - 1),
+                "col_notes": col_notes,
+                "col_cartons": col_cartons,
             }
     return {
         "header_row": 0, "col_fc": 3, "col_fba": 4, "col_tracking": 7, "col_carrier": 8,
         "col_name": name_default, "col_ctns": ctns_default, "col_shipping_way": shipping_way_default,
-        "col_notes": max(0, sheet.ncols - 1),
+        "col_notes": max(0, sheet.ncols - 1), "col_cartons": None,
     }
 
 
