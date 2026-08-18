@@ -8,7 +8,7 @@ Automates uploading carrier tracking numbers from a supplier Excel file to Amazo
 
 1. Reads your supplier Excel file from the `input/` folder
 2. Filters rows by destination Amazon FC code, grouped by region
-3. For each FBA/AWD shipment, opens UPS/FedEx tracking pages to collect individual box tracking numbers
+3. For each FBA/AWD shipment, collects individual box (carton) tracking numbers — read directly from the source sheet's carton-tracking column when present (ground-truth, no scrape needed), otherwise by opening UPS/FedEx tracking pages
 4. Logs in to Amazon Seller Central and fills in the tracking numbers on each shipment page
 5. Saves per-region summary reports and moves the Excel file to `output/`
 
@@ -66,6 +66,14 @@ The script reads these columns (0-indexed, configurable in config.json):
 | 8      | I      | Carrier name (UPS / FedEx) |
 
 Rows are matched to a region by checking whether the FC code prefix appears in that region's `fc_codes_file`. Rows with FBA IDs containing `/` (e.g. `STAR-A/STAR-B`) are split into separate shipments.
+
+### Carton Tracking (Column L)
+
+Some source `.xls` sheets carry an extra trailing column listing one tracking number per physical carton, e.g. `1ZK6B4420338604208-FBA19L9DHD1SU000001` (tracking number, FBA ID, carton sequence). When present, this column is auto-detected by content (not a fixed position) and used directly as the per-carton tracking IDs for that shipment — skipping the UPS/FedEx scrape entirely, since it's ground-truth from the source rather than a guess split across Amazon's slot count.
+
+- A single blob can list cartons for multiple destination FBA IDs (one freight batch split across FCs); only the entries matching a given row's own FBA ID are used.
+- Malformed or ambiguous lines (inconsistent format, more than one tracking number/carton pair per line) are never guessed — that shipment falls back to the normal UPS/FedEx scrape instead.
+- If fewer cartons are matched than the row's own carton count, the matched ones are still uploaded and the shortfall is called out in a "Carton tracking shortfall" section at the end of the run (and in `--verify`'s summary).
 
 ---
 
@@ -200,6 +208,7 @@ Amazon-US-Automated-Tracking/
 ├── setup.bat                   # Double-click once to set up
 ├── run.py                      # Main script (orchestration + CLI)
 ├── parse_excel.py              # Reads and filters the Excel file by region
+├── carton_tracking.py          # Parses the source sheet's carton-tracking column (column L)
 ├── fetch_sub_tracking.py       # Scrapes UPS/FedEx for sub-package tracking IDs
 ├── upload_tracking.py          # Uploads to Amazon Seller Central via browser
 ├── highlight_excel.py          # Highlights processed rows in Excel output
@@ -211,7 +220,8 @@ Amazon-US-Automated-Tracking/
 │   ├── ca_fc_codes.txt         # Canada FC prefixes
 │   ├── uk_fc_codes.txt         # UK FC prefixes
 │   ├── eu_fc_codes.txt         # EU FC prefixes
-│   └── awd_fc_codes.txt        # AWD warehouse prefixes
+│   ├── awd_fc_codes.txt        # AWD warehouse prefixes
+│   └── ignored_fc_codes.txt    # FC codes confirmed unresolvable in any region (not re-probed)
 ├── input/                      # Drop Excel files here
 ├── output/                     # Processed Excel files moved here
 ├── logs/                       # Logs, summaries, screenshots, done caches
@@ -219,8 +229,10 @@ Amazon-US-Automated-Tracking/
     ├── conftest.py             # Shared fixtures and test infrastructure
     ├── test_run_unit.py        # Unit tests for run.py utilities
     ├── test_parse_excel.py     # Unit tests for Excel parsing + filtering
+    ├── test_carton_tracking.py # Unit tests for the carton-tracking column parser
     ├── test_highlight_excel.py # Unit tests for Excel highlighting
     ├── test_fetch_sub_tracking.py # Unit tests for carrier tracking extraction
+    ├── test_upload_tracking_unit.py # Unit tests for Amazon status detection (no browser)
     ├── test_run_regions.py     # Multi-region integration tests
     ├── test_carrier_integration.py # Real browser UPS/FedEx tests
     ├── test_amazon_integration.py  # Real browser Amazon SC tests
