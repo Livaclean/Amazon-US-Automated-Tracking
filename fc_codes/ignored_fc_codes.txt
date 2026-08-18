@@ -1,0 +1,56 @@
+# auto-added 2026-08-19, unresolved in every configured region
+/
+# auto-added 2026-08-19, unresolved in every configured region
+3PL
+# auto-added 2026-08-19, unresolved in every configured region
+3PL US
+# auto-added 2026-08-19, unresolved in every configured region
+3PL-DE
+# auto-added 2026-08-19, unresolved in every configured region
+3PL-GB
+# auto-added 2026-08-19, unresolved in every configured region
+3PL-UK
+# auto-added 2026-08-19, unresolved in every configured region
+3PL-US
+# auto-added 2026-08-19, unresolved in every configured region
+FULFILLED BY TIKTOK(CA2)
+# auto-added 2026-08-19, unresolved in every configured region
+FULFILLED BY TIKTOK(GA)
+# auto-added 2026-08-19, unresolved in every configured region
+FULFILLED BY TIKTOK(IL)
+# auto-added 2026-08-19, unresolved in every configured region
+FULFILLED BY TIKTOK(NJ)
+# auto-added 2026-08-19, unresolved in every configured region
+GVA
+# auto-added 2026-08-19, unresolved in every configured region
+TEXAS 78557
+# auto-added 2026-08-19, unresolved in every configured region
+TIKTOK CA
+# auto-added 2026-08-19, unresolved in every configured region
+TIKTOK GA
+# auto-added 2026-08-19, unresolved in every configured region
+TIKTOK IL
+# auto-added 2026-08-19, unresolved in every configured region
+TIKTOK KY
+# auto-added 2026-08-19, unresolved in every configured region
+TIKTOK NJ
+# auto-added 2026-08-19, unresolved in every configured region
+TIKTOK TX
+# auto-added 2026-08-19, unresolved in every configured region
+TIKTOK(CA)
+# auto-added 2026-08-19, unresolved in every configured region
+TIKTOK(GA)
+# auto-added 2026-08-19, unresolved in every configured region
+TIKTOK(IL)
+# auto-added 2026-08-19, unresolved in every configured region
+TIKTOK(NJ)
+# auto-added 2026-08-19, unresolved in every configured region
+TIKTOK(TX)
+# auto-added 2026-08-19, unresolved in every configured region
+TIKTOKCA
+# auto-added 2026-08-19, unresolved in every configured region
+TIKTOK（KY)
+# auto-added 2026-08-19, unresolved in every configured region
+UK -3PL
+# auto-added 2026-08-19, unresolved in every configured region
+US - 3PL

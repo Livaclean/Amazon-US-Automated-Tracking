@@ -7,3 +7,5 @@ YOW
 YEG
 YUL
 YHM
+# auto-added 2026-08-19, confirmed via FBA19H27JTXX
+XYY4

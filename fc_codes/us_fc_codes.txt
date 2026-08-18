@@ -129,5 +129,11 @@ SLT4
 MCE1
 # auto-added 2026-08-12, confirmed via FBA19GR7ZWWF
 HGR6
-# auto-added 2026-08-12, confirmed via FBA19H27JTXX
-XYY4
+# auto-added 2026-08-19, confirmed via FBA19L9DHD1S
+IMI1
+# auto-added 2026-08-19, confirmed via FBA19L9J8PY0
+INC1
+# auto-added 2026-08-19, confirmed via FBA19L9F97BH
+IWA6
+# auto-added 2026-08-19, confirmed via FBA19L9CH7NP
+IAZ1
