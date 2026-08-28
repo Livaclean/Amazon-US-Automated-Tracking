@@ -285,12 +285,15 @@ def _get_tracking_context(page, fba_id: str):
     return None
 
 
-def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict, force: bool = False) -> dict:
+def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict, force: bool = False, pad_to_fill: bool = False) -> dict:
     """
     Fills tracking numbers into the per-box input fields in the tracking iframe,
     then clicks 'Update all' to save.
     sub_ids: list of tracking numbers to fill (one per box row, in order).
     force: if True, overwrite inputs that already have a value instead of skipping them.
+    pad_to_fill: if True, cycle through sub_ids to fill every empty slot even when
+    sub_ids is smaller than the slot count — for unsupported-carrier shipments
+    (e.g. BASL, DPD) where one tracking number covers multiple boxes.
     Returns result dict with counts.
     """
     logs_folder = config.get("logs_folder", "logs")
@@ -405,9 +408,18 @@ def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict, 
             except Exception:
                 pass
 
-    # Only upload IDs genuinely missing from Amazon
-    new_ids = [tid for tid in sub_ids if tid not in already_uploaded]
-    result["already_existed"] = len(sub_ids) - len(new_ids)
+    if pad_to_fill and sub_ids and inputs:
+        # Unsupported-carrier shipment (e.g. BASL, DPD): the scrape can't find
+        # real per-box IDs, so the same tracking number(s) are duplicated across
+        # every remaining empty slot instead of leaving them blank. This bypasses
+        # the already_uploaded filter on purpose — a slot already holding the
+        # value doesn't mean the *other* empty slots shouldn't get it too.
+        new_ids = [sub_ids[i % len(sub_ids)] for i in range(len(inputs))]
+        result["already_existed"] = len(already_uploaded.intersection(sub_ids))
+    else:
+        # Only upload IDs genuinely missing from Amazon
+        new_ids = [tid for tid in sub_ids if tid not in already_uploaded]
+        result["already_existed"] = len(sub_ids) - len(new_ids)
 
     if not inputs:
         logger.info(f"  All {len(all_inputs)} tracking inputs already filled for {fba_id}")
@@ -808,15 +820,18 @@ def check_all_shipments_on_amazon(shipments_raw: dict, config: dict, page) -> tu
     return needs_upload, already_complete
 
 
-def upload_all_shipments(shipments: dict, config: dict, page, force: bool = False) -> list:
+def upload_all_shipments(shipments: dict, config: dict, page, force: bool = False, pad_fba_ids: set = None) -> list:
     """
     Uploads sub-tracking IDs to Amazon for each FBA shipment.
     shipments: {"FBA123": ["sub_id1", "sub_id2"], ...}
     force: if True, overwrite inputs that already have values.
+    pad_fba_ids: FBA IDs whose sub_ids should be cycled to fill every empty slot
+    (unsupported-carrier shipments — see upload_tracking_to_shipment).
     Returns list of per-shipment result dicts.
     """
     base_url = config.get("amazon_base_url", "https://sellercentral.amazon.com")
     delay = config.get("delay_between_shipments_seconds", 2)
+    pad_fba_ids = pad_fba_ids or set()
     results = []
 
     for fba_id, sub_ids in shipments.items():
@@ -852,7 +867,7 @@ def upload_all_shipments(shipments: dict, config: dict, page, force: bool = Fals
                 break
 
             last_result = upload_tracking_to_shipment(
-                page, remaining_ids, fba_id, config, force=force
+                page, remaining_ids, fba_id, config, force=force, pad_to_fill=fba_id in pad_fba_ids
             )
             r["tracking_results"].extend(last_result.get("tracking_results", []))
             r["already_existed"] += last_result["already_existed"]

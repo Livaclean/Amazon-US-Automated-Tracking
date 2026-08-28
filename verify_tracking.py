@@ -557,6 +557,7 @@ def _reupload_fba(page, fba_id: str, entries: list, config: dict,
     logs_folder = config.get("logs_folder", "logs")
 
     shortfall = None
+    unsupported = False
     carton_ids = merge_carton_tracking_for_fba(carton_map or {}, fba_id, entries)
     if carton_ids:
         logger.info(f"  [verify] {fba_id}: using {len(carton_ids)} tracking ID(s) from column L carton data (skipping carrier scrape)")
@@ -567,7 +568,7 @@ def _reupload_fba(page, fba_id: str, entries: list, config: dict,
     else:
         logger.info(f"  [verify] Re-uploading {fba_id}: running carrier scrape...")
         try:
-            sub_ids = get_all_sub_tracking(page, entries, logs_folder)
+            sub_ids, unsupported = get_all_sub_tracking(page, entries, logs_folder)
         except Exception as e:
             logger.warning(f"  [verify] Carrier scrape failed for {fba_id}: {e}")
             sub_ids = []
@@ -580,7 +581,7 @@ def _reupload_fba(page, fba_id: str, entries: list, config: dict,
         return {"fba_id": fba_id, "status": "not_found", "filled": 0, "total": 0,
                 "tracking_ids": [], "carton_shortfall": shortfall}
 
-    upload_result = upload_tracking_to_shipment(page, all_ids, fba_id, config)
+    upload_result = upload_tracking_to_shipment(page, all_ids, fba_id, config, pad_to_fill=unsupported)
 
     filled = upload_result.get("already_existed", 0) + upload_result.get("succeeded", 0)
     total = filled + upload_result.get("empty_slots_remaining", 0)

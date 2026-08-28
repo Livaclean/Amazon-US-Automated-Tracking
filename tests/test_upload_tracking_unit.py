@@ -110,3 +110,104 @@ def test_check_all_shipments_still_routes_not_found_to_already_complete(monkeypa
     shipments = {"FBA1": [{"tracking": "1Z001", "carrier": "UPS"}]}
     needs_upload, already_complete = check_all_shipments_on_amazon(shipments, {}, page=None)
     assert "FBA1" in already_complete
+
+
+# ---------------------------------------------------------------------------
+# upload_tracking_to_shipment — pad_to_fill (unsupported-carrier duplication)
+# ---------------------------------------------------------------------------
+
+class _FakeInput:
+    """Minimal fake satisfying the get_attribute/evaluate/click/fill calls
+    upload_tracking_to_shipment makes on each tracking <input>."""
+
+    def __init__(self, value=""):
+        self.value = value
+
+    def get_attribute(self, name):
+        return self.value if name == "value" else None
+
+    def evaluate(self, script):
+        return self.value
+
+    def click(self):
+        pass
+
+    def fill(self, value):
+        self.value = value
+
+
+class _FakeFrame:
+    """Minimal fake satisfying the tracking-iframe calls upload_tracking_to_shipment
+    makes: wait_for_selector, evaluate (scroll), query_selector_all (inputs),
+    query_selector (Update all button — a _FakeInput doubles as a clickable button)."""
+
+    def __init__(self, inputs):
+        self._inputs = inputs
+
+    def wait_for_selector(self, selector, timeout=None):
+        pass
+
+    def evaluate(self, script):
+        pass
+
+    def query_selector_all(self, selector):
+        return self._inputs
+
+    def query_selector(self, selector):
+        return _FakeInput()
+
+
+def test_upload_tracking_pad_to_fill_duplicates_single_id_across_all_empty_slots(monkeypatch):
+    """BASL-style tracking: one main tracking number, four empty Amazon box
+    slots — pad_to_fill should fill all four with the same tracking number
+    instead of leaving three blank."""
+    inputs = [_FakeInput() for _ in range(4)]
+    monkeypatch.setattr(upload_tracking, "_get_tracking_context", lambda page, fba_id: _FakeFrame(inputs))
+    page = _FakePage()
+
+    result = upload_tracking.upload_tracking_to_shipment(
+        page, ["76MZ10538249"], "FBA1", {"logs_folder": "logs"}, pad_to_fill=True,
+    )
+
+    assert [inp.value for inp in inputs] == ["76MZ10538249"] * 4
+    assert result["succeeded"] == 4
+    assert result["status"] == "success"
+
+
+def test_upload_tracking_pad_to_fill_refills_remaining_slot_after_partial_previous_pass(monkeypatch):
+    """One of two slots was already filled with the pallet tracking number by a
+    prior run; the other is still empty. pad_to_fill must still fill the empty
+    one with the same value rather than treating the pool as exhausted."""
+    filled_input = _FakeInput(value="76MZ10927867")
+    empty_input = _FakeInput()
+    monkeypatch.setattr(
+        upload_tracking, "_get_tracking_context",
+        lambda page, fba_id: _FakeFrame([filled_input, empty_input]),
+    )
+    page = _FakePage()
+
+    result = upload_tracking.upload_tracking_to_shipment(
+        page, ["76MZ10927867"], "FBA2", {"logs_folder": "logs"}, pad_to_fill=True,
+    )
+
+    assert empty_input.value == "76MZ10927867"
+    assert result["succeeded"] == 1
+    assert result["already_existed"] == 1
+
+
+def test_upload_tracking_without_pad_to_fill_only_fills_one_slot(monkeypatch):
+    """Regression guard: default behavior (pad_to_fill=False) must still fill
+    only as many slots as there are tracking IDs, leaving the rest empty for
+    a real per-box shipment where a short pool means a genuine shortfall."""
+    inputs = [_FakeInput() for _ in range(4)]
+    monkeypatch.setattr(upload_tracking, "_get_tracking_context", lambda page, fba_id: _FakeFrame(inputs))
+    page = _FakePage()
+
+    result = upload_tracking.upload_tracking_to_shipment(
+        page, ["1Z999AA10123456784"], "FBA3", {"logs_folder": "logs"},
+    )
+
+    filled_values = [inp.value for inp in inputs if inp.value]
+    assert filled_values == ["1Z999AA10123456784"]
+    assert result["succeeded"] == 1
+    assert result["empty_slots_remaining"] == 3

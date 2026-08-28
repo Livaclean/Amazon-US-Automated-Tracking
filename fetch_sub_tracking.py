@@ -744,22 +744,34 @@ def fetch_sub_tracking_ids(page, main_tracking: str, carrier: str,
         return []
 
 
-def get_all_sub_tracking(page, tracking_entries: list, logs_folder: str = None) -> list:
+def get_all_sub_tracking(page, tracking_entries: list, logs_folder: str = None) -> tuple:
     """
     For a list of {"tracking": "...", "carrier": "..."} dicts,
-    fetches and returns a flat deduplicated list of all sub-tracking IDs.
+    fetches sub-tracking IDs and returns (all_ids, unsupported_carrier).
+
+    unsupported_carrier is True when none of the entries' carriers could be
+    recognized (e.g. BASL, DPD) — the scraper has no way to enumerate real
+    per-box IDs for these, so the caller pads the same tracking number(s)
+    across every Amazon slot instead of treating the shortfall as a real
+    per-box tracking count.
     """
     if not tracking_entries:
-        return []
+        return [], False
     all_ids = []
+    recognized_any = False
     for entry in tracking_entries:
         tracking = entry.get("tracking", "")
         carrier = entry.get("carrier", "")
         if not tracking:
             continue
+        normalized = normalize_carrier(carrier)
+        if normalized == "unknown":
+            normalized = _detect_carrier_from_tracking(tracking)
+        if normalized != "unknown":
+            recognized_any = True
         logger.info(f"  Fetching sub-tracking for {tracking} ({carrier})")
         sub_ids = fetch_sub_tracking_ids(page, tracking, carrier, logs_folder)
         if not sub_ids:
             logger.warning(f"  No sub-IDs found for {tracking} — check carrier website manually")
         all_ids.extend(sub_ids)
-    return deduplicate_tracking_numbers(all_ids)
+    return deduplicate_tracking_numbers(all_ids), not recognized_any

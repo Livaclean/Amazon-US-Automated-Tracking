@@ -968,6 +968,7 @@ def main():
                 print(f"[{region_name}] {len(region_shipments_raw)} shipment(s) need tracking upload.")
 
             # Carrier scraping — only for shipments that need uploading
+            region_pad_fba_ids = set()  # FBAs needing an unsupported-carrier tracking number duplicated to fill all slots
             if args.skip_carrier:
                 print(f"\n[{region_name}] Using main tracking numbers directly (--skip-carrier)...")
                 shipments_with_subs = {}
@@ -1004,6 +1005,7 @@ def main():
                     # Step 1: Fetch full pool per unique main tracking number
                     # (avoid hitting the same carrier URL twice for shared tracking)
                     pool_by_main = {}  # main_tracking -> [all IDs]
+                    unsupported_by_main = {}  # main_tracking -> True if carrier couldn't be recognized
                     fba_to_main = {}   # fba_id -> main_tracking
                     for fba_id, entries in remaining_shipments.items():
                         logger.info(f"\nFBA {fba_id}: {len(entries)} main tracking entries")
@@ -1011,10 +1013,11 @@ def main():
                         main = main_ids[0] if main_ids else None
                         fba_to_main[fba_id] = main
                         if main and main not in pool_by_main:
-                            sub_ids = get_all_sub_tracking(page, entries, config["logs_folder"])
+                            sub_ids, unsupported = get_all_sub_tracking(page, entries, config["logs_folder"])
                             all_ids = list(dict.fromkeys(main_ids + sub_ids))
                             logger.info(f"  -> {len(all_ids)} total tracking IDs ({len(main_ids)} main + {len(sub_ids)} sub)")
                             pool_by_main[main] = all_ids
+                            unsupported_by_main[main] = unsupported
                         elif main:
                             logger.info(f"  -> reusing already-fetched pool for shared tracking {main}")
 
@@ -1026,7 +1029,17 @@ def main():
                     # Step 3: Distribute pool across FBAs that share the same tracking
                     for main, fba_ids in groups.items():
                         pool = pool_by_main.get(main, [])
-                        if len(fba_ids) == 1:
+                        if unsupported_by_main.get(main) and pool:
+                            # Carrier couldn't be scraped (e.g. BASL, DPD) — the pool is
+                            # just the raw tracking number(s), not one ID per box. Give
+                            # every FBA the same pool; upload_tracking_to_shipment cycles
+                            # through it to fill however many slots that FBA actually has,
+                            # instead of splitting a too-small pool across shipments.
+                            print(f"\n  Unsupported carrier tracking {main}: {fba_ids} — will duplicate {pool} to fill all slots")
+                            for fba_id in fba_ids:
+                                shipments_with_subs[fba_id] = pool
+                                region_pad_fba_ids.add(fba_id)
+                        elif len(fba_ids) == 1:
                             shipments_with_subs[fba_ids[0]] = pool
                         else:
                             print(f"\n  Shared tracking {main}: {fba_ids} — checking Amazon slot counts to split pool of {len(pool)}...")
@@ -1068,7 +1081,7 @@ def main():
 
             # Upload
             print(f"\n[{region_name}] Uploading to Amazon...")
-            region_results = upload_all_shipments(shipments_with_subs, region_config, page, force=args.rewrite)
+            region_results = upload_all_shipments(shipments_with_subs, region_config, page, force=args.rewrite, pad_fba_ids=region_pad_fba_ids)
             all_results.extend(region_results)
             write_region_summary(region_name, region_results, config["logs_folder"], ts_run)
 

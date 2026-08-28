@@ -8,6 +8,7 @@ from fetch_sub_tracking import (
     extract_ups_tracking_from_text,
     extract_fedex_tracking_from_text,
     deduplicate_tracking_numbers,
+    get_all_sub_tracking,
 )
 
 
@@ -106,3 +107,31 @@ def test_deduplicate_none_input():
     """deduplicate_tracking_numbers should handle None-like input."""
     result = deduplicate_tracking_numbers(None)
     assert result == []
+
+
+def test_get_all_sub_tracking_flags_unsupported_carrier():
+    """BASL/other unrecognized carriers: no page interaction needed since the
+    dispatcher bails out before touching the page — pool is just the main
+    tracking number(s), and unsupported_carrier is True."""
+    entries = [{"tracking": "76MZ10927867", "carrier": "BASL"}]
+    ids, unsupported = get_all_sub_tracking(None, entries)
+    assert ids == []
+    assert unsupported is True
+
+
+def test_get_all_sub_tracking_not_unsupported_when_carrier_recognized(monkeypatch):
+    """A recognized carrier (even if the scrape itself finds 0 sub-IDs) should
+    not be flagged unsupported — that's a real per-box shipment with just one
+    box, not a pallet tracking number that needs duplicating."""
+    import fetch_sub_tracking
+    monkeypatch.setattr(fetch_sub_tracking, "fetch_ups_sub_tracking", lambda *a, **k: [])
+    entries = [{"tracking": "1Z999AA10123456784", "carrier": "UPS"}]
+    ids, unsupported = get_all_sub_tracking(None, entries)
+    assert ids == []
+    assert unsupported is False
+
+
+def test_get_all_sub_tracking_empty_entries():
+    ids, unsupported = get_all_sub_tracking(None, [])
+    assert ids == []
+    assert unsupported is False

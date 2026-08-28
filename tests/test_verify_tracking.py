@@ -299,12 +299,12 @@ def _stub_reupload_deps(monkeypatch, upload_result=None):
     scrape_calls = []
     monkeypatch.setattr(
         fetch_sub_tracking, "get_all_sub_tracking",
-        lambda *a, **k: scrape_calls.append(True) or ["SCRAPED_ID"],
+        lambda *a, **k: scrape_calls.append(True) or (["SCRAPED_ID"], False),
     )
     monkeypatch.setattr(upload_tracking_module, "navigate_to_shipment", lambda page, fba_id, base_url: True)
     monkeypatch.setattr(
         upload_tracking_module, "upload_tracking_to_shipment",
-        lambda page, ids, fba_id, config: upload_result or {
+        lambda page, ids, fba_id, config, **k: upload_result or {
             "status": "success", "already_existed": 0, "succeeded": len(ids), "empty_slots_remaining": 0,
         },
     )
