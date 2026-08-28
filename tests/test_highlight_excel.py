@@ -58,3 +58,78 @@ def test_highlight_xls_source(sample_xls, tmp_path):
     assert Path(result_path).exists()
     wb = openpyxl.load_workbook(result_path)
     assert wb.active is not None
+
+
+def test_highlight_applies_to_matching_row_on_every_sheet(tmp_path):
+    """row_num in updated_rows has no sheet identity attached (parse_excel.py
+    numbers rows per-sheet, not globally), so highlight_and_save must not
+    silently pick only one sheet — it highlights every sheet that has a row
+    at that index, and skips sheets too short to have it."""
+    from highlight_excel import highlight_and_save
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    ws1 = wb.active
+    ws1.title = "US"
+    ws1.append(["header"])
+    ws1.append(["row2-us"])
+    ws2 = wb.create_sheet("AU")
+    ws2.append(["header"])
+    ws2.append(["row2-au"])
+    ws2.append(["row3-au"])
+    src = tmp_path / "multi.xlsx"
+    wb.save(src)
+    dest = tmp_path / "out.xlsx"
+
+    highlight_and_save(str(src), str(dest), {2, 3})
+
+    result = openpyxl.load_workbook(dest)
+    yellow = "FFFF00"
+    assert result["US"].cell(2, 1).fill.fgColor.rgb[-6:] == yellow
+    assert result["AU"].cell(2, 1).fill.fgColor.rgb[-6:] == yellow
+    assert result["AU"].cell(3, 1).fill.fgColor.rgb[-6:] == yellow
+    # Row 3 doesn't exist on the US sheet — must not error or grow the sheet.
+    assert result["US"].max_row == 2
+
+
+def test_load_xls_as_workbook_copies_all_sheets(monkeypatch):
+    """Regression test for the data-loss bug: _load_xls_as_workbook used to read
+    only xlrd sheet index 0, silently dropping every row on later sheets of a
+    multi-sheet .xls — even though parse_excel.py's actual row-matching reads
+    all sheets, so those rows matched a region but then vanished from the
+    highlighted output file."""
+    from highlight_excel import _load_xls_as_workbook
+    import xlrd
+
+    class _FakeCell:
+        def __init__(self, value):
+            self.value = value
+            self.ctype = xlrd.XL_CELL_TEXT
+
+    class _FakeSheet:
+        def __init__(self, name, rows):
+            self.name = name
+            self._rows = rows
+            self.nrows = len(rows)
+            self.ncols = len(rows[0]) if rows else 0
+
+        def cell(self, r, c):
+            return _FakeCell(self._rows[r][c])
+
+    class _FakeBook:
+        def __init__(self, sheets):
+            self._sheets = sheets
+            self.nsheets = len(sheets)
+
+        def sheet_by_index(self, i):
+            return self._sheets[i]
+
+    sheet0 = _FakeSheet("US", [["fc", "fba"], ["BNA1", "FBA001"]])
+    sheet1 = _FakeSheet("AU", [["fc", "fba"], ["SYD1", "FBA002"]])
+    monkeypatch.setattr(xlrd, "open_workbook", lambda path: _FakeBook([sheet0, sheet1]))
+
+    wb = _load_xls_as_workbook("fake.xls")
+
+    assert [ws.title for ws in wb.worksheets] == ["US", "AU"]
+    assert wb["US"].cell(2, 2).value == "FBA001"
+    assert wb["AU"].cell(2, 2).value == "FBA002"
