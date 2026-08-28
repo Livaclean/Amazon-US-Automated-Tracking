@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.8.1] - 2026-08-29
+
+### Fixed
+- Unsupported/unrecognized carrier tracking (e.g. `BASL`, `DPD`) now fills every empty Amazon tracking slot for a shipment by duplicating its known tracking number(s), instead of filling only one slot and leaving the rest blank — these carriers have no per-box sub-ID scrape, and one pallet-level tracking number legitimately covers every box. Applies both in the main upload pass (`upload_tracking_to_shipment`'s new `pad_to_fill`) and in `--verify`'s re-upload path, including when some slots were already filled by a prior partial run
+- `highlight_excel.py`'s `.xls` → `.xlsx` conversion (used when saving the highlighted output archive) now copies every sheet of the source workbook instead of only the first — it previously silently dropped every row on sheet 2+ even though `parse_excel.py`'s actual row-matching reads all sheets, so any multi-sheet source file's later-sheet rows vanished from the saved/processed output. Highlighting now applies to whichever sheet(s) contain a given updated row, since per-sheet row numbers aren't globally unique across sheets
+
 ## [0.8.0] - 2026-08-19
 
 ### Added

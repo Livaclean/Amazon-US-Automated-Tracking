@@ -38,3 +38,5 @@ IUTI
 IUTJ
 # auto-added 2026-08-12, confirmed via STAR-S3AX53NVREKBU
 IUTL
+# auto-added 2026-08-25, confirmed via STAR-WNYYUFTQTVKE2
+IEUA
