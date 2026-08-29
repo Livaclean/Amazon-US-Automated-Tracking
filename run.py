@@ -453,6 +453,12 @@ def main():
              "logs/tracking_status.xlsx) and edit the window on Amazon when it doesn't match. Also pushes a "
              "window 2 weeks out if it's about to lock with no expected date yet. Logs in to Amazon per region.",
     )
+    parser.add_argument(
+        "--weekly-delivery-sync", action="store_true",
+        help="Weekly scheduled mode: refresh carrier data, discover new shipments, and only "
+             "check/edit delivery windows for shipments locking within 7 days. Writes a summary "
+             "file to logs/. Intended to run from Windows Task Scheduler every Saturday.",
+    )
     args = parser.parse_args()
 
     # Pre-initialize so these are always in scope even if an early exception occurs
@@ -524,6 +530,12 @@ def main():
         from delivery_window_sync import run_delivery_window_sync, format_delivery_window_sync_summary
         result = run_delivery_window_sync(config)
         print(format_delivery_window_sync_summary(result))
+        return
+
+    if args.weekly_delivery_sync:
+        from delivery_window_sync import run_weekly_delivery_window_sync, format_weekly_delivery_window_summary
+        result = run_weekly_delivery_window_sync(config)
+        print(format_weekly_delivery_window_summary(result))
         return
 
     # Determine which regions to run
