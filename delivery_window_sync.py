@@ -652,18 +652,28 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
                 )
                 outcome = result["outcome"]
                 if outcome == "read_failed":
+                    # The only outcome where read_shipment_window itself failed --
+                    # nothing was read, so there's nothing to persist.
                     totals["read_failed"] += 1
                     totals["read_failed_ids"].append(fba_id)
-                elif outcome == "edit_failed":
-                    totals["edit_failed"] += 1
-                    totals["edit_failed_ids"].append(fba_id)
                 else:
-                    key = {"matched": "matched", "edit": "edited", "push_one_week": "pushed_one_week",
-                           "locked": "locked", "no_action_needed": "no_action_needed"}.get(outcome)
-                    if key:
-                        totals[key] += 1
-                    if outcome == "carrier_managed":
-                        totals["carrier_managed_skipped"] += 1
+                    # Every other outcome means the live read succeeded (Task 3:
+                    # result["window_start"] is only None on "read_failed"), so
+                    # the persistence below always applies here -- including
+                    # "edit_failed", where the read succeeded but the subsequent
+                    # edit attempt didn't; the shipment was still genuinely
+                    # checked this run and delivery_window_last_checked should
+                    # reflect that.
+                    if outcome == "edit_failed":
+                        totals["edit_failed"] += 1
+                        totals["edit_failed_ids"].append(fba_id)
+                    else:
+                        key = {"matched": "matched", "edit": "edited", "push_one_week": "pushed_one_week",
+                               "locked": "locked", "no_action_needed": "no_action_needed"}.get(outcome)
+                        if key:
+                            totals[key] += 1
+                        if outcome == "carrier_managed":
+                            totals["carrier_managed_skipped"] += 1
                     entry["delivery_date_status"] = result["new_delivery_date_status"] if outcome != "carrier_managed" else "carrier_managed"
                     if result["window_start"]:
                         entry["delivery_window_start"] = result["window_start"].strftime("%Y-%m-%d")
