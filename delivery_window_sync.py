@@ -219,7 +219,24 @@ def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str, log
         # colon disambiguates: only the real "Delivery window: <dates>" label has it.
         page.wait_for_selector("text=Delivery window:", timeout=15000)
     except Exception:
-        logger.warning(f"  {fba_id}: 'Delivery window' never rendered after selecting its tab")
+        # Confirmed live (2026-08-30): this isn't a timing issue -- some
+        # shipments' "Send to Amazon" workflow page never picked up the
+        # tracking that was actually entered through the newer inbound-
+        # shipment tracking page instead. That tab shows an empty, unfilled
+        # "Enter tracking IDs" form with no Delivery window UI at all, no
+        # matter how long you wait, because Amazon only renders the window
+        # once tracking has been entered *through this same page*. There's
+        # no selector fix for a section Amazon isn't rendering -- flag it
+        # distinctly so it doesn't get investigated again as a scrape bug.
+        stale_workflow = page.get_by_text("Enter tracking IDs", exact=False).count() > 0
+        if stale_workflow:
+            logger.warning(
+                f"  {fba_id}: workflow page shows an empty/unfilled tracking form -- "
+                f"tracking for this shipment wasn't entered through this workflow, so "
+                f"Amazon never renders a delivery window here (not a scrape failure)"
+            )
+        else:
+            logger.warning(f"  {fba_id}: 'Delivery window' never rendered after selecting its tab")
         _screenshot(page, f"window_no_delivery_window_{fba_id}", logs_folder)
         return None
 

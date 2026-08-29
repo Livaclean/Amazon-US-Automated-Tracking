@@ -13,6 +13,7 @@ from delivery_window_sync import (
     decide_window_action,
     sync_window_for_shipment,
     apply_window_edit,
+    read_shipment_window,
     format_delivery_window_sync_summary,
 )
 
@@ -353,6 +354,101 @@ def test_apply_window_edit_proceeds_normally_when_checkbox_present_but_unchecked
     assert result == "edited"
     assert page._confirm_btn.click_calls == 1
     assert page._confirm_btn.click_calls == 1
+
+
+# --- read_shipment_window ----------------------------------------------------
+
+class _FakeLocatorGroup:
+    """Minimal fake for a multi-element locator (e.g. the 4 'View' links),
+    supporting .nth(i) -> a _FakeLocator."""
+
+    def __init__(self, items):
+        self._items = items
+
+    def nth(self, i):
+        return self._items[i]
+
+
+class _RaisingLocator(_FakeLocator):
+    """A _FakeLocator whose wait_for always raises, simulating a selector
+    that never appears within the timeout."""
+
+    def wait_for(self, state=None, timeout=None):
+        raise TimeoutError("selector never appeared")
+
+
+class _FakeReadWindowPage:
+    """Minimal fake satisfying read_shipment_window's page calls, up through
+    tab selection, so only the final 'Delivery window:' wait_for_selector
+    fails -- isolating the stale-workflow detection added after that failure."""
+
+    def __init__(self, enter_tracking_ids_count: int):
+        self._enter_tracking_ids_count = enter_tracking_ids_count
+        self._onboarding_modal_close = _RaisingLocator(count=0)  # never appears -- fine, no-op
+        self._view_link = _FakeLocator(count=1)
+        self._tab = _FakeLocator(count=1)
+        self._enter_tracking_ids = _FakeLocator(count=enter_tracking_ids_count)
+
+    def goto(self, url, timeout=None):
+        pass
+
+    def wait_for_load_state(self, state=None, timeout=None):
+        pass
+
+    def locator(self, selector):
+        assert selector == "kat-modal[visible='true']"
+
+        class _ModalLocator:
+            def locator(_self, sub_selector):
+                return self._onboarding_modal_close
+        return _ModalLocator()
+
+    def get_by_text(self, text, exact=False):
+        if text == "View":
+            return _FakeLocatorGroup([self._view_link] * 4)
+        if text.startswith("Shipment ID:"):
+            return self._tab
+        if text == "Enter tracking IDs":
+            return self._enter_tracking_ids
+        raise AssertionError(f"unexpected get_by_text: {text!r}")
+
+    def wait_for_selector(self, selector, timeout=None):
+        if selector == "text=Track shipment":
+            return
+        if selector == "text=Delivery window:":
+            raise TimeoutError("Delivery window never appeared")
+        raise AssertionError(f"unexpected wait_for_selector: {selector!r}")
+
+
+@pytest.mark.unit
+def test_read_shipment_window_logs_stale_workflow_when_tracking_form_empty(caplog):
+    """Regression test: confirmed live (2026-08-30) that some shipments'
+    'Send to Amazon' workflow page never picked up tracking entered through
+    the newer inbound-shipment tracking page -- it shows an empty, unfilled
+    'Enter tracking IDs' form with no Delivery window UI at all, no matter
+    how long you wait. This isn't a scrape bug, so it should be logged
+    distinctly instead of the generic 'never rendered' message that implies
+    a timing/selector problem worth re-investigating."""
+    page = _FakeReadWindowPage(enter_tracking_ids_count=1)
+
+    with caplog.at_level("WARNING", logger="delivery_window_sync"):
+        result = read_shipment_window(page, "wf-1", "FBA001", "https://x")
+
+    assert result is None
+    assert any("wasn't entered through this workflow" in r.message for r in caplog.records)
+    assert not any("never rendered after selecting its tab" in r.message for r in caplog.records)
+
+
+@pytest.mark.unit
+def test_read_shipment_window_logs_generic_message_when_not_stale_workflow(caplog):
+    page = _FakeReadWindowPage(enter_tracking_ids_count=0)
+
+    with caplog.at_level("WARNING", logger="delivery_window_sync"):
+        result = read_shipment_window(page, "wf-1", "FBA001", "https://x")
+
+    assert result is None
+    assert any("never rendered after selecting its tab" in r.message for r in caplog.records)
+    assert not any("wasn't entered through this workflow" in r.message for r in caplog.records)
 
 
 # --- sync_window_for_shipment ----------------------------------------------------

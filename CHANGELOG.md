@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.8.3] - 2026-08-30
+
+### Fixed
+- `--sync-delivery-windows`'s "Delivery window never rendered" warning no longer implies a scrape/timing bug for shipments where it isn't one. Investigated live: some shipments' old "Send to Amazon" workflow page never picked up tracking that was actually entered through the newer inbound-shipment tracking page instead — that workflow tab shows a permanently empty, unfilled "Enter tracking IDs" form with no Delivery window UI at all, no matter how long you wait, because Amazon only renders that section once tracking has been entered *through that same page*. `read_shipment_window()` now detects this specific empty-form pattern and logs a distinct, accurate message instead of the generic one, so it isn't mistaken for a fixable scraping issue on a future pass. No behavior change — still reported as `read_failed`, just correctly explained
+
 ## [0.8.2] - 2026-08-30
 
 ### Fixed
