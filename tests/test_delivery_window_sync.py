@@ -12,6 +12,7 @@ from delivery_window_sync import (
     _week_bounds,
     decide_window_action,
     sync_window_for_shipment,
+    apply_window_edit,
     format_delivery_window_sync_summary,
 )
 
@@ -213,6 +214,147 @@ def test_decide_window_action_expected_date_equal_to_today_is_not_stale():
     assert result == {"action": "edit", "target_week_start": date(2026, 8, 9)}
 
 
+# --- apply_window_edit ------------------------------------------------------
+
+class _FakeLocator:
+    """Minimal fake satisfying the .count/.first/.click/.wait_for/.get_attribute/
+    .is_checked calls apply_window_edit makes on a Playwright locator."""
+
+    def __init__(self, count=1, click_raises=None, aria_label=None, checked=False):
+        self._count = count
+        self.click_raises = click_raises
+        self._aria_label = aria_label
+        self._checked = checked
+        self.click_calls = 0
+
+    @property
+    def first(self):
+        return self
+
+    def count(self):
+        return self._count
+
+    def click(self, timeout=None):
+        self.click_calls += 1
+        if self.click_raises:
+            raise self.click_raises
+
+    def wait_for(self, state=None, timeout=None):
+        pass
+
+    def get_attribute(self, name):
+        return self._aria_label
+
+    def is_checked(self):
+        return self._checked
+
+
+class _FakeKeyboard:
+    def __init__(self):
+        self.pressed = []
+
+    def press(self, key):
+        self.pressed.append(key)
+
+
+class _FakeWindowEditPage:
+    """Minimal fake satisfying apply_window_edit's page calls, with the
+    calendar already showing the target month so _navigate_calendar_to_month
+    returns immediately without needing real navigation."""
+
+    def __init__(self, target_year: int, target_month: int, confirm_click_raises=None,
+                 carrier_checkbox_count: int = 0, carrier_checkbox_checked: bool = False):
+        next_month = target_month + 1 if target_month < 12 else 1
+        next_year = target_year if target_month < 12 else target_year + 1
+        self._cal_rgt = _FakeLocator(aria_label=f"{date(next_year, next_month, 1).strftime('%B')} {next_year}")
+        self._edit_link = _FakeLocator(count=1)
+        self._confirm_btn = _FakeLocator(count=1, click_raises=confirm_click_raises)
+        self._day_btn = _FakeLocator(count=1)
+        self._carrier_checkbox = _FakeLocator(count=carrier_checkbox_count, checked=carrier_checkbox_checked)
+        self.keyboard = _FakeKeyboard()
+
+    def locator(self, selector):
+        if selector == "text=Edit window":
+            return self._edit_link
+        if selector == ".cal-rgt":
+            return self._cal_rgt
+        raise AssertionError(f"unexpected locator selector: {selector}")
+
+    def get_by_text(self, text, exact=False):
+        assert text == "Confirm new delivery window"
+        return self._confirm_btn
+
+    def get_by_role(self, role, name=None, exact=False):
+        if role == "checkbox":
+            return self._carrier_checkbox
+        assert role == "button"
+        return self._day_btn
+
+    def wait_for_timeout(self, ms):
+        pass
+
+
+@pytest.mark.unit
+def test_apply_window_edit_returns_failed_when_confirm_button_never_becomes_clickable():
+    """Regression test: a live run hit Amazon's 'Confirm new delivery window'
+    button staying visible-but-disabled (element resolved but 'not enabled')
+    for the full 30s Playwright timeout. The uncaught TimeoutError crashed the
+    entire --sync-delivery-windows run instead of being reported as this
+    shipment's 'edit_failed' outcome, as sync_window_for_shipment's own
+    docstring promises. apply_window_edit must catch it and return "failed"."""
+    class _TimeoutError(Exception):
+        pass
+
+    page = _FakeWindowEditPage(2026, 9, confirm_click_raises=_TimeoutError("Timeout 30000ms exceeded"))
+
+    result = apply_window_edit(page, date(2026, 9, 1))
+
+    assert result == "failed"
+    assert page._confirm_btn.click_calls == 1
+    assert page.keyboard.pressed == ["Escape"]
+
+
+@pytest.mark.unit
+def test_apply_window_edit_returns_edited_on_successful_confirm():
+    page = _FakeWindowEditPage(2026, 9)
+
+    result = apply_window_edit(page, date(2026, 9, 1))
+
+    assert result == "edited"
+
+
+@pytest.mark.unit
+def test_apply_window_edit_returns_carrier_managed_when_checkbox_checked():
+    """Regression test: every live 'edit_failed' traced back to the same root
+    cause -- Amazon's edit modal has an 'Allow <carrier> to update my delivery
+    window' checkbox, checked by default for carriers like FIST. While it's
+    checked, day-selection works fine but Confirm never becomes clickable,
+    because the carrier integration owns the window. apply_window_edit should
+    detect this up front and skip straight to "carrier_managed" instead of
+    wasting a full calendar-navigation + 10s confirm-timeout on a shipment
+    that can never be manually edited."""
+    page = _FakeWindowEditPage(2026, 9, carrier_checkbox_count=1, carrier_checkbox_checked=True)
+
+    result = apply_window_edit(page, date(2026, 9, 1))
+
+    assert result == "carrier_managed"
+    # Never got as far as clicking the day button or attempting confirm.
+    assert page._day_btn.click_calls == 0
+    assert page._confirm_btn.click_calls == 0
+    assert page.keyboard.pressed == ["Escape"]
+
+
+@pytest.mark.unit
+def test_apply_window_edit_proceeds_normally_when_checkbox_present_but_unchecked():
+    page = _FakeWindowEditPage(2026, 9, carrier_checkbox_count=1, carrier_checkbox_checked=False)
+
+    result = apply_window_edit(page, date(2026, 9, 1))
+
+    assert result == "edited"
+    assert page._confirm_btn.click_calls == 1
+    assert page._confirm_btn.click_calls == 1
+
+
 # --- sync_window_for_shipment ----------------------------------------------------
 
 @pytest.mark.unit
@@ -271,7 +413,7 @@ def test_sync_window_for_shipment_edit_success(monkeypatch):
         delivery_window_sync, "read_shipment_window",
         lambda *a, **kw: {"window_start": date(2026, 9, 13), "window_end": date(2026, 9, 19)},
     )
-    monkeypatch.setattr(delivery_window_sync, "apply_window_edit", lambda page, target: True)
+    monkeypatch.setattr(delivery_window_sync, "apply_window_edit", lambda page, target, **kw: "edited")
     result = sync_window_for_shipment(
         page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
         expected_delivery_date=date(2026, 8, 8), today=date(2026, 8, 1),
@@ -285,7 +427,7 @@ def test_sync_window_for_shipment_edit_failed(monkeypatch):
         delivery_window_sync, "read_shipment_window",
         lambda *a, **kw: {"window_start": date(2026, 9, 13), "window_end": date(2026, 9, 19)},
     )
-    monkeypatch.setattr(delivery_window_sync, "apply_window_edit", lambda page, target: False)
+    monkeypatch.setattr(delivery_window_sync, "apply_window_edit", lambda page, target, **kw: "failed")
     result = sync_window_for_shipment(
         page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
         expected_delivery_date=date(2026, 8, 8), today=date(2026, 8, 1),
@@ -294,12 +436,26 @@ def test_sync_window_for_shipment_edit_failed(monkeypatch):
 
 
 @pytest.mark.unit
+def test_sync_window_for_shipment_carrier_managed(monkeypatch):
+    monkeypatch.setattr(
+        delivery_window_sync, "read_shipment_window",
+        lambda *a, **kw: {"window_start": date(2026, 9, 13), "window_end": date(2026, 9, 19)},
+    )
+    monkeypatch.setattr(delivery_window_sync, "apply_window_edit", lambda page, target, **kw: "carrier_managed")
+    result = sync_window_for_shipment(
+        page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
+        expected_delivery_date=date(2026, 8, 8), today=date(2026, 8, 1),
+    )
+    assert result == {"outcome": "carrier_managed", "new_delivery_date_status": "pending"}
+
+
+@pytest.mark.unit
 def test_sync_window_for_shipment_push_two_weeks_success(monkeypatch):
     monkeypatch.setattr(
         delivery_window_sync, "read_shipment_window",
         lambda *a, **kw: {"window_start": date(2026, 8, 16), "window_end": date(2026, 8, 22)},
     )
-    monkeypatch.setattr(delivery_window_sync, "apply_window_edit", lambda page, target: True)
+    monkeypatch.setattr(delivery_window_sync, "apply_window_edit", lambda page, target, **kw: "edited")
     result = sync_window_for_shipment(
         page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
         expected_delivery_date=None, today=date(2026, 8, 10),
@@ -330,8 +486,20 @@ def test_sync_window_for_shipment_stale_expected_date_reports_no_action_needed_n
 def test_format_delivery_window_sync_summary_includes_counts():
     text = format_delivery_window_sync_summary({
         "matched": 2, "updated": 0, "pushed": 0, "locked": 1,
-        "no_action_needed": 3, "read_failed": 1, "edit_failed": 0,
+        "no_action_needed": 3, "carrier_managed": 4, "read_failed": 1, "edit_failed": 0,
     })
     assert "2" in text
     assert "1" in text
     assert "3" in text
+    assert "Carrier-managed (skipped):  4" in text
+
+
+@pytest.mark.unit
+def test_format_delivery_window_sync_summary_defaults_carrier_managed_when_absent():
+    """Backward compat: a totals dict from before carrier_managed existed
+    shouldn't KeyError."""
+    text = format_delivery_window_sync_summary({
+        "matched": 0, "updated": 0, "pushed": 0, "locked": 0,
+        "no_action_needed": 0, "read_failed": 0, "edit_failed": 0,
+    })
+    assert "Carrier-managed (skipped):  0" in text

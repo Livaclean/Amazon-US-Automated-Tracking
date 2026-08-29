@@ -11,8 +11,23 @@ sheet, and skips windows that have already locked.
 import logging
 import re
 from datetime import datetime, timedelta
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+def _screenshot(page, step_name: str, logs_folder: str) -> None:
+    """Saves a screenshot to logs/screenshots/ on error. No-ops without a logs_folder."""
+    if not logs_folder:
+        return
+    try:
+        folder = Path(logs_folder) / "screenshots"
+        folder.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        safe_step = "".join(c if c.isalnum() or c in "-_." else "_" for c in step_name)
+        page.screenshot(path=str(folder / f"{ts}_{safe_step}.png"))
+    except Exception as e:
+        logger.debug(f"Screenshot failed ({step_name}): {e}")
 
 
 # US-style renders "Jul 1, 2026"; EU/FR-region shipments render the
@@ -149,13 +164,15 @@ def _dismiss_onboarding_modal(page) -> None:
     modal.first.click()
 
 
-def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str) -> dict:
+def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str, logs_folder: str = None) -> dict:
     """
     Navigates to the shipment's workflow page, opens the tracking-details
     section, selects fba_id's own tab, and reads its current delivery
     window. Returns {"window_start": date, "window_end": date} on success,
     or None if the workflow, the shipment's tab, or the window text
-    couldn't be found/parsed.
+    couldn't be found/parsed. Saves a screenshot to logs/screenshots/ on
+    every failure path so a "never rendered" warning has a page state to
+    diagnose against instead of just a guess.
     """
     url = f"{base_url}/fba/sendtoamazon?wf={workflow_id}"
     try:
@@ -163,6 +180,7 @@ def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str) -> 
         page.wait_for_load_state("load", timeout=15000)
     except Exception as e:
         logger.warning(f"  {fba_id}: failed to load workflow page {url}: {e}")
+        _screenshot(page, f"window_load_failed_{fba_id}", logs_folder)
         return None
 
     _dismiss_onboarding_modal(page)
@@ -175,6 +193,7 @@ def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str) -> 
         views.nth(3).wait_for(state="visible", timeout=15000)
     except Exception:
         logger.warning(f"  {fba_id}: workflow page never rendered its 'Tracking details' section")
+        _screenshot(page, f"window_no_tracking_section_{fba_id}", logs_folder)
         return None
     views.nth(3).click()
 
@@ -182,11 +201,13 @@ def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str) -> 
         page.wait_for_selector("text=Track shipment", timeout=15000)
     except Exception:
         logger.warning(f"  {fba_id}: tracking-details section never rendered")
+        _screenshot(page, f"window_no_track_shipment_{fba_id}", logs_folder)
         return None
 
     tab = page.get_by_text(f"Shipment ID: {fba_id}", exact=False)
     if tab.count() == 0:
         logger.warning(f"  {fba_id}: not found among this workflow's shipment tabs")
+        _screenshot(page, f"window_tab_not_found_{fba_id}", logs_folder)
         return None
     tab.first.click()
 
@@ -199,11 +220,13 @@ def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str) -> 
         page.wait_for_selector("text=Delivery window:", timeout=15000)
     except Exception:
         logger.warning(f"  {fba_id}: 'Delivery window' never rendered after selecting its tab")
+        _screenshot(page, f"window_no_delivery_window_{fba_id}", logs_folder)
         return None
 
     match = _WINDOW_PATTERN.search(page.inner_text("body"))
     if not match:
         logger.warning(f"  {fba_id}: 'Delivery window' text found but couldn't be parsed")
+        _screenshot(page, f"window_unparseable_{fba_id}", logs_folder)
         return None
 
     start = _parse_flexible_date(match.group(1))
@@ -244,20 +267,30 @@ def _navigate_calendar_to_month(page, target_year: int, target_month: int) -> bo
     return False
 
 
-def apply_window_edit(page, target_week_start) -> bool:
+def apply_window_edit(page, target_week_start, fba_id: str = "", logs_folder: str = None) -> str:
     """
     Assumes the page is already showing a shipment's own tab with its current
     delivery window (i.e. right after read_shipment_window()). Opens "Edit
     window", navigates the calendar to target_week_start's month if needed,
-    clicks that day, and confirms. Returns True on success. False if the
-    edit modal never opened (the window turned out locked despite our own
-    up-front check -- the live UI is the final authority), the target month
-    couldn't be reached, or the target day wasn't found.
+    clicks that day, and confirms.
+
+    Returns "edited" on success, "carrier_managed" if the modal's "Allow
+    <carrier> to update my delivery window" checkbox is checked (Amazon
+    permanently disables manual confirmation in that case -- confirmed live:
+    the day-selection still works, but "Confirm new delivery window" never
+    becomes clickable, because the carrier integration owns the window, not
+    us -- so there's no point attempting the edit at all), or "failed" for
+    every other failure (the edit modal never opened -- the window turned
+    out locked despite our own up-front check, the live UI is the final
+    authority -- the target month couldn't be reached, the target day wasn't
+    found, or Confirm still didn't become clickable for some other reason).
+    Saves a screenshot to logs/screenshots/ on every non-"edited" path.
     """
     edit_link = page.locator("text=Edit window")
     if edit_link.count() == 0:
         logger.warning("  No 'Edit window' link on this shipment's tab")
-        return False
+        _screenshot(page, f"edit_no_link_{fba_id}", logs_folder)
+        return "failed"
     edit_link.first.click()
 
     confirm_btn = page.get_by_text("Confirm new delivery window", exact=True)
@@ -265,29 +298,58 @@ def apply_window_edit(page, target_week_start) -> bool:
         confirm_btn.wait_for(state="visible", timeout=5000)
     except Exception:
         logger.warning("  'Edit window' did not open a modal -- window is likely locked")
+        _screenshot(page, f"edit_no_modal_{fba_id}", logs_folder)
         page.keyboard.press("Escape")
-        return False
+        return "failed"
+
+    # Checked by default whenever the shipment's carrier supports it (seen
+    # live for "FIST Carriers"). While checked, Confirm never becomes
+    # clickable no matter what day is selected -- Amazon expects the
+    # carrier's own integration to push window updates, not a manual save.
+    # Checking for it up front avoids wasting a full calendar navigation +
+    # 10s confirm-timeout on a shipment we can never actually edit.
+    carrier_checkbox = page.get_by_role("checkbox", name=re.compile("update my delivery window", re.IGNORECASE))
+    try:
+        if carrier_checkbox.count() > 0 and carrier_checkbox.first.is_checked():
+            logger.info(f"  {fba_id}: carrier-managed delivery window (auto-update checkbox checked) -- skipping")
+            _screenshot(page, f"edit_carrier_managed_{fba_id}", logs_folder)
+            page.keyboard.press("Escape")
+            return "carrier_managed"
+    except Exception as e:
+        logger.debug(f"  {fba_id}: carrier-managed checkbox check failed (continuing): {e}")
 
     if not _navigate_calendar_to_month(page, target_week_start.year, target_week_start.month):
         logger.warning(f"  Could not navigate the calendar to {target_week_start.strftime('%B %Y')}")
+        _screenshot(page, f"edit_month_nav_failed_{fba_id}", logs_folder)
         page.keyboard.press("Escape")
-        return False
+        return "failed"
 
     day_label = f"{target_week_start.strftime('%B')} {target_week_start.day}, {target_week_start.year}"
     day_btn = page.get_by_role("button", name=day_label, exact=False)
     if day_btn.count() == 0:
         logger.warning(f"  Target day {day_label!r} not found or not selectable")
+        _screenshot(page, f"edit_day_not_found_{fba_id}", logs_folder)
         page.keyboard.press("Escape")
-        return False
+        return "failed"
     day_btn.first.click()
     page.wait_for_timeout(500)
+    # Captured before the confirm-click attempt (not just on failure) so a
+    # disabled-button failure can be compared against what the calendar
+    # actually looked like right after the day was clicked.
+    _screenshot(page, f"edit_after_day_click_{fba_id}", logs_folder)
 
-    confirm_btn.click()
+    try:
+        confirm_btn.click(timeout=10000)
+    except Exception as e:
+        logger.warning(f"  {fba_id}: 'Confirm new delivery window' never became clickable: {e}")
+        _screenshot(page, f"edit_confirm_disabled_{fba_id}", logs_folder)
+        page.keyboard.press("Escape")
+        return "failed"
     page.wait_for_timeout(2000)
-    return True
+    return "edited"
 
 
-def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str, expected_delivery_date, today) -> dict:
+def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str, expected_delivery_date, today, logs_folder: str = None) -> dict:
     """
     Reads fba_id's current delivery window, decides what to do via
     decide_window_action(), and applies an edit if one is called for.
@@ -298,14 +360,17 @@ def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str,
     needed), "no_action_needed" (no expected date yet, window not urgent),
     "locked" (window's start date has passed, can't be edited), "edit" /
     "push_two_weeks" (the corresponding decide_window_action action was
-    successfully applied), "edit_failed" (the live edit didn't go through).
+    successfully applied), "carrier_managed" (the shipment's carrier owns
+    delivery-window updates -- Amazon disables manual edits for it, so this
+    isn't a failure, just not ours to touch), "edit_failed" (the live edit
+    didn't go through for any other reason).
 
     Status is "updated" only for "matched" and a successful "edit" -- both
     mean the window now demonstrably reflects a real expected date.
     "push_two_weeks" stays "pending": it's a stopgap so the window doesn't
     lock while we wait for a real date, not a real resolution.
     """
-    window = read_shipment_window(page, workflow_id, fba_id, base_url)
+    window = read_shipment_window(page, workflow_id, fba_id, base_url, logs_folder=logs_folder)
     if window is None:
         return {"outcome": "read_failed", "new_delivery_date_status": "pending"}
 
@@ -325,7 +390,10 @@ def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str,
         return {"outcome": "no_action_needed", "new_delivery_date_status": "pending"}
 
     # action is "edit" or "push_two_weeks"
-    if not apply_window_edit(page, decision["target_week_start"]):
+    edit_result = apply_window_edit(page, decision["target_week_start"], fba_id=fba_id, logs_folder=logs_folder)
+    if edit_result == "carrier_managed":
+        return {"outcome": "carrier_managed", "new_delivery_date_status": "pending"}
+    if edit_result != "edited":
         return {"outcome": "edit_failed", "new_delivery_date_status": "pending"}
     status = "updated" if action == "edit" else "pending"
     return {"outcome": action, "new_delivery_date_status": status}
@@ -352,6 +420,7 @@ def run_delivery_window_sync(config: dict) -> dict:
     tracking_cache_path = config.get("tracking_status_cache", STATUS_CACHE_PATH_DEFAULT)
     tracking_cache = load_status_cache(tracking_cache_path)
     region_by_name = {r["name"]: r for r in config.get("regions", [])}
+    logs_folder = config.get("logs_folder", "logs")
     today = _date.today()
 
     pending_by_region = {}
@@ -362,7 +431,7 @@ def run_delivery_window_sync(config: dict) -> dict:
             continue
         pending_by_region.setdefault(entry.get("region"), []).append(fba_id)
 
-    totals = {"matched": 0, "updated": 0, "pushed": 0, "locked": 0, "no_action_needed": 0, "read_failed": 0, "edit_failed": 0}
+    totals = {"matched": 0, "updated": 0, "pushed": 0, "locked": 0, "no_action_needed": 0, "carrier_managed": 0, "read_failed": 0, "edit_failed": 0}
     if not pending_by_region:
         return totals
 
@@ -395,7 +464,7 @@ def run_delivery_window_sync(config: dict) -> dict:
                 expected_str = cached.get("expected_delivery_date")
                 expected_date = _parse_flexible_date(expected_str, today) if expected_str else None
 
-                result = sync_window_for_shipment(page, base_url, fba_id, entry["workflow_id"], expected_date, today)
+                result = sync_window_for_shipment(page, base_url, fba_id, entry["workflow_id"], expected_date, today, logs_folder=logs_folder)
                 _bump(result["outcome"])
                 entry["delivery_date_status"] = result["new_delivery_date_status"]
 
@@ -420,6 +489,7 @@ def format_delivery_window_sync_summary(result: dict) -> str:
         f"Pushed 2 weeks (no date yet, was about to lock): {result['pushed']}",
         f"No action needed:           {result['no_action_needed']}",
         f"Locked (can't be edited):   {result['locked']}",
+        f"Carrier-managed (skipped):  {result.get('carrier_managed', 0)}",
         f"Read failed:                {result['read_failed']}",
         f"Edit failed:                {result['edit_failed']}",
         "=" * 60,

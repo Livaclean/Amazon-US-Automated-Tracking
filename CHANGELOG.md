@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.8.2] - 2026-08-30
+
+### Fixed
+- `--sync-delivery-windows` no longer crashes the whole run when Amazon's "Confirm new delivery window" button stays disabled after selecting a target day — `apply_window_edit()`'s final `confirm_btn.click()` had no timeout/exception handling, so a 30s Playwright `TimeoutError` propagated all the way up and aborted every remaining shipment/region instead of being reported as that one shipment's `edit_failed` outcome
+- Root cause of that disabled button, found live via new debug screenshots (`logs/screenshots/`, captured at every read/edit failure point): the edit modal's "Allow `<carrier>` to update my delivery window" checkbox — checked by default for carriers like FIST — permanently disables manual confirmation, since the carrier integration is expected to own the window instead. `apply_window_edit()` now detects this checkbox up front and returns a new `carrier_managed` outcome instead of wasting a full calendar navigation and 10s confirm-timeout attempting an edit that can never succeed. Live-verified: `edit_failed` dropped from 7 to 0 on an identical shipment set after this change
+
 ## [0.8.1] - 2026-08-29
 
 ### Fixed
