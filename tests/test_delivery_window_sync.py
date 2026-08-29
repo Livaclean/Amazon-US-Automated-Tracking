@@ -15,6 +15,7 @@ from delivery_window_sync import (
     apply_window_edit,
     read_shipment_window,
     format_delivery_window_sync_summary,
+    select_weekly_candidates,
 )
 
 
@@ -665,3 +666,80 @@ def test_format_delivery_window_sync_summary_defaults_carrier_managed_when_absen
         "no_action_needed": 0, "read_failed": 0, "edit_failed": 0,
     })
     assert "Carrier-managed (skipped):  0" in text
+
+
+# --- select_weekly_candidates ------------------------------------------------
+
+def _row(**overrides):
+    row = {
+        "fba_id": "FBA_DEFAULT", "workflow_id": "wf-1",
+        "tracking_status": "pending", "delivery_date_status": "pending",
+        "delivery_window_start": "", "delivery_window_end": "",
+    }
+    row.update(overrides)
+    return row
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_includes_never_checked_shipment():
+    sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start="")}
+    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    assert result["candidates"] == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_includes_window_starting_within_seven_days():
+    sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start="2026-08-30")}  # +1 day
+    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    assert result["candidates"] == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_includes_window_starting_exactly_seven_days_out():
+    sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start="2026-09-05")}  # +7 days
+    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    assert result["candidates"] == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_excludes_window_starting_eight_days_out():
+    sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start="2026-09-06")}  # +8 days
+    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    assert result["candidates"] == []
+    assert result["not_due"] == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_flags_past_window_start_as_overdue_but_still_a_candidate():
+    sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start="2026-08-20")}  # in the past
+    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    assert result["candidates"] == ["FBA001"]
+    assert result["overdue"] == {"FBA001"}
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_excludes_delivered_shipments_entirely():
+    sheet = {
+        "FBA001": _row(fba_id="FBA001", tracking_status="Delivered", delivery_window_start=""),
+        "FBA002": _row(fba_id="FBA002", delivery_date_status="Delivered", delivery_window_start="2026-08-30"),
+    }
+    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    for bucket in result.values():
+        assert "FBA001" not in bucket
+        assert "FBA002" not in bucket
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_skips_missing_workflow_id():
+    sheet = {"FBA001": _row(fba_id="FBA001", workflow_id="", delivery_window_start="")}
+    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    assert result["candidates"] == []
+    assert result["no_workflow"] == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_skips_carrier_managed_permanently():
+    sheet = {"FBA001": _row(fba_id="FBA001", delivery_date_status="carrier_managed", delivery_window_start="2026-08-30")}
+    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    assert result["candidates"] == []
+    assert result["carrier_managed"] == ["FBA001"]

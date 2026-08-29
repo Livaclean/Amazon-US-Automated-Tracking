@@ -148,6 +148,57 @@ def decide_window_action(window_start, window_end, expected_delivery_date, today
     return {"action": "none", "target_week_start": None}
 
 
+def select_weekly_candidates(sheet: dict, today) -> dict:
+    """
+    Browser-free local filter deciding which master-sheet rows need a live
+    Amazon check this week: never-checked rows, and rows whose recorded
+    delivery window starts within the next 7 days (about to lock). Rows with
+    a window recorded further out are skipped -- they'll surface again once
+    they're within 7 days on a future run. Rows already Delivered are
+    excluded entirely; rows already flagged carrier-managed or missing a
+    Workflow ID are skipped (the latter needs discovery first, run
+    separately before this filter).
+    """
+    candidates = []
+    overdue = set()
+    not_due = []
+    no_workflow = []
+    carrier_managed = []
+
+    for fba_id, entry in sheet.items():
+        if entry.get("tracking_status") == "Delivered" or entry.get("delivery_date_status") == "Delivered":
+            continue
+        if entry.get("delivery_date_status") == "carrier_managed":
+            carrier_managed.append(fba_id)
+            continue
+        if not entry.get("workflow_id"):
+            no_workflow.append(fba_id)
+            continue
+
+        window_start_str = entry.get("delivery_window_start") or ""
+        if not window_start_str:
+            candidates.append(fba_id)
+            continue
+
+        window_start = datetime.strptime(window_start_str, "%Y-%m-%d").date()
+        days_out = (window_start - today).days
+        if days_out < 0:
+            candidates.append(fba_id)
+            overdue.add(fba_id)
+        elif days_out <= 7:
+            candidates.append(fba_id)
+        else:
+            not_due.append(fba_id)
+
+    return {
+        "candidates": candidates,
+        "overdue": overdue,
+        "not_due": not_due,
+        "no_workflow": no_workflow,
+        "carrier_managed": carrier_managed,
+    }
+
+
 def _dismiss_onboarding_modal(page) -> None:
     """
     Amazon occasionally shows a "Save time with Send to Amazon" onboarding
