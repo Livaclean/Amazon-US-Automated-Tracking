@@ -468,7 +468,8 @@ def test_sync_window_for_shipment_read_failed(monkeypatch):
         page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
         expected_delivery_date=None, today=date(2026, 8, 10),
     )
-    assert result == {"outcome": "read_failed", "new_delivery_date_status": "pending"}
+    assert result == {"outcome": "read_failed", "new_delivery_date_status": "pending",
+                      "window_start": None, "window_end": None}
 
 
 @pytest.mark.unit
@@ -482,7 +483,8 @@ def test_sync_window_for_shipment_matched_no_action_needed(monkeypatch):
         page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
         expected_delivery_date=date(2026, 9, 15), today=date(2026, 8, 10),
     )
-    assert result == {"outcome": "matched", "new_delivery_date_status": "updated"}
+    assert result == {"outcome": "matched", "new_delivery_date_status": "updated",
+                      "window_start": date(2026, 9, 13), "window_end": date(2026, 9, 19)}
 
 
 @pytest.mark.unit
@@ -495,7 +497,8 @@ def test_sync_window_for_shipment_no_action_needed_no_expected_date(monkeypatch)
         page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
         expected_delivery_date=None, today=date(2026, 8, 10),
     )
-    assert result == {"outcome": "no_action_needed", "new_delivery_date_status": "pending"}
+    assert result == {"outcome": "no_action_needed", "new_delivery_date_status": "pending",
+                      "window_start": date(2026, 9, 13), "window_end": date(2026, 9, 19)}
 
 
 @pytest.mark.unit
@@ -508,7 +511,8 @@ def test_sync_window_for_shipment_locked(monkeypatch):
         page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
         expected_delivery_date=date(2026, 8, 8), today=date(2026, 8, 10),
     )
-    assert result == {"outcome": "locked", "new_delivery_date_status": "pending"}
+    assert result == {"outcome": "locked", "new_delivery_date_status": "pending",
+                      "window_start": date(2026, 8, 9), "window_end": date(2026, 8, 15)}
 
 
 @pytest.mark.unit
@@ -522,7 +526,10 @@ def test_sync_window_for_shipment_edit_success(monkeypatch):
         page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
         expected_delivery_date=date(2026, 8, 8), today=date(2026, 8, 1),
     )
-    assert result == {"outcome": "edit", "new_delivery_date_status": "updated"}
+    # target_week_start for this expected_delivery_date/today pair is Aug 2, 2026
+    # (matches test_decide_window_action_edit_when_expected_date_before_window)
+    assert result == {"outcome": "edit", "new_delivery_date_status": "updated",
+                      "window_start": date(2026, 8, 2), "window_end": date(2026, 8, 8)}
 
 
 @pytest.mark.unit
@@ -536,7 +543,8 @@ def test_sync_window_for_shipment_edit_failed(monkeypatch):
         page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
         expected_delivery_date=date(2026, 8, 8), today=date(2026, 8, 1),
     )
-    assert result == {"outcome": "edit_failed", "new_delivery_date_status": "pending"}
+    assert result == {"outcome": "edit_failed", "new_delivery_date_status": "pending",
+                      "window_start": date(2026, 9, 13), "window_end": date(2026, 9, 19)}
 
 
 @pytest.mark.unit
@@ -550,7 +558,8 @@ def test_sync_window_for_shipment_carrier_managed(monkeypatch):
         page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
         expected_delivery_date=date(2026, 8, 8), today=date(2026, 8, 1),
     )
-    assert result == {"outcome": "carrier_managed", "new_delivery_date_status": "pending"}
+    assert result == {"outcome": "carrier_managed", "new_delivery_date_status": "pending",
+                      "window_start": date(2026, 9, 13), "window_end": date(2026, 9, 19)}
 
 
 @pytest.mark.unit
@@ -566,7 +575,10 @@ def test_sync_window_for_shipment_push_one_week_success(monkeypatch):
     )
     # push_one_week is a stopgap, not a real resolution -- stays "pending" so
     # it keeps getting rechecked for a real expected date.
-    assert result == {"outcome": "push_one_week", "new_delivery_date_status": "pending"}
+    # target_week_start for this "no date, window starting soon" case is Aug 23
+    # (window_start Aug 16 + 7 days = Aug 23, which is already a Sunday)
+    assert result == {"outcome": "push_one_week", "new_delivery_date_status": "pending",
+                      "window_start": date(2026, 8, 23), "window_end": date(2026, 8, 29)}
 
 
 @pytest.mark.unit
@@ -581,7 +593,53 @@ def test_sync_window_for_shipment_stale_expected_date_reports_no_action_needed_n
         page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
         expected_delivery_date=date(2026, 8, 2), today=date(2026, 8, 10),
     )
-    assert result == {"outcome": "no_action_needed", "new_delivery_date_status": "pending"}
+    assert result == {"outcome": "no_action_needed", "new_delivery_date_status": "pending",
+                      "window_start": date(2026, 9, 13), "window_end": date(2026, 9, 19)}
+
+
+@pytest.mark.unit
+def test_sync_window_for_shipment_matched_includes_window_dates(monkeypatch):
+    monkeypatch.setattr(
+        delivery_window_sync, "read_shipment_window",
+        lambda *a, **kw: {"window_start": date(2026, 9, 13), "window_end": date(2026, 9, 19)},
+    )
+    result = sync_window_for_shipment(
+        page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
+        expected_delivery_date=date(2026, 9, 15), today=date(2026, 8, 10),
+    )
+    assert result["window_start"] == date(2026, 9, 13)
+    assert result["window_end"] == date(2026, 9, 19)
+
+
+@pytest.mark.unit
+def test_sync_window_for_shipment_read_failed_has_none_window_dates(monkeypatch):
+    monkeypatch.setattr(delivery_window_sync, "read_shipment_window", lambda *a, **kw: None)
+    result = sync_window_for_shipment(
+        page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
+        expected_delivery_date=None, today=date(2026, 8, 10),
+    )
+    assert result["window_start"] is None
+    assert result["window_end"] is None
+
+
+@pytest.mark.unit
+def test_sync_window_for_shipment_edit_success_returns_new_target_window(monkeypatch):
+    """On a successful edit, the caller needs the NEW window (what it was
+    just changed to), not the stale one that was read before the edit --
+    that's what gets persisted to the master sheet."""
+    monkeypatch.setattr(
+        delivery_window_sync, "read_shipment_window",
+        lambda *a, **kw: {"window_start": date(2026, 9, 13), "window_end": date(2026, 9, 19)},
+    )
+    monkeypatch.setattr(delivery_window_sync, "apply_window_edit", lambda page, target, **kw: "edited")
+    result = sync_window_for_shipment(
+        page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
+        expected_delivery_date=date(2026, 8, 8), today=date(2026, 8, 1),
+    )
+    # target_week_start for this expected_delivery_date/today pair is Aug 2, 2026
+    # (matches test_decide_window_action_edit_when_expected_date_before_window)
+    assert result["window_start"] == date(2026, 8, 2)
+    assert result["window_end"] == date(2026, 8, 8)
 
 
 # --- format_delivery_window_sync_summary ------------------------------------------

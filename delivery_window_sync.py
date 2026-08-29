@@ -371,7 +371,13 @@ def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str,
     """
     Reads fba_id's current delivery window, decides what to do via
     decide_window_action(), and applies an edit if one is called for.
-    Returns {"outcome": ..., "new_delivery_date_status": "updated" | "pending"}.
+    Returns {"outcome": ..., "new_delivery_date_status": "updated" | "pending",
+    "window_start": date | None, "window_end": date | None} -- the window
+    dates are the live-read window on every outcome except a successful
+    "edit"/"push_one_week", where they're the *new* target window instead
+    (what the shipment now shows on Amazon), so the caller can persist
+    whichever is current without a second read. Both None only on
+    "read_failed" (nothing was ever read).
 
     Outcomes: "read_failed" (couldn't read the current window), "matched"
     (expected date already inside the window -- confirmed correct, no edit
@@ -385,36 +391,44 @@ def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str,
 
     Status is "updated" only for "matched" and a successful "edit" -- both
     mean the window now demonstrably reflects a real expected date.
-    "push_one_week" stays "pending": it's a stopgap so the window doesn't
-    lock while we wait for a real date, not a real resolution.
+    "push_one_week" stays "pending": it's a nudge re-verified next week,
+    not a real resolution.
     """
     window = read_shipment_window(page, workflow_id, fba_id, base_url, logs_folder=logs_folder)
     if window is None:
-        return {"outcome": "read_failed", "new_delivery_date_status": "pending"}
+        return {"outcome": "read_failed", "new_delivery_date_status": "pending",
+                "window_start": None, "window_end": None}
 
     decision = decide_window_action(window["window_start"], window["window_end"], expected_delivery_date, today)
     action = decision["action"]
 
     if action == "locked":
-        return {"outcome": "locked", "new_delivery_date_status": "pending"}
+        return {"outcome": "locked", "new_delivery_date_status": "pending",
+                "window_start": window["window_start"], "window_end": window["window_end"]}
 
     if action == "none":
         # A stale (strictly-past) expected date doesn't confirm the window is
         # correct -- decide_window_action() ignored it the same way -- so
         # "matched" would overclaim confidence we don't actually have.
         has_usable_expected_date = expected_delivery_date is not None and expected_delivery_date >= today
-        if has_usable_expected_date:
-            return {"outcome": "matched", "new_delivery_date_status": "updated"}
-        return {"outcome": "no_action_needed", "new_delivery_date_status": "pending"}
+        outcome = "matched" if has_usable_expected_date else "no_action_needed"
+        status = "updated" if has_usable_expected_date else "pending"
+        return {"outcome": outcome, "new_delivery_date_status": status,
+                "window_start": window["window_start"], "window_end": window["window_end"]}
 
     # action is "edit" or "push_one_week"
     edit_result = apply_window_edit(page, decision["target_week_start"], fba_id=fba_id, logs_folder=logs_folder)
+    target_start = decision["target_week_start"]
+    target_end = target_start + timedelta(days=6) if target_start else None
     if edit_result == "carrier_managed":
-        return {"outcome": "carrier_managed", "new_delivery_date_status": "pending"}
+        return {"outcome": "carrier_managed", "new_delivery_date_status": "pending",
+                "window_start": window["window_start"], "window_end": window["window_end"]}
     if edit_result != "edited":
-        return {"outcome": "edit_failed", "new_delivery_date_status": "pending"}
+        return {"outcome": "edit_failed", "new_delivery_date_status": "pending",
+                "window_start": window["window_start"], "window_end": window["window_end"]}
     status = "updated" if action == "edit" else "pending"
-    return {"outcome": action, "new_delivery_date_status": status}
+    return {"outcome": action, "new_delivery_date_status": status,
+            "window_start": target_start, "window_end": target_end}
 
 
 def run_delivery_window_sync(config: dict) -> dict:
