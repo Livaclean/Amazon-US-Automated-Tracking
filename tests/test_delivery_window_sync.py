@@ -147,13 +147,14 @@ def test_decide_window_action_edit_when_expected_date_after_window():
 
 
 @pytest.mark.unit
-def test_decide_window_action_push_two_weeks_when_no_expected_date_and_window_starts_soon():
+def test_decide_window_action_push_one_week_when_no_expected_date_and_window_starts_soon():
     result = decide_window_action(
         window_start=date(2026, 8, 16), window_end=date(2026, 8, 22),
         expected_delivery_date=None, today=date(2026, 8, 10),
     )
-    # today + 14 days = Aug 24, 2026 (Monday) -> week is Aug 23 (Sun) - Aug 29 (Sat)
-    assert result == {"action": "push_two_weeks", "target_week_start": date(2026, 8, 23)}
+    # window_start + 7 days = Aug 23, 2026 (already a Sunday -- window_start's
+    # own week-alignment carries through, so no extra _week_bounds shift needed)
+    assert result == {"action": "push_one_week", "target_week_start": date(2026, 8, 23)}
 
 
 @pytest.mark.unit
@@ -166,12 +167,19 @@ def test_decide_window_action_none_when_no_expected_date_and_window_far_out():
 
 
 @pytest.mark.unit
-def test_decide_window_action_push_two_weeks_boundary_exactly_seven_days():
+def test_decide_window_action_push_one_week_boundary_exactly_seven_days():
+    # window_start=Aug 17 is deliberately NOT Sunday-aligned (unlike a real
+    # Amazon window) -- this test isolates the (window_start - today).days <= 7
+    # trigger boundary, same as the original push_two_weeks version of this
+    # test did; it never asserted week-alignment precision, so neither does this.
     result = decide_window_action(
         window_start=date(2026, 8, 17), window_end=date(2026, 8, 23),
         expected_delivery_date=None, today=date(2026, 8, 10),
     )
-    assert result["action"] == "push_two_weeks"
+    assert result["action"] == "push_one_week"
+    # window_start (Aug 17, a Monday) + 7 days = Aug 24 (Monday) -> _week_bounds
+    # normalizes that to its containing week: Aug 23 (Sun) - Aug 29 (Sat).
+    assert result["target_week_start"] == date(2026, 8, 23)
 
 
 @pytest.mark.unit
@@ -196,12 +204,12 @@ def test_decide_window_action_stale_expected_date_falls_back_to_none():
 
 
 @pytest.mark.unit
-def test_decide_window_action_stale_expected_date_falls_back_to_push_two_weeks():
+def test_decide_window_action_stale_expected_date_falls_back_to_push_one_week():
     result = decide_window_action(
         window_start=date(2026, 8, 16), window_end=date(2026, 8, 22),
         expected_delivery_date=date(2026, 8, 2), today=date(2026, 8, 10),
     )
-    assert result == {"action": "push_two_weeks", "target_week_start": date(2026, 8, 23)}
+    assert result == {"action": "push_one_week", "target_week_start": date(2026, 8, 23)}
 
 
 @pytest.mark.unit
@@ -546,7 +554,7 @@ def test_sync_window_for_shipment_carrier_managed(monkeypatch):
 
 
 @pytest.mark.unit
-def test_sync_window_for_shipment_push_two_weeks_success(monkeypatch):
+def test_sync_window_for_shipment_push_one_week_success(monkeypatch):
     monkeypatch.setattr(
         delivery_window_sync, "read_shipment_window",
         lambda *a, **kw: {"window_start": date(2026, 8, 16), "window_end": date(2026, 8, 22)},
@@ -556,9 +564,9 @@ def test_sync_window_for_shipment_push_two_weeks_success(monkeypatch):
         page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
         expected_delivery_date=None, today=date(2026, 8, 10),
     )
-    # push_two_weeks is a stopgap, not a real resolution -- stays "pending" so
+    # push_one_week is a stopgap, not a real resolution -- stays "pending" so
     # it keeps getting rechecked for a real expected date.
-    assert result == {"outcome": "push_two_weeks", "new_delivery_date_status": "pending"}
+    assert result == {"outcome": "push_one_week", "new_delivery_date_status": "pending"}
 
 
 @pytest.mark.unit

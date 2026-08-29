@@ -109,7 +109,7 @@ def decide_window_action(window_start, window_end, expected_delivery_date, today
     Pure decision, no I/O: given a shipment's current Amazon delivery window,
     its real expected delivery date (a date, or None if not known yet), and
     today's date, decides what to do. Returns
-    {"action": "locked" | "none" | "edit" | "push_two_weeks", "target_week_start": date | None}.
+    {"action": "locked" | "none" | "edit" | "push_one_week", "target_week_start": date | None}.
 
     - "locked": the window's start date has already arrived. Amazon's own
       edit cutoff always equals the window's start date (confirmed against
@@ -119,9 +119,10 @@ def decide_window_action(window_start, window_end, expected_delivery_date, today
       to need a defensive push.
     - "edit": the expected date is known and falls outside the window -- move
       the window to the calendar week containing it.
-    - "push_two_weeks": no expected date yet, and the window starts within
-      the next 7 days (about to lock) -- push it out two weeks so it doesn't
-      lock on a guess while we wait for a real date.
+    - "push_one_week": no expected date yet, and the window starts within
+      the next 7 days (about to lock) -- push it out one week so it doesn't
+      lock on a guess; the weekly sync cadence will re-verify this shipment
+      next Saturday and can adjust further if needed.
 
     A strictly-past expected_delivery_date (an overdue "In Transit" package
     whose cached date has already gone by) is treated the same as having no
@@ -141,8 +142,8 @@ def decide_window_action(window_start, window_end, expected_delivery_date, today
         return {"action": "edit", "target_week_start": target_start}
 
     if (window_start - today).days <= 7:
-        target_start, _ = _week_bounds(today + timedelta(days=14))
-        return {"action": "push_two_weeks", "target_week_start": target_start}
+        target_start, _ = _week_bounds(window_start + timedelta(days=7))
+        return {"action": "push_one_week", "target_week_start": target_start}
 
     return {"action": "none", "target_week_start": None}
 
@@ -376,7 +377,7 @@ def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str,
     (expected date already inside the window -- confirmed correct, no edit
     needed), "no_action_needed" (no expected date yet, window not urgent),
     "locked" (window's start date has passed, can't be edited), "edit" /
-    "push_two_weeks" (the corresponding decide_window_action action was
+    "push_one_week" (the corresponding decide_window_action action was
     successfully applied), "carrier_managed" (the shipment's carrier owns
     delivery-window updates -- Amazon disables manual edits for it, so this
     isn't a failure, just not ours to touch), "edit_failed" (the live edit
@@ -384,7 +385,7 @@ def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str,
 
     Status is "updated" only for "matched" and a successful "edit" -- both
     mean the window now demonstrably reflects a real expected date.
-    "push_two_weeks" stays "pending": it's a stopgap so the window doesn't
+    "push_one_week" stays "pending": it's a stopgap so the window doesn't
     lock while we wait for a real date, not a real resolution.
     """
     window = read_shipment_window(page, workflow_id, fba_id, base_url, logs_folder=logs_folder)
@@ -406,7 +407,7 @@ def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str,
             return {"outcome": "matched", "new_delivery_date_status": "updated"}
         return {"outcome": "no_action_needed", "new_delivery_date_status": "pending"}
 
-    # action is "edit" or "push_two_weeks"
+    # action is "edit" or "push_one_week"
     edit_result = apply_window_edit(page, decision["target_week_start"], fba_id=fba_id, logs_folder=logs_folder)
     if edit_result == "carrier_managed":
         return {"outcome": "carrier_managed", "new_delivery_date_status": "pending"}
@@ -453,7 +454,7 @@ def run_delivery_window_sync(config: dict) -> dict:
         return totals
 
     def _bump(outcome):
-        key = {"edit": "updated", "push_two_weeks": "pushed"}.get(outcome, outcome)
+        key = {"edit": "updated", "push_one_week": "pushed"}.get(outcome, outcome)
         totals[key] = totals.get(key, 0) + 1
 
     playwright, context = create_browser_context(config)
@@ -503,7 +504,7 @@ def format_delivery_window_sync_summary(result: dict) -> str:
         "=" * 60,
         f"Matched (already correct):  {result['matched']}",
         f"Updated (edited to match):  {result['updated']}",
-        f"Pushed 2 weeks (no date yet, was about to lock): {result['pushed']}",
+        f"Pushed 1 week (no date yet, was about to lock): {result['pushed']}",
         f"No action needed:           {result['no_action_needed']}",
         f"Locked (can't be edited):   {result['locked']}",
         f"Carrier-managed (skipped):  {result.get('carrier_managed', 0)}",
