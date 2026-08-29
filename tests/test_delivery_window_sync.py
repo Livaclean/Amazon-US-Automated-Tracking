@@ -16,6 +16,7 @@ from delivery_window_sync import (
     read_shipment_window,
     format_delivery_window_sync_summary,
     select_weekly_candidates,
+    format_weekly_delivery_window_summary,
 )
 
 
@@ -743,3 +744,39 @@ def test_select_weekly_candidates_skips_carrier_managed_permanently():
     result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
     assert result["candidates"] == []
     assert result["carrier_managed"] == ["FBA001"]
+
+
+# --- format_weekly_delivery_window_summary ------------------------------------------
+
+@pytest.mark.unit
+def test_format_weekly_delivery_window_summary_includes_all_sections():
+    text = format_weekly_delivery_window_summary({
+        "checked": 14, "not_due": 121, "carrier_managed_skipped": 6,
+        "matched": 3, "edited": 2, "pushed_one_week": 5,
+        "no_action_needed": 1,
+        "new_shipments": ["FBA19ABCDEF1", "FBA19ABCDEF2"],
+        "overdue_shipments": ["FBA19XYZ1234"],
+        "locked": 0, "read_failed": 2,
+        "read_failed_ids": ["FBA15GDQMSCT", "FBA15GDT80ZL"],
+        "edit_failed": 1, "edit_failed_ids": ["FBA15GDT80ZL"],
+        "errors": [],
+    })
+    assert "Checked this week" in text
+    assert "14" in text
+    assert "FBA19ABCDEF1" in text
+    assert "FBA19XYZ1234" in text
+    assert "FBA15GDQMSCT" in text
+    assert "Edit failed" in text
+
+
+@pytest.mark.unit
+def test_format_weekly_delivery_window_summary_includes_errors_section_when_present():
+    text = format_weekly_delivery_window_summary({
+        "checked": 0, "not_due": 0, "carrier_managed_skipped": 0,
+        "matched": 0, "edited": 0, "pushed_one_week": 0, "no_action_needed": 0,
+        "new_shipments": [], "overdue_shipments": [], "locked": 0,
+        "read_failed": 0, "read_failed_ids": [],
+        "edit_failed": 0, "edit_failed_ids": [],
+        "errors": ["Could not log in to CA -- skipped 3 shipment(s)"],
+    })
+    assert "Could not log in to CA" in text
