@@ -48,6 +48,7 @@ def test_master_sheet_columns_order():
         "FBA ID", "Shipment Name", "Destination", "Ctns", "Shipping Way",
         "Notes (source)", "Label Created Date", "Expected Delivery Date",
         "Current Status", "Last Checked", "Region", "Workflow ID",
+        "Delivery Window Start", "Delivery Window End", "Delivery Window Last Checked",
     ]
 
 
@@ -78,6 +79,9 @@ def test_save_then_load_round_trip(tmp_path):
             "last_checked": "2026-06-05 10:00",
             "region": "US",
             "workflow_id": "wf-abc-123",
+            "delivery_window_start": "",
+            "delivery_window_end": "",
+            "delivery_window_last_checked": "",
         },
     }
     save_master_sheet(path, sheet)
@@ -112,6 +116,7 @@ def test_save_master_sheet_writes_columns_in_order(tmp_path):
     assert data_row == [
         "updated", "pending", "1Z001", "UPS", "FBA001", "Widget", "ORF2", 1,
         "express", None, None, None, "Delivered", "2026-06-05 10:00", "US", "wf-abc-123",
+        None, None, None,
     ]
 
 
@@ -348,3 +353,48 @@ def test_sync_delivered_status_missing_tracking_in_cache_does_not_crash():
     result = sync_delivered_status(sheet, tracking_cache={})
 
     assert result["FBA001"]["tracking_status"] == "pending"
+
+
+# --- delivery window fields --------------------------------------------------
+
+@pytest.mark.unit
+def test_master_sheet_columns_include_delivery_window_fields():
+    assert "Delivery Window Start" in MASTER_SHEET_COLUMNS
+    assert "Delivery Window End" in MASTER_SHEET_COLUMNS
+    assert "Delivery Window Last Checked" in MASTER_SHEET_COLUMNS
+
+
+@pytest.mark.unit
+def test_save_and_load_round_trips_delivery_window_fields(tmp_path):
+    path = str(tmp_path / "master.xlsx")
+    sheet = {
+        "FBA001": {
+            "fba_id": "FBA001", "tracking": "1Z001", "carrier": "UPS",
+            "name": "", "destination": "", "ctns": "", "shipping_way": "",
+            "notes": "", "region": "US", "tracking_status": "pending",
+            "delivery_date_status": "pending", "label_created_date": "",
+            "expected_delivery_date": "", "status": "", "last_checked": "",
+            "workflow_id": "wf-1",
+            "delivery_window_start": "2026-09-06",
+            "delivery_window_end": "2026-09-12",
+            "delivery_window_last_checked": "2026-08-30 22:00",
+        }
+    }
+    save_master_sheet(path, sheet)
+    loaded = load_master_sheet(path)
+    assert loaded["FBA001"]["delivery_window_start"] == "2026-09-06"
+    assert loaded["FBA001"]["delivery_window_end"] == "2026-09-12"
+    assert loaded["FBA001"]["delivery_window_last_checked"] == "2026-08-30 22:00"
+
+
+@pytest.mark.unit
+def test_populate_from_input_new_row_has_blank_delivery_window_fields(tmp_config):
+    """Extends the existing test_populate_from_input_creates_pending_rows_for_new_shipments
+    (tests/test_master_sheet.py:171) pattern -- reuses its own _write_input_sheet helper,
+    not a mock, matching how every other populate_from_input test in this file works."""
+    tmp_config = _write_input_sheet(tmp_config)
+    sheet = populate_from_input(tmp_config, {})
+    row = sheet["FBA_CL1"]
+    assert row["delivery_window_start"] == ""
+    assert row["delivery_window_end"] == ""
+    assert row["delivery_window_last_checked"] == ""

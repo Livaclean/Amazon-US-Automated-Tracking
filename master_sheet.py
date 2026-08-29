@@ -15,6 +15,7 @@ MASTER_SHEET_COLUMNS = [
     "FBA ID", "Shipment Name", "Destination", "Ctns", "Shipping Way",
     "Notes (source)", "Label Created Date", "Expected Delivery Date",
     "Current Status", "Last Checked", "Region", "Workflow ID",
+    "Delivery Window Start", "Delivery Window End", "Delivery Window Last Checked",
 ]
 
 # Maps in-memory dict keys to their column position/header above, in column order.
@@ -35,6 +36,9 @@ _FIELD_ORDER = [
     ("last_checked", "Last Checked"),
     ("region", "Region"),
     ("workflow_id", "Workflow ID"),
+    ("delivery_window_start", "Delivery Window Start"),
+    ("delivery_window_end", "Delivery Window End"),
+    ("delivery_window_last_checked", "Delivery Window Last Checked"),
 ]
 
 
@@ -68,6 +72,7 @@ _SOURCE_FIELDS = ["tracking", "carrier", "name", "destination", "ctns", "shippin
 _STATUS_FIELDS = [
     "tracking_status", "delivery_date_status", "label_created_date",
     "expected_delivery_date", "status", "last_checked", "workflow_id",
+    "delivery_window_start", "delivery_window_end", "delivery_window_last_checked",
 ]
 
 
@@ -100,6 +105,9 @@ def populate_from_input(config: dict, master_sheet: dict) -> dict:
             row["expected_delivery_date"] = ""
             row["status"] = ""
             row["last_checked"] = ""
+            row["delivery_window_start"] = ""
+            row["delivery_window_end"] = ""
+            row["delivery_window_last_checked"] = ""
             result[fba_id] = row
     return result
 
