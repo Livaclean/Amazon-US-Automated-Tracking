@@ -451,7 +451,7 @@ def main():
         help="For shipments in logs/shipment_tracking_master.xlsx that aren't Delivered and have a known Workflow "
              "ID, compare Amazon's delivery window against the real carrier expected-delivery date (from "
              "logs/tracking_status.xlsx) and edit the window on Amazon when it doesn't match. Also pushes a "
-             "window 2 weeks out if it's about to lock with no expected date yet. Logs in to Amazon per region.",
+             "window 1 week out if it's about to lock with no expected date yet. Logs in to Amazon per region.",
     )
     parser.add_argument(
         "--weekly-delivery-sync", action="store_true",

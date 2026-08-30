@@ -747,12 +747,75 @@ def test_select_weekly_candidates_skips_carrier_managed_permanently():
     assert result["carrier_managed"] == ["FBA001"]
 
 
+@pytest.mark.unit
+def test_select_weekly_candidates_handles_datetime_object_in_window_start_cell():
+    """Regression test: load_master_sheet does zero type normalization on cell
+    values, and this file is one the user opens and re-saves in Excel -- if
+    Excel auto-converts an ISO-looking text cell into a real date on save,
+    openpyxl returns a datetime object instead of a string for that cell.
+    strptime() on a non-string used to raise TypeError, crashing the whole
+    run before any browser opened."""
+    from datetime import datetime as _datetime
+    sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start=_datetime(2026, 8, 30))}
+    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    assert result["candidates"] == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_handles_date_object_in_window_start_cell():
+    sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start=date(2026, 8, 30))}
+    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    assert result["candidates"] == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_treats_garbled_date_string_as_candidate_not_crash():
+    """A genuinely unparseable value shouldn't crash select_weekly_candidates
+    -- treat it the same as "never checked" so it gets a fresh live read."""
+    sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start="not-a-date")}
+    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    assert result["candidates"] == ["FBA001"]
+
+
+# --- _select_delivery_window_sync_candidates (old --sync-delivery-windows command) ---
+
+@pytest.mark.unit
+def test_select_delivery_window_sync_candidates_skips_carrier_managed_permanently():
+    """Regression test: the old --sync-delivery-windows command predates the
+    carrier_managed permanent-skip flag -- without this exclusion, running it
+    would re-visit these shipments and reset their flag back to "pending",
+    silently undoing the permanent skip and resurrecting them into the weekly
+    candidate list forever."""
+    sheet = {"FBA001": _row(fba_id="FBA001", delivery_date_status="carrier_managed", region="US")}
+    result = delivery_window_sync._select_delivery_window_sync_candidates(sheet)
+    assert result == {}
+
+
+@pytest.mark.unit
+def test_select_delivery_window_sync_candidates_includes_normal_pending_shipment():
+    sheet = {"FBA001": _row(fba_id="FBA001", region="US")}
+    result = delivery_window_sync._select_delivery_window_sync_candidates(sheet)
+    assert result == {"US": ["FBA001"]}
+
+
+@pytest.mark.unit
+def test_select_delivery_window_sync_candidates_excludes_delivered_and_no_workflow():
+    sheet = {
+        "FBA001": _row(fba_id="FBA001", region="US", tracking_status="Delivered"),
+        "FBA002": _row(fba_id="FBA002", region="US", delivery_date_status="Delivered"),
+        "FBA003": _row(fba_id="FBA003", region="US", workflow_id=""),
+    }
+    result = delivery_window_sync._select_delivery_window_sync_candidates(sheet)
+    assert result == {}
+
+
 # --- format_weekly_delivery_window_summary ------------------------------------------
 
 @pytest.mark.unit
 def test_format_weekly_delivery_window_summary_includes_all_sections():
     text = format_weekly_delivery_window_summary({
         "checked": 14, "not_due": 121, "carrier_managed_skipped": 6,
+        "no_workflow": 2, "no_workflow_ids": ["FBA20AAAAAA1", "FBA20AAAAAA2"],
         "matched": 3, "edited": 2, "pushed_one_week": 5,
         "no_action_needed": 1,
         "new_shipments": ["FBA19ABCDEF1", "FBA19ABCDEF2"],
@@ -768,6 +831,9 @@ def test_format_weekly_delivery_window_summary_includes_all_sections():
     assert "FBA19XYZ1234" in text
     assert "FBA15GDQMSCT" in text
     assert "Edit failed" in text
+    assert "Skipped (no workflow yet)" in text
+    assert "FBA20AAAAAA1" in text
+    assert "FBA20AAAAAA2" in text
 
 
 @pytest.mark.unit

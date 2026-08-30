@@ -116,7 +116,7 @@ python run.py --sync-delivery-windows            # Sync Amazon's delivery window
 | `--update-master-sheet` | Populate/refresh `logs/shipment_tracking_master.xlsx` (one row per FBA ID) from the input Excel file. Also runs automatically as part of a normal run. |
 | `--discover-workflows` | For master-sheet shipments without a Workflow ID yet (and not already Delivered), visit their Amazon shipment page and follow "Send to Amazon (view)" to find it. A workflow covering several sibling shipments is recorded for all of them from one visit. Logs in to Amazon per region. |
 | `--sync-appointments` | For TRUCK-carrier shipments with no real tracking number yet, enter the Appointment ID already known from the source sheet's notes into Amazon's Pro/Freight Bill Number field. Never overwrites a value Amazon already has. Logs in to Amazon per region. |
-| `--sync-delivery-windows` | For master-sheet shipments that aren't Delivered and have a known Workflow ID, compare Amazon's delivery window against the real carrier expected-delivery date (from `logs/tracking_status.xlsx`) and edit the window on Amazon when it doesn't match. Also pushes a window 2 weeks out if it's about to lock with no expected date yet. Logs in to Amazon per region. |
+| `--sync-delivery-windows` | For master-sheet shipments that aren't Delivered and have a known Workflow ID, compare Amazon's delivery window against the real carrier expected-delivery date (from `logs/tracking_status.xlsx`) and edit the window on Amazon when it doesn't match. Also pushes a window 1 week out if it's about to lock with no expected date yet. Logs in to Amazon per region. |
 
 ---
 

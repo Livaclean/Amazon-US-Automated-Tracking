@@ -192,12 +192,27 @@ def select_weekly_candidates(sheet: dict, today) -> dict:
             no_workflow.append(fba_id)
             continue
 
-        window_start_str = entry.get("delivery_window_start") or ""
+        window_start_raw = entry.get("delivery_window_start") or ""
+        if hasattr(window_start_raw, "strftime"):
+            # openpyxl returns a real datetime/date object instead of a string
+            # if Excel auto-converted an ISO-looking text cell on save -- a
+            # real risk since the master sheet is a file the user opens and
+            # re-saves in Excel.
+            window_start_str = window_start_raw.strftime("%Y-%m-%d")
+        else:
+            window_start_str = str(window_start_raw).strip()
+
         if not window_start_str:
             candidates.append(fba_id)
             continue
 
-        window_start = datetime.strptime(window_start_str, "%Y-%m-%d").date()
+        try:
+            window_start = datetime.strptime(window_start_str, "%Y-%m-%d").date()
+        except ValueError:
+            # A malformed/unparseable value shouldn't crash the whole run --
+            # treat it the same as "never checked" so it gets a fresh live read.
+            candidates.append(fba_id)
+            continue
         days_out = (window_start - today).days
         if days_out < 0:
             candidates.append(fba_id)
@@ -499,6 +514,28 @@ def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str,
             "window_start": target_start, "window_end": target_end}
 
 
+def _select_delivery_window_sync_candidates(sheet: dict) -> dict:
+    """
+    Browser-free filter for run_delivery_window_sync (the old ad-hoc
+    --sync-delivery-windows command): every master-sheet row not already
+    Delivered, not flagged carrier-managed (Amazon owns that window
+    permanently -- the newer weekly sync's select_weekly_candidates already
+    excludes these; this old command predates that flag and must too, or it
+    silently resurrects a permanently-skipped shipment), and with a known
+    Workflow ID -- grouped by region.
+    """
+    pending_by_region = {}
+    for fba_id, entry in sheet.items():
+        if entry.get("tracking_status") == "Delivered" or entry.get("delivery_date_status") == "Delivered":
+            continue
+        if entry.get("delivery_date_status") == "carrier_managed":
+            continue
+        if not entry.get("workflow_id"):
+            continue
+        pending_by_region.setdefault(entry.get("region"), []).append(fba_id)
+    return pending_by_region
+
+
 def run_delivery_window_sync(config: dict) -> dict:
     """
     For every master-sheet shipment not already "Delivered" and with a known
@@ -523,13 +560,7 @@ def run_delivery_window_sync(config: dict) -> dict:
     logs_folder = config.get("logs_folder", "logs")
     today = _date.today()
 
-    pending_by_region = {}
-    for fba_id, entry in sheet.items():
-        if entry.get("tracking_status") == "Delivered" or entry.get("delivery_date_status") == "Delivered":
-            continue
-        if not entry.get("workflow_id"):
-            continue
-        pending_by_region.setdefault(entry.get("region"), []).append(fba_id)
+    pending_by_region = _select_delivery_window_sync_candidates(sheet)
 
     totals = {"matched": 0, "updated": 0, "pushed": 0, "locked": 0, "no_action_needed": 0, "carrier_managed": 0, "read_failed": 0, "edit_failed": 0}
     if not pending_by_region:
@@ -566,7 +597,13 @@ def run_delivery_window_sync(config: dict) -> dict:
 
                 result = sync_window_for_shipment(page, base_url, fba_id, entry["workflow_id"], expected_date, today, logs_folder=logs_folder)
                 _bump(result["outcome"])
-                entry["delivery_date_status"] = result["new_delivery_date_status"]
+                # A "carrier_managed" outcome must persist as the permanent-skip
+                # flag itself, not sync_window_for_shipment's own "pending" --
+                # otherwise this old command silently undoes the flag and
+                # resurrects the shipment into future candidate lists forever.
+                entry["delivery_date_status"] = (
+                    "carrier_managed" if result["outcome"] == "carrier_managed" else result["new_delivery_date_status"]
+                )
 
             save_master_sheet(path, sheet)
     finally:
@@ -586,7 +623,10 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
     shipments select_weekly_candidates() says are due this week -- persisting
     the live window (or the new target window on a successful edit) back to
     the master sheet after every shipment, and the master sheet itself after
-    every region. Also writes logs/weekly_delivery_window_summary_<ts>.txt.
+    every region. Also writes logs/weekly_delivery_window_summary_<ts>.txt --
+    on every run, including a zero-candidate week, a Chrome-profile-locked
+    failure, or a mid-run crash, since a missing summary is indistinguishable
+    from "the scheduled task never fired" the next morning.
     """
     from datetime import date as _date
     from tracking_status import run_check_tracking
@@ -599,54 +639,57 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
     today = _date.today()
     errors = []
 
-    logger.info("Refreshing carrier tracking data...")
-    run_check_tracking(config)
-
-    logger.info("Discovering Workflow IDs for any new shipments...")
-    run_workflow_discovery(config)
-
-    path = config.get("master_sheet_path", MASTER_SHEET_PATH_DEFAULT)
-    sheet = load_master_sheet(path)
-    tracking_cache_path = config.get("tracking_status_cache")
-    from tracking_status import load_status_cache, STATUS_CACHE_PATH_DEFAULT
-    tracking_cache = load_status_cache(tracking_cache_path or STATUS_CACHE_PATH_DEFAULT)
-
-    selection = select_weekly_candidates(sheet, today)
-    candidates = selection["candidates"]
-    new_shipments = [fba_id for fba_id in candidates if not sheet[fba_id].get("delivery_window_start")]
-    overdue_ids = set(selection["overdue"])
-
+    # Seeded now so a summary can always be written -- even if an exception
+    # below happens before some of these get their real values.
     totals = {
-        "checked": len(candidates), "not_due": len(selection["not_due"]),
-        "carrier_managed_skipped": len(selection["carrier_managed"]),
+        "checked": 0, "not_due": 0, "carrier_managed_skipped": 0,
+        "no_workflow": 0, "no_workflow_ids": [],
         "matched": 0, "edited": 0, "pushed_one_week": 0, "locked": 0,
         "no_action_needed": 0, "edit_failed": 0, "edit_failed_ids": [],
         "read_failed": 0, "read_failed_ids": [],
-        "new_shipments": new_shipments, "overdue_shipments": sorted(overdue_ids),
+        "new_shipments": [], "overdue_shipments": [],
         "errors": errors,
     }
-    if not candidates:
-        return totals
 
-    region_by_name = {r["name"]: r for r in config.get("regions", [])}
-    by_region = {}
-    for fba_id in candidates:
-        by_region.setdefault(sheet[fba_id].get("region"), []).append(fba_id)
-
+    playwright = None
+    context = None
     try:
+        logger.info("Refreshing carrier tracking data...")
+        run_check_tracking(config)
+
+        logger.info("Discovering Workflow IDs for any new shipments...")
+        run_workflow_discovery(config)
+
+        path = config.get("master_sheet_path", MASTER_SHEET_PATH_DEFAULT)
+        sheet = load_master_sheet(path)
+        tracking_cache_path = config.get("tracking_status_cache")
+        from tracking_status import load_status_cache, STATUS_CACHE_PATH_DEFAULT
+        tracking_cache = load_status_cache(tracking_cache_path or STATUS_CACHE_PATH_DEFAULT)
+
+        selection = select_weekly_candidates(sheet, today)
+        candidates = selection["candidates"]
+        new_shipments = [fba_id for fba_id in candidates if not sheet[fba_id].get("delivery_window_start")]
+        overdue_ids = set(selection["overdue"])
+
+        totals["checked"] = len(candidates)
+        totals["not_due"] = len(selection["not_due"])
+        totals["carrier_managed_skipped"] = len(selection["carrier_managed"])
+        totals["no_workflow"] = len(selection["no_workflow"])
+        totals["no_workflow_ids"] = selection["no_workflow"]
+        totals["new_shipments"] = new_shipments
+        totals["overdue_shipments"] = sorted(overdue_ids)
+
+        if not candidates:
+            return totals
+
+        region_by_name = {r["name"]: r for r in config.get("regions", [])}
+        by_region = {}
+        for fba_id in candidates:
+            by_region.setdefault(sheet[fba_id].get("region"), []).append(fba_id)
+
         playwright, context = create_browser_context(config)
-    except RuntimeError as e:
-        # e.g. a previous run's Chrome process crashed and left the automation
-        # profile locked (spec: Error Handling table) -- report it in the
-        # summary instead of crashing the whole scheduled task silently.
-        errors.append(str(e))
-        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        summary_text = format_weekly_delivery_window_summary(totals)
-        Path(logs_folder).joinpath(f"weekly_delivery_window_summary_{ts}.txt").write_text(summary_text, encoding="utf-8")
-        return totals
 
-    this_run_outcomes = {}
-    try:
+        this_run_outcomes = {}
         page = context.new_page()
         for region_name, fba_ids in by_region.items():
             region = region_by_name.get(region_name)
@@ -700,14 +743,32 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
                         entry["delivery_window_last_checked"] = datetime.now().strftime("%Y-%m-%d %H:%M")
 
             save_master_sheet(path, sheet)
-    finally:
-        context.close()
-        playwright.stop()
 
-    totals["overdue_shipments"] = _merge_overdue_with_newly_locked(overdue_ids, this_run_outcomes)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    summary_text = format_weekly_delivery_window_summary(totals)
-    Path(logs_folder).joinpath(f"weekly_delivery_window_summary_{ts}.txt").write_text(summary_text, encoding="utf-8")
+        totals["overdue_shipments"] = _merge_overdue_with_newly_locked(overdue_ids, this_run_outcomes)
+    except RuntimeError as e:
+        # e.g. a previous run's Chrome process crashed and left the automation
+        # profile locked (spec: Error Handling table) -- report it in the
+        # summary instead of crashing the whole scheduled task silently. This
+        # also covers run_check_tracking/run_workflow_discovery hitting the
+        # same locked-profile failure before create_browser_context below
+        # ever runs, since they open their own browser contexts too.
+        errors.append(str(e))
+    except Exception as e:
+        # Anything else unexpected -- e.g. a crash partway through the
+        # per-shipment loop or save_master_sheet -- lands in the summary's
+        # Errors section instead of vanishing with no summary written at all.
+        errors.append(str(e))
+    finally:
+        if context is not None:
+            try:
+                context.close()
+                playwright.stop()
+            except Exception:
+                pass
+        ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+        summary_text = format_weekly_delivery_window_summary(totals)
+        Path(logs_folder).joinpath(f"weekly_delivery_window_summary_{ts}.txt").write_text(summary_text, encoding="utf-8")
+
     return totals
 
 
@@ -719,11 +780,18 @@ def format_weekly_delivery_window_summary(result: dict) -> str:
         f"Checked this week          : {result['checked']}   (window starting within 7 days, or never checked)",
         f"Skipped (not due)          : {result['not_due']}  (window further out -- no browser visit needed)",
         f"Skipped (carrier-managed)  : {result['carrier_managed_skipped']}",
-        "",
+    ]
+    no_workflow_ids = result.get("no_workflow_ids", [])
+    lines.append(
+        f"Skipped (no workflow yet) : {result.get('no_workflow', 0)}"
+        + (f"   -> {', '.join(no_workflow_ids)}" if no_workflow_ids else "")
+    )
+    lines.append("")
+    lines.extend([
         f"Matched (already correct)  : {result['matched']}",
         f"Edited (moved to real date): {result['edited']}",
         f"Pushed 1 week (no date yet): {result['pushed_one_week']}",
-    ]
+    ])
     new_shipments = result.get("new_shipments", [])
     lines.append(f"Newly discovered & recorded: {len(new_shipments)}" + (f"   -> {', '.join(new_shipments)}" if new_shipments else ""))
     overdue = result.get("overdue_shipments", [])
