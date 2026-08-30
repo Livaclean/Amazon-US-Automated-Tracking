@@ -17,6 +17,7 @@ from delivery_window_sync import (
     format_delivery_window_sync_summary,
     select_weekly_candidates,
     format_weekly_delivery_window_summary,
+    _merge_overdue_with_newly_locked,
 )
 
 
@@ -780,3 +781,32 @@ def test_format_weekly_delivery_window_summary_includes_errors_section_when_pres
         "errors": ["Could not log in to CA -- skipped 3 shipment(s)"],
     })
     assert "Could not log in to CA" in text
+
+
+# --- _merge_overdue_with_newly_locked -------------------------------------------
+
+@pytest.mark.unit
+def test_merge_overdue_with_newly_locked_includes_pre_run_overdue():
+    result = _merge_overdue_with_newly_locked({"FBA001"}, {"FBA002": "matched"})
+    assert result == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_merge_overdue_with_newly_locked_includes_this_run_locked_outcomes():
+    result = _merge_overdue_with_newly_locked(set(), {"FBA001": "locked", "FBA002": "matched"})
+    assert result == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_merge_overdue_with_newly_locked_dedupes_when_both_apply():
+    result = _merge_overdue_with_newly_locked({"FBA001"}, {"FBA001": "locked"})
+    assert result == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_merge_overdue_with_newly_locked_ignores_non_locked_outcomes():
+    result = _merge_overdue_with_newly_locked(set(), {
+        "FBA001": "matched", "FBA002": "edited", "FBA003": "read_failed",
+        "FBA004": "edit_failed", "FBA005": "carrier_managed", "FBA006": "no_action_needed",
+    })
+    assert result == []

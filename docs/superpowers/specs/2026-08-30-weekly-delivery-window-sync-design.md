@@ -93,7 +93,7 @@ Read failed:                2   -> FBA15GDQMSCT, FBA15GDT80ZL
 ============================================================
 ```
 
-"Newly discovered & recorded" = candidates whose `window_start` was unset before this run and got a value for the first time. "Overdue" = candidates whose *previously recorded* `window_start` was already in the past when this run started (missed-week or manual-intervention signal).
+"Newly discovered & recorded" = candidates whose `window_start` was unset before this run and got a value for the first time. "Overdue" = every candidate flagged `locked` this run, whether its `window_start` was already known to be in the past before this run started, or was discovered to already be locked on this run's own live check (a first-time check, or a window landing exactly on `today`).
 
 ## Windows Task Scheduler
 

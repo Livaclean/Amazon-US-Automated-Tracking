@@ -148,6 +148,23 @@ def decide_window_action(window_start, window_end, expected_delivery_date, today
     return {"action": "none", "target_week_start": None}
 
 
+def _merge_overdue_with_newly_locked(pre_run_overdue: set, this_run_outcomes: dict) -> list:
+    """
+    Merges pre-run overdue shipments with any newly discovered locked outcomes this run.
+
+    Args:
+        pre_run_overdue: Set of FBA IDs that were already overdue before this run
+                         (window_start < today at time of run start).
+        this_run_outcomes: Dict mapping FBA ID to outcome string for every candidate checked.
+
+    Returns:
+        Sorted list of all FBA IDs that should be flagged as overdue in the summary:
+        the union of pre_run_overdue and any FBA IDs with a "locked" outcome this run.
+    """
+    newly_locked = {fba_id for fba_id, outcome in this_run_outcomes.items() if outcome == "locked"}
+    return sorted(pre_run_overdue | newly_locked)
+
+
 def select_weekly_candidates(sheet: dict, today) -> dict:
     """
     Browser-free local filter deciding which master-sheet rows need a live
@@ -597,7 +614,7 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
     selection = select_weekly_candidates(sheet, today)
     candidates = selection["candidates"]
     new_shipments = [fba_id for fba_id in candidates if not sheet[fba_id].get("delivery_window_start")]
-    overdue_shipments = sorted(selection["overdue"])
+    overdue_ids = set(selection["overdue"])
 
     totals = {
         "checked": len(candidates), "not_due": len(selection["not_due"]),
@@ -605,7 +622,7 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
         "matched": 0, "edited": 0, "pushed_one_week": 0, "locked": 0,
         "no_action_needed": 0, "edit_failed": 0, "edit_failed_ids": [],
         "read_failed": 0, "read_failed_ids": [],
-        "new_shipments": new_shipments, "overdue_shipments": overdue_shipments,
+        "new_shipments": new_shipments, "overdue_shipments": sorted(overdue_ids),
         "errors": errors,
     }
     if not candidates:
@@ -628,6 +645,7 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
         Path(logs_folder).joinpath(f"weekly_delivery_window_summary_{ts}.txt").write_text(summary_text, encoding="utf-8")
         return totals
 
+    this_run_outcomes = {}
     try:
         page = context.new_page()
         for region_name, fba_ids in by_region.items():
@@ -651,6 +669,7 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
                     page, base_url, fba_id, entry["workflow_id"], expected_date, today, logs_folder=logs_folder
                 )
                 outcome = result["outcome"]
+                this_run_outcomes[fba_id] = outcome
                 if outcome == "read_failed":
                     # The only outcome where read_shipment_window itself failed --
                     # nothing was read, so there's nothing to persist.
@@ -685,6 +704,7 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
         context.close()
         playwright.stop()
 
+    totals["overdue_shipments"] = _merge_overdue_with_newly_locked(overdue_ids, this_run_outcomes)
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     summary_text = format_weekly_delivery_window_summary(totals)
     Path(logs_folder).joinpath(f"weekly_delivery_window_summary_{ts}.txt").write_text(summary_text, encoding="utf-8")
