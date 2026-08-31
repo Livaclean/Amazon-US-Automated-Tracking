@@ -138,6 +138,29 @@ def sync_delivered_status(sheet: dict, tracking_cache: dict) -> dict:
     return result
 
 
+def sync_carrier_check_fields(sheet: dict, tracking_cache: dict) -> dict:
+    """
+    Copies each row's latest carrier-check result -- label_created_date,
+    expected_delivery_date, status, last_checked -- from the tracking-status
+    cache (logs/tracking_status.xlsx, keyed by tracking number) into the
+    master sheet. These 4 columns are defined in MASTER_SHEET_COLUMNS but
+    nothing else populates them: run_check_tracking() only writes to the
+    cache file itself, and sync_delivered_status() reads the cache solely to
+    decide tracking_status/delivery_date_status, never copying these fields
+    across. Returns a new dict; does not mutate sheet.
+    """
+    result = {fba_id: dict(entry) for fba_id, entry in sheet.items()}
+    for entry in result.values():
+        cached = tracking_cache.get(str(entry.get("tracking", "")).strip())
+        if not cached:
+            continue
+        entry["label_created_date"] = cached.get("label_created_date") or ""
+        entry["expected_delivery_date"] = cached.get("expected_delivery_date") or ""
+        entry["status"] = cached.get("status") or ""
+        entry["last_checked"] = cached.get("last_checked") or ""
+    return result
+
+
 def run_update_master_sheet(config: dict) -> dict:
     """
     Loads the persistent master sheet, populates/refreshes it from the input
@@ -154,6 +177,7 @@ def run_update_master_sheet(config: dict) -> dict:
 
     tracking_cache_path = config.get("tracking_status_cache", STATUS_CACHE_PATH_DEFAULT)
     tracking_cache = load_status_cache(tracking_cache_path)
+    sheet = sync_carrier_check_fields(sheet, tracking_cache)
     sheet = sync_delivered_status(sheet, tracking_cache)
 
     save_master_sheet(path, sheet)

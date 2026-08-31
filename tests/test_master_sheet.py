@@ -12,6 +12,7 @@ from master_sheet import (
     run_update_master_sheet,
     format_update_master_sheet_summary,
     sync_delivered_status,
+    sync_carrier_check_fields,
 )
 
 CONTEXT_CONFIG = {
@@ -285,6 +286,33 @@ def test_run_update_master_sheet_second_run_reports_zero_new(tmp_config):
 
 
 @pytest.mark.unit
+def test_run_update_master_sheet_backfills_carrier_check_fields_from_cache(tmp_config):
+    tmp_config = _write_input_sheet(tmp_config)
+    from pathlib import Path
+    from tracking_status import save_status_cache
+
+    tmp_config["master_sheet_path"] = str(Path(tmp_config["logs_folder"]) / "master.xlsx")
+    cache_path = str(Path(tmp_config["logs_folder"]) / "tracking_status.xlsx")
+    tmp_config["tracking_status_cache"] = cache_path
+    save_status_cache(cache_path, {
+        "1ZCL001": {
+            "carrier": "UPS", "fba_id": "FBA_CL1", "name": "Widget Variety Pack",
+            "destination": "BNA6", "ctns": 9, "shipping_way": "express", "notes": "",
+            "label_created_date": "2026-08-01", "expected_delivery_date": "2026-08-10",
+            "status": "In Transit", "last_checked": "2026-08-05 12:00:00", "region": "US",
+        }
+    })
+
+    run_update_master_sheet(tmp_config)
+    sheet = load_master_sheet(tmp_config["master_sheet_path"])
+
+    assert sheet["FBA_CL1"]["label_created_date"] == "2026-08-01"
+    assert sheet["FBA_CL1"]["expected_delivery_date"] == "2026-08-10"
+    assert sheet["FBA_CL1"]["status"] == "In Transit"
+    assert sheet["FBA_CL1"]["last_checked"] == "2026-08-05 12:00:00"
+
+
+@pytest.mark.unit
 def test_format_update_master_sheet_summary_includes_counts_and_path():
     text = format_update_master_sheet_summary({"total": 448, "new": 12, "path": "logs/shipment_tracking_master.xlsx"})
     assert "448" in text
@@ -353,6 +381,45 @@ def test_sync_delivered_status_missing_tracking_in_cache_does_not_crash():
     result = sync_delivered_status(sheet, tracking_cache={})
 
     assert result["FBA001"]["tracking_status"] == "pending"
+
+
+# --- sync_carrier_check_fields ------------------------------------------------
+
+@pytest.mark.unit
+def test_sync_carrier_check_fields_copies_fields_from_cache():
+    sheet = {"FBA001": _sheet_row(tracking="1Z001")}
+    tracking_cache = {
+        "1Z001": {
+            "label_created_date": "2026-08-01",
+            "expected_delivery_date": "2026-08-10",
+            "status": "In Transit",
+            "last_checked": "2026-08-05 12:00:00",
+        }
+    }
+    result = sync_carrier_check_fields(sheet, tracking_cache)
+
+    assert result["FBA001"]["label_created_date"] == "2026-08-01"
+    assert result["FBA001"]["expected_delivery_date"] == "2026-08-10"
+    assert result["FBA001"]["status"] == "In Transit"
+    assert result["FBA001"]["last_checked"] == "2026-08-05 12:00:00"
+
+
+@pytest.mark.unit
+def test_sync_carrier_check_fields_missing_tracking_in_cache_leaves_row_alone():
+    sheet = {"FBA001": _sheet_row(tracking="1Z_NOT_IN_CACHE")}
+    result = sync_carrier_check_fields(sheet, tracking_cache={})
+
+    assert result["FBA001"].get("status", "") == ""
+    assert result["FBA001"].get("last_checked", "") == ""
+
+
+@pytest.mark.unit
+def test_sync_carrier_check_fields_does_not_mutate_input():
+    sheet = {"FBA001": _sheet_row(tracking="1Z001")}
+    tracking_cache = {"1Z001": {"status": "In Transit"}}
+    sync_carrier_check_fields(sheet, tracking_cache)
+
+    assert "status" not in sheet["FBA001"]
 
 
 # --- delivery window fields --------------------------------------------------
