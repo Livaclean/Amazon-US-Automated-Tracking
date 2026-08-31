@@ -462,6 +462,67 @@ def test_read_shipment_window_logs_generic_message_when_not_stale_workflow(caplo
     assert not any("wasn't entered through this workflow" in r.message for r in caplog.records)
 
 
+class _FakeReadWindowPageNoTrackingSection:
+    """Minimal fake where the 4th 'View' link never renders -- isolating the
+    stale-workflow detection added at that earlier failure point."""
+
+    def __init__(self, tracking_info_needed_count: int):
+        self._tracking_info_needed_count = tracking_info_needed_count
+        self._onboarding_modal_close = _RaisingLocator(count=0)
+        self._view_link = _RaisingLocator(count=1)
+
+    def goto(self, url, timeout=None):
+        pass
+
+    def wait_for_load_state(self, state=None, timeout=None):
+        pass
+
+    def locator(self, selector):
+        assert selector == "kat-modal[visible='true']"
+
+        class _ModalLocator:
+            def locator(_self, sub_selector):
+                return self._onboarding_modal_close
+        return _ModalLocator()
+
+    def get_by_text(self, text, exact=False):
+        if text == "View":
+            return _FakeLocatorGroup([self._view_link] * 4)
+        if text == "Tracking information must be provided":
+            return _FakeLocator(count=self._tracking_info_needed_count)
+        raise AssertionError(f"unexpected get_by_text: {text!r}")
+
+
+@pytest.mark.unit
+def test_read_shipment_window_logs_stale_workflow_when_step4_unconfirmed(caplog):
+    """Regression test: confirmed live (2026-09-01) that some shipments never
+    get as far as rendering the 4th 'View' link at all, because Step 4 on
+    Amazon's 'Send to Amazon' page is still showing the raw, unconfirmed
+    'Tracking information must be provided' carrier form -- the same
+    tracking-wasn't-entered-through-this-workflow cause as the empty-form
+    case, just caught one step earlier."""
+    page = _FakeReadWindowPageNoTrackingSection(tracking_info_needed_count=1)
+
+    with caplog.at_level("WARNING", logger="delivery_window_sync"):
+        result = read_shipment_window(page, "wf-1", "FBA001", "https://x")
+
+    assert result is None
+    assert any("wasn't entered through this workflow" in r.message for r in caplog.records)
+    assert not any("never rendered its 'Tracking details' section" in r.message for r in caplog.records)
+
+
+@pytest.mark.unit
+def test_read_shipment_window_logs_generic_message_when_step4_confirmed_but_views_missing(caplog):
+    page = _FakeReadWindowPageNoTrackingSection(tracking_info_needed_count=0)
+
+    with caplog.at_level("WARNING", logger="delivery_window_sync"):
+        result = read_shipment_window(page, "wf-1", "FBA001", "https://x")
+
+    assert result is None
+    assert any("never rendered its 'Tracking details' section" in r.message for r in caplog.records)
+    assert not any("wasn't entered through this workflow" in r.message for r in caplog.records)
+
+
 # --- sync_window_for_shipment ----------------------------------------------------
 
 @pytest.mark.unit

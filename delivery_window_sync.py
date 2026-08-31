@@ -276,7 +276,23 @@ def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str, log
         # rather than checking count() once against a guessed fixed delay.
         views.nth(3).wait_for(state="visible", timeout=15000)
     except Exception:
-        logger.warning(f"  {fba_id}: workflow page never rendered its 'Tracking details' section")
+        # Confirmed live (2026-09-01): same root cause as the empty-tracking-
+        # form case below, just caught one step earlier -- when tracking was
+        # entered through the newer inbound-shipment tracking page instead of
+        # this workflow, Step 4 here never gets confirmed, so it's still
+        # showing the raw "Tracking information must be provided" carrier
+        # form instead of collapsing into a "View" summary link. There's no
+        # 4th View link to wait for in that case; flag it distinctly so it
+        # isn't chased as a scrape/timing bug.
+        stale_workflow = page.get_by_text("Tracking information must be provided", exact=False).count() > 0
+        if stale_workflow:
+            logger.warning(
+                f"  {fba_id}: workflow page's Step 4 still shows an unconfirmed carrier form -- "
+                f"tracking for this shipment wasn't entered through this workflow, so "
+                f"Amazon never renders a delivery window here (not a scrape failure)"
+            )
+        else:
+            logger.warning(f"  {fba_id}: workflow page never rendered its 'Tracking details' section")
         _screenshot(page, f"window_no_tracking_section_{fba_id}", logs_folder)
         return None
     views.nth(3).click()
