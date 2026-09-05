@@ -120,9 +120,14 @@ def decide_window_action(window_start, window_end, expected_delivery_date, today
     - "edit": the expected date is known and falls outside the window -- move
       the window to the calendar week containing it.
     - "push_one_week": no expected date yet, and the window starts within
-      the next 7 days (about to lock) -- push it out one week so it doesn't
-      lock on a guess; the weekly sync cadence will re-verify this shipment
-      next Saturday and can adjust further if needed.
+      the next 6 days (about to lock) -- push it out to the week right after
+      the window's real end (whatever that window's actual length is) so it
+      doesn't lock on a guess; the weekly sync cadence will re-verify this
+      shipment next Saturday and can adjust further if needed. A window
+      exactly 7 days out is deliberately left alone: it still has a full
+      week of runway, and treating it as urgent made a run that slipped one
+      day past its Saturday schedule push shipments a week early (confirmed
+      live 2026-09-06, FBA15M2N9CHZ/FBA15M85HW20).
 
     A strictly-past expected_delivery_date (an overdue "In Transit" package
     whose cached date has already gone by) is treated the same as having no
@@ -141,8 +146,8 @@ def decide_window_action(window_start, window_end, expected_delivery_date, today
         target_start, _ = _week_bounds(expected_delivery_date)
         return {"action": "edit", "target_week_start": target_start}
 
-    if (window_start - today).days <= 7:
-        target_start, _ = _week_bounds(window_start + timedelta(days=7))
+    if (window_start - today).days < 7:
+        target_start, _ = _week_bounds(window_end + timedelta(days=1))
         return {"action": "push_one_week", "target_week_start": target_start}
 
     return {"action": "none", "target_week_start": None}

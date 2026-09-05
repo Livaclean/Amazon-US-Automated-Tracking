@@ -170,19 +170,49 @@ def test_decide_window_action_none_when_no_expected_date_and_window_far_out():
 
 
 @pytest.mark.unit
-def test_decide_window_action_push_one_week_boundary_exactly_seven_days():
-    # window_start=Aug 17 is deliberately NOT Sunday-aligned (unlike a real
-    # Amazon window) -- this test isolates the (window_start - today).days <= 7
-    # trigger boundary, same as the original push_two_weeks version of this
-    # test did; it never asserted week-alignment precision, so neither does this.
+def test_decide_window_action_none_boundary_exactly_seven_days():
+    # A window exactly 7 days out is NOT yet urgent -- it still has a full
+    # week of runway and will be re-evaluated (and pushed if still needed)
+    # once it's actually close to locking. Real incident (2026-09-06): a run
+    # delayed one day past its Saturday schedule turned an 8-day-out window
+    # into a 7-day-out one and wrongly pushed it a week early. window_start
+    # =Aug 17 is deliberately NOT Sunday-aligned (unlike a real Amazon
+    # window) -- this test isolates the (window_start - today).days trigger
+    # boundary and never asserted week-alignment precision.
     result = decide_window_action(
         window_start=date(2026, 8, 17), window_end=date(2026, 8, 23),
         expected_delivery_date=None, today=date(2026, 8, 10),
     )
+    assert result == {"action": "none", "target_week_start": None}
+
+
+@pytest.mark.unit
+def test_decide_window_action_push_one_week_boundary_exactly_six_days():
+    # One day closer to locking than the "none" boundary above -- now urgent
+    # enough to push. window_start=Aug 17 (Monday) + 7 days = Aug 24 (Monday)
+    # -> _week_bounds normalizes that to its containing week: Aug 23 (Sun).
+    result = decide_window_action(
+        window_start=date(2026, 8, 17), window_end=date(2026, 8, 23),
+        expected_delivery_date=None, today=date(2026, 8, 11),
+    )
     assert result["action"] == "push_one_week"
-    # window_start (Aug 17, a Monday) + 7 days = Aug 24 (Monday) -> _week_bounds
-    # normalizes that to its containing week: Aug 23 (Sun) - Aug 29 (Sat).
     assert result["target_week_start"] == date(2026, 8, 23)
+
+
+@pytest.mark.unit
+def test_decide_window_action_push_one_week_target_clears_a_two_week_window():
+    # Real incident (2026-09-06, FBA15M2N9CHZ/FBA15M85HW20): some shipments'
+    # real Amazon window spans two calendar weeks, not one. Computing the
+    # push target as window_start + 7 days lands inside that still-active
+    # window (Amazon's calendar then has no separate, clickable day there --
+    # "not found or not selectable"). The target must clear the window's
+    # real end instead, however long the window actually is.
+    result = decide_window_action(
+        window_start=date(2026, 8, 16), window_end=date(2026, 8, 29),
+        expected_delivery_date=None, today=date(2026, 8, 11),
+    )
+    assert result["action"] == "push_one_week"
+    assert result["target_week_start"] == date(2026, 8, 30)
 
 
 @pytest.mark.unit

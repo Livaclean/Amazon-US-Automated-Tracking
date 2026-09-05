@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.8.4] - 2026-09-06
+
+### Fixed
+- `decide_window_action()`'s "about to lock" push trigger no longer fires on a window exactly 7 days out — only within 6. A run delayed one day past its Saturday schedule (2026-09-06) turned an 8-day-out window into a 7-day-out one and wrongly pushed it a week early, sweeping in shipments that still had a full week of runway instead of the ones actually about to lock
+- `push_one_week`'s target date is now computed from the shipment's real window end (`window_end + 1 day`) instead of assuming every window is exactly one week (`window_start + 7 days`). Some shipments' real Amazon window spans two calendar weeks (confirmed live, FBA15M2N9CHZ/FBA15M85HW20) — the old math landed the target day inside that still-active window, where Amazon's calendar exposes no separate clickable day for it, causing a spurious `edit_failed`
+
 ## [0.8.3] - 2026-08-30
 
 ### Fixed
