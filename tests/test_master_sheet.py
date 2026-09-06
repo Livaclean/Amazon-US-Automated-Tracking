@@ -13,6 +13,7 @@ from master_sheet import (
     format_update_master_sheet_summary,
     sync_delivered_status,
     sync_carrier_check_fields,
+    sync_awd_appointment_as_tracking,
 )
 
 CONTEXT_CONFIG = {
@@ -384,6 +385,77 @@ def test_sync_delivered_status_missing_tracking_in_cache_does_not_crash():
     result = sync_delivered_status(sheet, tracking_cache={})
 
     assert result["FBA001"]["tracking_status"] == "pending"
+
+
+# --- sync_awd_appointment_as_tracking -------------------------------------------
+
+def _awd_row(fba_id="STAR-ABC123", carrier="TRUCK", tracking="/", notes="Appointment ID: 83299056997   Delivered On:07/15"):
+    return {"fba_id": fba_id, "carrier": carrier, "tracking": tracking, "notes": notes, "tracking_status": "pending"}
+
+
+@pytest.mark.unit
+def test_sync_awd_appointment_as_tracking_backfills_from_notes():
+    sheet = {"STAR-ABC123": _awd_row()}
+    result = sync_awd_appointment_as_tracking(sheet)
+
+    assert result["STAR-ABC123"]["tracking"] == "83299056997"
+    assert result["STAR-ABC123"]["tracking_status"] == "updated"
+
+
+@pytest.mark.unit
+def test_sync_awd_appointment_as_tracking_handles_notes_without_colon():
+    """Regression test: real source notes for both AWD and regular FBA TRUCK
+    shipments sometimes omit the colon after 'Appointment ID' entirely."""
+    sheet = {"STAR-ABC123": _awd_row(notes="Appointment ID 142628039989   Delivered On:26.04.02")}
+    result = sync_awd_appointment_as_tracking(sheet)
+
+    assert result["STAR-ABC123"]["tracking"] == "142628039989"
+
+
+@pytest.mark.unit
+def test_sync_awd_appointment_as_tracking_ignores_blank_tracking_placeholder():
+    sheet = {"STAR-ABC123": _awd_row(tracking="")}
+    result = sync_awd_appointment_as_tracking(sheet)
+    assert result["STAR-ABC123"]["tracking"] == "83299056997"
+
+
+@pytest.mark.unit
+def test_sync_awd_appointment_as_tracking_never_overwrites_real_tracking():
+    sheet = {"STAR-ABC123": _awd_row(tracking="1Z001REALTRACKING")}
+    result = sync_awd_appointment_as_tracking(sheet)
+    assert result["STAR-ABC123"]["tracking"] == "1Z001REALTRACKING"
+
+
+@pytest.mark.unit
+def test_sync_awd_appointment_as_tracking_ignores_non_awd_shipments():
+    """Non-AWD TRUCK shipments already get their tracking filled by the live
+    appointment_sync.py flow (which writes to Amazon's Pro/Freight field) --
+    this internal-only backfill must not touch them."""
+    sheet = {"FBA19ABCDEF1": _awd_row(fba_id="FBA19ABCDEF1", tracking="/")}
+    result = sync_awd_appointment_as_tracking(sheet)
+    assert result["FBA19ABCDEF1"]["tracking"] == "/"
+
+
+@pytest.mark.unit
+def test_sync_awd_appointment_as_tracking_ignores_non_truck_carrier():
+    sheet = {"STAR-ABC123": _awd_row(carrier="UPS", tracking="/")}
+    result = sync_awd_appointment_as_tracking(sheet)
+    assert result["STAR-ABC123"]["tracking"] == "/"
+
+
+@pytest.mark.unit
+def test_sync_awd_appointment_as_tracking_no_appointment_id_in_notes_leaves_untouched():
+    sheet = {"STAR-ABC123": _awd_row(notes="customs inspection")}
+    result = sync_awd_appointment_as_tracking(sheet)
+    assert result["STAR-ABC123"]["tracking"] == "/"
+    assert result["STAR-ABC123"]["tracking_status"] == "pending"
+
+
+@pytest.mark.unit
+def test_sync_awd_appointment_as_tracking_does_not_mutate_input():
+    sheet = {"STAR-ABC123": _awd_row()}
+    sync_awd_appointment_as_tracking(sheet)
+    assert sheet["STAR-ABC123"]["tracking"] == "/"
 
 
 # --- sync_carrier_check_fields ------------------------------------------------

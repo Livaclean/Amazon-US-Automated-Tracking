@@ -219,6 +219,39 @@ def sync_carrier_check_fields(sheet: dict, tracking_cache: dict) -> dict:
     return result
 
 
+def sync_awd_appointment_as_tracking(sheet: dict) -> dict:
+    """
+    For AWD (STAR- prefix) TRUCK-carrier shipments with no real tracking
+    number yet (blank, or the "/" placeholder), backfills the Tracking
+    Number column from the Appointment ID already present in the source
+    notes -- an internal record only. Unlike the same pattern for regular
+    (non-AWD) TRUCK shipments, this never touches Amazon: AWD's own shipment
+    page has no Pro/Freight Bill Number field to write it to at all
+    (confirmed live -- see appointment_sync.needs_appointment_sync's
+    docstring), so there's nothing to enter there for these. Sets
+    tracking_status to "updated" on a successful backfill, matching what
+    that status already means elsewhere -- a tracking identifier was
+    successfully recorded, whether by us just now or already present.
+    Returns a new dict; does not mutate sheet.
+    """
+    from appointment_sync import _extract_appointment_id_from_notes
+
+    result = {fba_id: dict(entry) for fba_id, entry in sheet.items()}
+    for fba_id, entry in result.items():
+        if not fba_id.startswith("STAR-"):
+            continue
+        if str(entry.get("carrier", "")).strip().upper() != "TRUCK":
+            continue
+        tracking = str(entry.get("tracking", "")).strip()
+        if tracking and tracking != "/":
+            continue
+        appointment_id = _extract_appointment_id_from_notes(entry.get("notes", ""))
+        if appointment_id:
+            entry["tracking"] = appointment_id
+            entry["tracking_status"] = "updated"
+    return result
+
+
 def run_update_master_sheet(config: dict) -> dict:
     """
     Loads the persistent master sheet, populates/refreshes it from the input
@@ -232,6 +265,7 @@ def run_update_master_sheet(config: dict) -> dict:
     existing = load_master_sheet(path)
     before = len(existing)
     sheet = populate_from_input(config, existing)
+    sheet = sync_awd_appointment_as_tracking(sheet)
 
     tracking_cache_path = config.get("tracking_status_cache", STATUS_CACHE_PATH_DEFAULT)
     tracking_cache = load_status_cache(tracking_cache_path)

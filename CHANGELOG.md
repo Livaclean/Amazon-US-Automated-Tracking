@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.10.0] - 2026-09-07
+
+### Added
+- `master_sheet.sync_awd_appointment_as_tracking()`: for AWD (`STAR-` prefix) TRUCK-carrier shipments with no real tracking number yet, backfills the master sheet's Tracking Number column from the Appointment ID already present in the source notes. Internal record only -- AWD's own shipment page has no Pro/Freight Bill Number field to write this to at all, unlike the same pattern for regular (non-AWD) TRUCK shipments. Runs automatically as part of `--update-master-sheet` and the main pipeline. Applied to the real master sheet: 34 of 44 AWD/TRUCK shipments backfilled (the other 10 genuinely have no Appointment ID in their notes).
+
+### Fixed
+- `appointment_sync._APPOINTMENT_ID_PATTERN` now matches "Appointment ID" notes with or without the colon -- confirmed live that plenty of real notes (both AWD and regular FBA TRUCK shipments, e.g. FBA1972Q93K1) omit it entirely ("Appointment ID 142628039989 ..."), which the old colon-required pattern silently never matched. This also retroactively fixes missed matches in the existing, already-shipped `--sync-appointments` flow for non-AWD TRUCK shipments, not just the new AWD backfill.
+
 ## [0.9.1] - 2026-09-07
 
 ### Fixed

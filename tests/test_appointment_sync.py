@@ -26,6 +26,15 @@ def test_extract_appointment_id_from_notes_tight_spacing():
 
 
 @pytest.mark.unit
+def test_extract_appointment_id_from_notes_no_colon():
+    """Regression test: confirmed live in the master sheet that plenty of
+    real notes (both AWD and regular FBA TRUCK shipments, e.g. FBA1972Q93K1)
+    omit the colon entirely -- "Appointment ID 142628039989 ..." -- which the
+    old colon-required pattern silently never matched."""
+    assert _extract_appointment_id_from_notes("Appointment ID 142628039989   Delivered On:26.04.02") == "142628039989"
+
+
+@pytest.mark.unit
 def test_extract_appointment_id_from_notes_no_match_returns_none():
     assert _extract_appointment_id_from_notes("Making the appointment with Amazon of delivery") is None
 

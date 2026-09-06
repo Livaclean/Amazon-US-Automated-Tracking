@@ -11,7 +11,13 @@ import re
 
 logger = logging.getLogger(__name__)
 
-_APPOINTMENT_ID_PATTERN = re.compile(r"Appointment ID:\s*(\d+)")
+# The colon after "Appointment ID" isn't consistent in the source data --
+# confirmed live in the master sheet: plenty of real notes (both AWD and
+# regular FBA TRUCK shipments, e.g. FBA1972Q93K1) read "Appointment ID
+# 142628039989 ..." with no colon at all, which a colon-required pattern
+# silently never matched. Making it optional catches both without any
+# functional change for the colon-present rows.
+_APPOINTMENT_ID_PATTERN = re.compile(r"Appointment ID:?\s*(\d+)")
 
 # Once a Pro/Freight number is saved, Amazon replaces the empty editable input
 # with a read-only "Pro/Freight: <value> (Edit)" summary line -- the input
