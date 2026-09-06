@@ -307,13 +307,14 @@ class _FakeLocator:
     """Minimal fake satisfying the .count/.first/.click/.wait_for/.get_attribute/
     .is_checked calls apply_window_edit makes on a Playwright locator."""
 
-    def __init__(self, count=1, click_raises=None, aria_label=None, checked=False, locator_return=None):
+    def __init__(self, count=1, click_raises=None, aria_label=None, checked=False, locator_return=None, get_by_role_return=None):
         self._count = count
         self.click_raises = click_raises
         self._aria_label = aria_label
         self._checked = checked
         self.click_calls = 0
         self._locator_return = locator_return
+        self._get_by_role_return = get_by_role_return
 
     @property
     def first(self):
@@ -341,6 +342,11 @@ class _FakeLocator:
         # tests that need one pass locator_return to chain further fakes.
         if self._locator_return is not None:
             return self._locator_return
+        return _FakeLocator(count=0)
+
+    def get_by_role(self, role, name=None, exact=False):
+        if self._get_by_role_return is not None:
+            return self._get_by_role_return
         return _FakeLocator(count=0)
 
 
@@ -448,6 +454,65 @@ def test_apply_window_edit_proceeds_normally_when_checkbox_present_but_unchecked
     assert result == "edited"
     assert page._confirm_btn.click_calls == 1
     assert page._confirm_btn.click_calls == 1
+
+
+class _FakeApplyEditPageNoEditLink:
+    """Minimal fake for the LTL/FTL case: no 'Edit window' link exists at
+    all, so apply_window_edit must fall back to
+    _read_ltl_carrier_managed_checkbox instead of assuming a broken page."""
+
+    def __init__(self, tab_count=1, checkbox_count=1, checkbox_checked=True):
+        checkbox = _FakeLocator(count=checkbox_count, checked=checkbox_checked)
+        card = _FakeLocator(count=1, get_by_role_return=checkbox)
+        self._tab = _FakeLocator(count=tab_count, locator_return=card)
+        self._edit_link = _FakeLocator(count=0)
+
+    def locator(self, selector):
+        if selector == "text=Edit window":
+            return self._edit_link
+        raise AssertionError(f"unexpected locator selector: {selector}")
+
+    def get_by_text(self, text, exact=False):
+        assert text.startswith("Shipment ID:")
+        return self._tab
+
+
+@pytest.mark.unit
+def test_apply_window_edit_returns_carrier_managed_for_ltl_style_checked_checkbox():
+    """Regression test: confirmed live (2026-09-07, FBA19M5MX8MR) that LTL/FTL
+    shipments have no 'Edit window' link at all -- their carrier-managed
+    state is a disabled checkbox next to the window's <kat-input> instead.
+    All 5 sibling shipments on that page had it checked. Before this fix,
+    apply_window_edit reported a generic 'failed' for every one of them."""
+    page = _FakeApplyEditPageNoEditLink(checkbox_checked=True)
+
+    result = apply_window_edit(page, date(2026, 9, 1), fba_id="FBA19M5MX8MR")
+
+    assert result == "carrier_managed"
+
+
+@pytest.mark.unit
+def test_apply_window_edit_returns_failed_when_ltl_checkbox_unchecked():
+    """An LTL/FTL shipment whose auto-update checkbox isn't checked has no
+    known way to edit its window at all (no 'Edit window' link exists) --
+    still a real failure, just not miscategorized as carrier_managed."""
+    page = _FakeApplyEditPageNoEditLink(checkbox_checked=False)
+
+    result = apply_window_edit(page, date(2026, 9, 1), fba_id="FBA19M5MX8MR")
+
+    assert result == "failed"
+
+
+@pytest.mark.unit
+def test_apply_window_edit_returns_failed_when_neither_edit_link_nor_ltl_checkbox_exist():
+    """Genuinely broken page (not LTL/FTL, not standard) -- must still report
+    'failed' rather than erroring, since _read_ltl_carrier_managed_checkbox
+    returns None when the shipment has no matching card at all."""
+    page = _FakeApplyEditPageNoEditLink(tab_count=0)
+
+    result = apply_window_edit(page, date(2026, 9, 1), fba_id="FBA_UNKNOWN")
+
+    assert result == "failed"
 
 
 # --- read_shipment_window ----------------------------------------------------

@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.9.1] - 2026-09-07
+
+### Fixed
+- `apply_window_edit()` now correctly detects LTL/FTL shipments as `carrier_managed` instead of reporting a generic `edit_failed`. LTL/FTL shipments have no "Edit window" link at all -- their delivery window renders as a disabled `<kat-input>` next to an "Allow FIST carriers to update my delivery window" checkbox instead of the standard SPD calendar-modal flow. Confirmed live (FBA19M5MX8MR): all 5 sibling shipments on that workflow page had the checkbox checked, and all previously fell through to a misleading "no 'Edit window' link" failure. New `_read_ltl_carrier_managed_checkbox()` checks that checkbox, scoped to the specific shipment's own card, before giving up. CA-region shipments were also investigated as part of this and confirmed to already work correctly with the existing calendar-based edit flow -- no fix needed there.
+
 ## [0.9.0] - 2026-09-07
 
 ### Added

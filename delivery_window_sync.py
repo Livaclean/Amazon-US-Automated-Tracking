@@ -478,6 +478,30 @@ def _navigate_calendar_to_month(page, target_year: int, target_month: int) -> bo
     return False
 
 
+def _read_ltl_carrier_managed_checkbox(page, fba_id: str):
+    """
+    LTL/FTL shipments have no "Edit window" control at all -- there's no
+    modal to open. Their own "Allow <carrier> to update my delivery window"
+    checkbox sits disabled right next to the window's <kat-input> instead
+    (confirmed live 2026-09-07, FBA19M5MX8MR: 5 sibling shipments, all
+    Carrier: FIST Carriers, all checked). Checked means carrier-managed, the
+    same meaning as the standard flow's modal checkbox -- just discoverable
+    without ever finding an "Edit window" link to click. Scoped to fba_id's
+    own card via the same .shipment-module ancestor _read_ltl_style_window
+    uses, since a workflow page can list several sibling shipments' checkboxes
+    at once. Returns None if this shipment has no such checkbox at all (not
+    an LTL/FTL-style page for this shipment).
+    """
+    tab = page.get_by_text(f"Shipment ID: {fba_id}", exact=False)
+    if tab.count() == 0:
+        return None
+    card = tab.first.locator("xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' shipment-module ')][1]")
+    checkbox = card.get_by_role("checkbox", name=re.compile("update my delivery window", re.IGNORECASE))
+    if checkbox.count() == 0:
+        return None
+    return checkbox.first.is_checked()
+
+
 def apply_window_edit(page, target_week_start, fba_id: str = "", logs_folder: str = None) -> str:
     """
     Assumes the page is already showing a shipment's own tab with its current
@@ -490,15 +514,24 @@ def apply_window_edit(page, target_week_start, fba_id: str = "", logs_folder: st
     permanently disables manual confirmation in that case -- confirmed live:
     the day-selection still works, but "Confirm new delivery window" never
     becomes clickable, because the carrier integration owns the window, not
-    us -- so there's no point attempting the edit at all), or "failed" for
-    every other failure (the edit modal never opened -- the window turned
-    out locked despite our own up-front check, the live UI is the final
-    authority -- the target month couldn't be reached, the target day wasn't
-    found, or Confirm still didn't become clickable for some other reason).
-    Saves a screenshot to logs/screenshots/ on every non-"edited" path.
+    us -- so there's no point attempting the edit at all) -- or the LTL/FTL
+    equivalent checkbox is checked (see _read_ltl_carrier_managed_checkbox;
+    LTL/FTL has no "Edit window" link to find at all, so this is checked as
+    a fallback rather than after opening a modal that doesn't exist here) --
+    or "failed" for every other failure (the edit modal never opened -- the
+    window turned out locked despite our own up-front check, the live UI is
+    the final authority -- the target month couldn't be reached, the target
+    day wasn't found, or Confirm still didn't become clickable for some
+    other reason). Saves a screenshot to logs/screenshots/ on every
+    non-"edited" path.
     """
     edit_link = page.locator("text=Edit window")
     if edit_link.count() == 0:
+        ltl_carrier_managed = _read_ltl_carrier_managed_checkbox(page, fba_id)
+        if ltl_carrier_managed is True:
+            logger.info(f"  {fba_id}: LTL/FTL carrier-managed delivery window (auto-update checkbox checked) -- skipping")
+            _screenshot(page, f"edit_ltl_carrier_managed_{fba_id}", logs_folder)
+            return "carrier_managed"
         logger.warning("  No 'Edit window' link on this shipment's tab")
         _screenshot(page, f"edit_no_link_{fba_id}", logs_folder)
         return "failed"
