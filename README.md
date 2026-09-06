@@ -97,6 +97,7 @@ python run.py --update-master-sheet              # Populate/refresh logs/shipmen
 python run.py --discover-workflows               # Find each shipment's Send to Amazon Workflow ID
 python run.py --sync-appointments                # Enter known Appointment IDs into Amazon's Pro/Freight field (TRUCK only)
 python run.py --sync-delivery-windows            # Sync Amazon's delivery window to match the real carrier expected-delivery date
+python run.py --populate-shipment-status         # Populate the master sheet's Shipment Status column with Amazon's own lifecycle status
 ```
 
 | Flag | Description |
@@ -117,6 +118,7 @@ python run.py --sync-delivery-windows            # Sync Amazon's delivery window
 | `--discover-workflows` | For master-sheet shipments without a Workflow ID yet (and not already Delivered), visit their Amazon shipment page and follow "Send to Amazon (view)" to find it. A workflow covering several sibling shipments is recorded for all of them from one visit. Logs in to Amazon per region. |
 | `--sync-appointments` | For TRUCK-carrier shipments with no real tracking number yet, enter the Appointment ID already known from the source sheet's notes into Amazon's Pro/Freight Bill Number field. Never overwrites a value Amazon already has. Logs in to Amazon per region. |
 | `--sync-delivery-windows` | For master-sheet shipments that aren't Delivered and have a known Workflow ID, compare Amazon's delivery window against the real carrier expected-delivery date (from `logs/tracking_status.xlsx`) and edit the window on Amazon when it doesn't match. Also pushes a window 1 week out if it's about to lock with no expected date yet. Logs in to Amazon per region. |
+| `--populate-shipment-status` | Populate the master sheet's Shipment Status column with Amazon's own shipment lifecycle status (e.g. "Shipped", "Delivered"). Rows already Delivered by carrier tracking are stamped directly with no browser visit; every other row gets a live check of Amazon's status badge. Logs in to Amazon per region. |
 
 ---
 

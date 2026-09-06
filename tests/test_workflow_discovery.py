@@ -104,9 +104,14 @@ def test_extract_workflow_from_page_multi_shipment():
 
 
 @pytest.mark.unit
-def test_extract_workflow_from_page_no_workflow_id_returns_none():
+def test_extract_workflow_from_page_no_workflow_id_returns_empty_dict_not_none():
+    """Regression test: this used to return bare None on failure while its
+    only caller (discover_workflow_for_shipment) always returns a dict --
+    two different not-found conventions in the same file. Now always returns
+    a dict (workflow_id: None signals failure), so any future caller of this
+    function directly doesn't have to guess which convention applies."""
     page = _FakeWorkflowPage(url="https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA123/tracking", link_texts=[])
-    assert _extract_workflow_from_page(page) is None
+    assert _extract_workflow_from_page(page) == {"workflow_id": None, "fba_ids": []}
 
 
 # --- discover_workflow_for_shipment -------------------------------------------
@@ -126,14 +131,46 @@ class _FakeLinkLocator:
         pass
 
 
+class _FakeBadgeLocator:
+    def __init__(self, label):
+        self._label = label
+
+    def count(self):
+        return 1
+
+    def get_attribute(self, name):
+        assert name == "label"
+        return self._label
+
+
+class _FakeStatusLabelLocator:
+    def __init__(self, badge_label):
+        self._badge_label = badge_label
+
+    def count(self):
+        return 1
+
+    @property
+    def first(self):
+        return self
+
+    def locator(self, selector):
+        assert selector == "xpath=following-sibling::kat-badge[1]"
+        return _FakeBadgeLocator(self._badge_label)
+
+
 class _FakeDiscoveryPage(_FakeWorkflowPage):
-    def __init__(self, url, link_texts, has_send_to_amazon_link=True):
+    def __init__(self, url, link_texts, has_send_to_amazon_link=True, shipment_status="Shipped"):
         super().__init__(url, link_texts)
         self._has_link = has_send_to_amazon_link
+        self._shipment_status = shipment_status
 
     def get_by_text(self, text, exact=True):
-        assert text == "Send to Amazon (view)"
-        return _FakeLinkLocator(self._has_link)
+        if text == "Send to Amazon (view)":
+            return _FakeLinkLocator(self._has_link)
+        if text == "Status:":
+            return _FakeStatusLabelLocator(self._shipment_status)
+        raise AssertionError(f"unexpected get_by_text: {text!r}")
 
     def wait_for_timeout(self, ms):
         pass
@@ -158,25 +195,34 @@ def test_discover_workflow_for_shipment_success(monkeypatch):
     page = _FakeDiscoveryPage(
         url="https://sellercentral.amazon.com/fba/sendtoamazon?wf=wfb6b77412-f879-4203-8c93-f27ba68feac8",
         link_texts=["FBA19K4G0K6R - IMO1", "FBA19K4KTDZ6 - IMS1", "FBA19K4G0NSQ - ITX3"],
+        shipment_status="Shipped",
     )
     result = discover_workflow_for_shipment(page, "FBA19K4G0K6R", "https://sellercentral.amazon.com")
     assert result == {
         "workflow_id": "wfb6b77412-f879-4203-8c93-f27ba68feac8",
         "fba_ids": ["FBA19K4G0K6R", "FBA19K4KTDZ6", "FBA19K4G0NSQ"],
+        "amazon_shipment_status": "Shipped",
     }
 
 
 @pytest.mark.unit
-def test_discover_workflow_for_shipment_navigation_fails_returns_none(monkeypatch):
+def test_discover_workflow_for_shipment_navigation_fails_returns_none_status(monkeypatch):
+    """Navigation never even reached the page, so there's nothing to read --
+    unlike the no-link case below, amazon_shipment_status stays None here too."""
     import upload_tracking
     monkeypatch.setattr(upload_tracking, "navigate_to_shipment", lambda page, fba_id, base_url: False)
 
     page = _FakeDiscoveryPage(url="", link_texts=[])
-    assert discover_workflow_for_shipment(page, "FBA_MISSING", "https://sellercentral.amazon.com") is None
+    result = discover_workflow_for_shipment(page, "FBA_MISSING", "https://sellercentral.amazon.com")
+    assert result == {"workflow_id": None, "fba_ids": [], "amazon_shipment_status": None}
 
 
 @pytest.mark.unit
-def test_discover_workflow_for_shipment_no_send_to_amazon_link_returns_none(monkeypatch):
+def test_discover_workflow_for_shipment_no_send_to_amazon_link_still_reports_status(monkeypatch):
+    """Regression: a shipment with no 'Send to Amazon (view)' link isn't part
+    of a tracked workflow, but its Amazon shipment-status badge is still
+    readable right there on the summary page -- shouldn't be thrown away just
+    because there's no workflow to discover."""
     import upload_tracking
     monkeypatch.setattr(upload_tracking, "navigate_to_shipment", lambda page, fba_id, base_url: True)
 
@@ -184,27 +230,60 @@ def test_discover_workflow_for_shipment_no_send_to_amazon_link_returns_none(monk
         url="https://sellercentral.amazon.com/fba/inbound-shipment/summary/FBA123/tracking",
         link_texts=[],
         has_send_to_amazon_link=False,
+        shipment_status="Delivered",
     )
-    assert discover_workflow_for_shipment(page, "FBA123", "https://sellercentral.amazon.com") is None
+    result = discover_workflow_for_shipment(page, "FBA123", "https://sellercentral.amazon.com")
+    assert result == {"workflow_id": None, "fba_ids": [], "amazon_shipment_status": "Delivered"}
 
 
 # --- _process_region_discoveries ----------------------------------------------
 
 def _row(workflow_id=""):
-    return {"workflow_id": workflow_id}
+    return {"workflow_id": workflow_id, "amazon_shipment_status": ""}
 
 
 @pytest.mark.unit
 def test_process_region_discoveries_single_shipment_workflow(monkeypatch):
     monkeypatch.setattr(
         workflow_discovery, "discover_workflow_for_shipment",
-        lambda page, fba_id, base_url: {"workflow_id": "wf-1", "fba_ids": ["FBA001"]},
+        lambda page, fba_id, base_url: {"workflow_id": "wf-1", "fba_ids": ["FBA001"], "amazon_shipment_status": "Shipped"},
     )
     sheet = {"FBA001": _row()}
     result = _process_region_discoveries(page=None, base_url="https://x", fba_ids=["FBA001"], sheet=sheet)
 
     assert result == {"discovered": 1, "resolved_via_sibling": 0, "unresolved": 0}
     assert sheet["FBA001"]["workflow_id"] == "wf-1"
+    assert sheet["FBA001"]["amazon_shipment_status"] == "Shipped"
+
+
+@pytest.mark.unit
+def test_process_region_discoveries_empty_status_string_does_not_overwrite_existing(monkeypatch):
+    """Regression test: Amazon's status badge can expose an empty label
+    attribute before it's finished hydrating client-side. An empty string
+    isn't a real status and must not overwrite a previously-good value --
+    only a genuine `is not None` check let that happen before."""
+    monkeypatch.setattr(
+        workflow_discovery, "discover_workflow_for_shipment",
+        lambda page, fba_id, base_url: {"workflow_id": "wf-1", "fba_ids": ["FBA001"], "amazon_shipment_status": ""},
+    )
+    sheet = {"FBA001": {"workflow_id": "", "amazon_shipment_status": "Shipped"}}
+    _process_region_discoveries(page=None, base_url="https://x", fba_ids=["FBA001"], sheet=sheet)
+    assert sheet["FBA001"]["amazon_shipment_status"] == "Shipped"
+
+
+@pytest.mark.unit
+def test_process_region_discoveries_tracks_touched_fba_ids(monkeypatch):
+    """The optional `touched` set lets the caller save only the rows this
+    pass actually changed instead of the whole in-memory snapshot."""
+    monkeypatch.setattr(
+        workflow_discovery, "discover_workflow_for_shipment",
+        lambda page, fba_id, base_url: {"workflow_id": "wf-multi", "fba_ids": ["FBA001", "FBA002"], "amazon_shipment_status": "Shipped"},
+    )
+    sheet = {"FBA001": _row(), "FBA002": _row(), "FBA003": _row()}
+    touched = set()
+    _process_region_discoveries(page=None, base_url="https://x", fba_ids=["FBA001"], sheet=sheet, touched=touched)
+    assert touched == {"FBA001", "FBA002"}
+    assert "FBA003" not in touched
 
 
 @pytest.mark.unit
@@ -213,7 +292,7 @@ def test_process_region_discoveries_multi_shipment_workflow_skips_siblings(monke
 
     def fake_discover(page, fba_id, base_url):
         calls.append(fba_id)
-        return {"workflow_id": "wf-multi", "fba_ids": ["FBA001", "FBA002", "FBA003"]}
+        return {"workflow_id": "wf-multi", "fba_ids": ["FBA001", "FBA002", "FBA003"], "amazon_shipment_status": "Shipped"}
 
     monkeypatch.setattr(workflow_discovery, "discover_workflow_for_shipment", fake_discover)
     sheet = {"FBA001": _row(), "FBA002": _row(), "FBA003": _row()}
@@ -226,11 +305,19 @@ def test_process_region_discoveries_multi_shipment_workflow_skips_siblings(monke
     assert sheet["FBA001"]["workflow_id"] == "wf-multi"
     assert sheet["FBA002"]["workflow_id"] == "wf-multi"
     assert sheet["FBA003"]["workflow_id"] == "wf-multi"
+    # Only the shipment whose page was actually visited has a status to read --
+    # siblings resolved without a visit keep whatever they already had.
+    assert sheet["FBA001"]["amazon_shipment_status"] == "Shipped"
+    assert sheet["FBA002"]["amazon_shipment_status"] == ""
+    assert sheet["FBA003"]["amazon_shipment_status"] == ""
 
 
 @pytest.mark.unit
 def test_process_region_discoveries_counts_unresolved_on_failed_discovery(monkeypatch):
-    monkeypatch.setattr(workflow_discovery, "discover_workflow_for_shipment", lambda page, fba_id, base_url: None)
+    monkeypatch.setattr(
+        workflow_discovery, "discover_workflow_for_shipment",
+        lambda page, fba_id, base_url: {"workflow_id": None, "fba_ids": [], "amazon_shipment_status": None},
+    )
     sheet = {"FBA001": _row()}
     result = _process_region_discoveries(page=None, base_url="https://x", fba_ids=["FBA001"], sheet=sheet)
 
@@ -239,11 +326,28 @@ def test_process_region_discoveries_counts_unresolved_on_failed_discovery(monkey
 
 
 @pytest.mark.unit
+def test_process_region_discoveries_records_status_even_when_unresolved(monkeypatch):
+    """A shipment with no 'Send to Amazon' link never gets a workflow_id, but
+    its shipment-status badge was still read off the page it did visit --
+    that must be persisted even though the discovery itself is unresolved."""
+    monkeypatch.setattr(
+        workflow_discovery, "discover_workflow_for_shipment",
+        lambda page, fba_id, base_url: {"workflow_id": None, "fba_ids": [], "amazon_shipment_status": "Delivered"},
+    )
+    sheet = {"FBA001": _row()}
+    result = _process_region_discoveries(page=None, base_url="https://x", fba_ids=["FBA001"], sheet=sheet)
+
+    assert result == {"discovered": 0, "resolved_via_sibling": 0, "unresolved": 1}
+    assert sheet["FBA001"]["workflow_id"] == ""
+    assert sheet["FBA001"]["amazon_shipment_status"] == "Delivered"
+
+
+@pytest.mark.unit
 def test_process_region_discoveries_skips_fba_id_already_resolved_before_call(monkeypatch):
     calls = []
     monkeypatch.setattr(
         workflow_discovery, "discover_workflow_for_shipment",
-        lambda page, fba_id, base_url: calls.append(fba_id) or {"workflow_id": "wf-new", "fba_ids": [fba_id]},
+        lambda page, fba_id, base_url: calls.append(fba_id) or {"workflow_id": "wf-new", "fba_ids": [fba_id], "amazon_shipment_status": "Shipped"},
     )
     sheet = {"FBA001": _row(workflow_id="wf-already-known"), "FBA002": _row()}
     result = _process_region_discoveries(page=None, base_url="https://x", fba_ids=["FBA001", "FBA002"], sheet=sheet)
@@ -257,7 +361,7 @@ def test_process_region_discoveries_skips_fba_id_already_resolved_before_call(mo
 def test_process_region_discoveries_ignores_sibling_not_in_sheet(monkeypatch):
     monkeypatch.setattr(
         workflow_discovery, "discover_workflow_for_shipment",
-        lambda page, fba_id, base_url: {"workflow_id": "wf-x", "fba_ids": ["FBA001", "FBA_NOT_IN_SHEET"]},
+        lambda page, fba_id, base_url: {"workflow_id": "wf-x", "fba_ids": ["FBA001", "FBA_NOT_IN_SHEET"], "amazon_shipment_status": "Shipped"},
     )
     sheet = {"FBA001": _row()}
     result = _process_region_discoveries(page=None, base_url="https://x", fba_ids=["FBA001"], sheet=sheet)

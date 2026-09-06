@@ -3,6 +3,23 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.9.0] - 2026-09-07
+
+### Added
+- `--populate-shipment-status` (`shipment_status.py`): populates the master sheet's "Shipment Status" column with Amazon's own shipment lifecycle status (e.g. "Shipped", "Delivered"). Rows already Delivered by carrier tracking are stamped directly with no browser visit; every other row gets a live check of Amazon's status badge, one region at a time.
+- `master_sheet.is_carrier_delivered()` / `is_terminal_shipment_status()`: shared predicates for "is this shipment carrier-Delivered" and "is this Amazon status terminal (Delivered/Closed/Receiving)", now used consistently by `shipment_status.py`, `workflow_discovery.py`, and `delivery_window_sync.py` instead of each re-implementing its own copy.
+- `master_sheet.merge_field_updates()`: reloads the master sheet fresh from disk and patches only specific fields/rows before saving, instead of blind-overwriting the whole file from a possibly-stale in-memory snapshot. Used by `shipment_status.py` and `workflow_discovery.py` to narrow (not eliminate) the chance of two concurrent runs clobbering each other's unrelated updates.
+- `run.resolve_regions()`: extracted the existing "no regions in config → synthesize a single US region from amazon_base_url" fallback into a shared helper, so standalone modes like `--populate-shipment-status` get the same backward compatibility as the main pipeline instead of silently skipping every region against a legacy config.
+
+### Fixed
+- `upload_tracking.fetch_shipment_status()` no longer raises an uncaught `TimeoutError` when a shipment page's "Status:" label has no immediately-following `kat-badge` sibling -- this would otherwise abort an entire `--discover-workflows` or `--populate-shipment-status` run instead of just that one shipment. Now returns `None` for that case, same as when the label itself is missing.
+- `master_sheet.load_master_sheet()` now logs a clear warning listing every expected column it couldn't find in the file's header row, instead of silently defaulting each to blank -- a genuinely new field (schema evolution) and a header that's silently drifted (retyped, extra whitespace, Excel autocorrect) used to be indistinguishable, and the latter meant the next save would permanently erase that column for every row with no trace.
+- `shipment_status._backfill_delivered_shipment_status()` no longer downgrades an already more-specific terminal Amazon status (e.g. "Closed") back to the generic "Delivered" just because carrier tracking also says Delivered.
+- `workflow_discovery._extract_workflow_from_page()` now always returns a dict (`workflow_id: None` signals failure) instead of sometimes returning bare `None` -- its only caller already normalized this, but the inconsistent contract was a trap for any future direct caller.
+- Both `workflow_discovery.py` and `shipment_status.py` now treat an empty-string shipment-status badge read the same as no read at all, instead of overwriting a previously-good value with a blank -- Amazon's badge can expose an empty `label` attribute before it finishes hydrating client-side.
+- `shipment_status.py` no longer silently drops shipments from every count when a region has no config entry or login fails -- they're now tracked in a new `skipped` total shown in the run summary, instead of a summary that looks complete while quietly having checked nothing for that region.
+- `shipment_status._pending_fba_ids_by_region()` now also excludes shipments already stamped with a terminal Amazon status (`Closed`/`Receiving`) from an earlier live check, instead of re-visiting them live on every run for no new information.
+
 ## [0.8.6] - 2026-09-07
 
 ### Fixed

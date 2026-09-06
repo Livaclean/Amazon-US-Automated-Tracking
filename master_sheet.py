@@ -6,11 +6,34 @@ in-memory dict on every save (same convention as tracking_status.py's status
 cache), so updating a shipment's row is just: load, mutate the dict entry for
 that FBA ID, save.
 """
+import logging
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 MASTER_SHEET_PATH_DEFAULT = "logs/shipment_tracking_master.xlsx"
 
+# Amazon shipment-status values past which a shipment's delivery window can no
+# longer be edited -- shared by every module that reads/writes
+# amazon_shipment_status (shipment_status.py, workflow_discovery.py,
+# delivery_window_sync.py) so the definition lives in one place.
+_TERMINAL_SHIPMENT_STATUSES = {"Delivered", "Closed", "Receiving"}
+
+
+def is_terminal_shipment_status(status) -> bool:
+    """True once Amazon's own shipment status means its delivery window can
+    no longer be edited -- callers should stop trying to sync/re-check it."""
+    return status in _TERMINAL_SHIPMENT_STATUSES
+
+
+def is_carrier_delivered(entry: dict) -> bool:
+    """True if a master-sheet row's carrier-side tracking already reports
+    Delivered (via either status field) -- the one predicate every module
+    that gates on delivery status was independently re-implementing."""
+    return entry.get("tracking_status") == "Delivered" or entry.get("delivery_date_status") == "Delivered"
+
 MASTER_SHEET_COLUMNS = [
+    "Shipment Status",
     "Tracking Status", "Delivery Date Status", "Tracking Number", "Carrier",
     "FBA ID", "Shipment Name", "Destination", "Ctns", "Shipping Way",
     "Notes (source)", "Label Created Date", "Expected Delivery Date",
@@ -20,6 +43,7 @@ MASTER_SHEET_COLUMNS = [
 
 # Maps in-memory dict keys to their column position/header above, in column order.
 _FIELD_ORDER = [
+    ("amazon_shipment_status", "Shipment Status"),
     ("tracking_status", "Tracking Status"),
     ("delivery_date_status", "Delivery Date Status"),
     ("tracking", "Tracking Number"),
@@ -43,20 +67,52 @@ _FIELD_ORDER = [
 
 
 def load_master_sheet(path: str) -> dict:
-    """Reads the persistent master workbook into {fba_id: {field: value}}."""
+    """Reads the persistent master workbook into {fba_id: {field: value}}.
+
+    Columns are looked up by header name rather than fixed position, so a
+    file saved under an older schema (e.g. before "Shipment Status" existed)
+    still loads correctly -- fields present in that file keep their values,
+    and any field added since defaults to "" -- instead of every column
+    silently shifting when new fields are prepended/inserted.
+    """
     if not Path(path).exists():
         return {}
     from openpyxl import load_workbook
 
     wb = load_workbook(path, read_only=True, data_only=True)
     ws = wb.active
+    rows = ws.iter_rows(values_only=True)
+    header = next(rows, None)
+    if not header:
+        return {}
+    col_index = {name: i for i, name in enumerate(header)}
+    fba_id_col = col_index.get("FBA ID")
+    if fba_id_col is None:
+        return {}
+
+    # A header genuinely absent because it's a field added since this file was
+    # last saved is expected (see the docstring) -- but the exact same lookup
+    # can't tell that apart from a header that's silently drifted (retyped,
+    # extra whitespace, Excel autocorrect) on a file that's actually current.
+    # Surfacing every miss here at least makes that second case visible in the
+    # logs instead of quietly defaulting the whole column to "" and having the
+    # next save permanently erase it.
+    missing_headers = [header_name for _key, header_name in _FIELD_ORDER if header_name not in col_index]
+    if missing_headers:
+        logger.warning(
+            f"load_master_sheet: {len(missing_headers)} expected column(s) not found in {path!r}'s header row "
+            f"-- defaulting to blank for every row: {missing_headers}. If this file isn't from an older schema, "
+            f"check the header row for typos/renames before the next save overwrites it."
+        )
+
     sheet = {}
-    for row in ws.iter_rows(min_row=2, values_only=True):
-        if not row or not row[4]:  # FBA ID column
+    for row in rows:
+        if not row or fba_id_col >= len(row) or not row[fba_id_col]:
             continue
         entry = {}
-        for i, (key, _header) in enumerate(_FIELD_ORDER):
-            value = row[i] if i < len(row) else None
+        for key, header_name in _FIELD_ORDER:
+            i = col_index.get(header_name)
+            value = row[i] if i is not None and i < len(row) else None
             entry[key] = value if value is not None else ""
         sheet[str(entry["fba_id"]).strip()] = entry
     return sheet
@@ -73,6 +129,7 @@ _STATUS_FIELDS = [
     "tracking_status", "delivery_date_status", "label_created_date",
     "expected_delivery_date", "status", "last_checked", "workflow_id",
     "delivery_window_start", "delivery_window_end", "delivery_window_last_checked",
+    "amazon_shipment_status",
 ]
 
 
@@ -98,6 +155,7 @@ def populate_from_input(config: dict, master_sheet: dict) -> dict:
         else:
             row = dict(source)
             row["fba_id"] = fba_id
+            row["amazon_shipment_status"] = ""
             row["tracking_status"] = "pending"
             row["delivery_date_status"] = "pending"
             row["workflow_id"] = ""
@@ -195,6 +253,32 @@ def format_update_master_sheet_summary(result: dict) -> str:
         "=" * 60,
     ]
     return "\n".join(lines)
+
+
+def merge_field_updates(path: str, updates: dict, fields: list) -> None:
+    """
+    Re-reads the master sheet fresh from disk and applies only `fields` for
+    the FBA IDs present in `updates` (each updates[fba_id] is that shipment's
+    full in-memory entry, but only `fields` from it are used) before saving.
+
+    save_master_sheet() always rewrites the whole workbook from whatever
+    in-memory snapshot it's given -- fine for a single writer, but
+    workflow_discovery.py, shipment_status.py, and delivery_window_sync.py
+    each load, mutate, and save their own private snapshot. If two of those
+    run close together, whichever saves last would otherwise silently
+    overwrite every unrelated field the other one had just written. Loading
+    fresh right before saving and touching only the specific fields this
+    caller is actually responsible for narrows that window (though it can't
+    close it -- there's still a load-then-save gap without real file locking).
+    """
+    fresh = load_master_sheet(path)
+    for fba_id, entry in updates.items():
+        if fba_id not in fresh:
+            continue
+        for field in fields:
+            if field in entry:
+                fresh[fba_id][field] = entry[field]
+    save_master_sheet(path, fresh)
 
 
 def save_master_sheet(path: str, sheet: dict) -> None:

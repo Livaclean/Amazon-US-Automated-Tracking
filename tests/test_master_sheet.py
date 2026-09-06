@@ -45,6 +45,7 @@ def _write_input_sheet(tmp_config, filename="shipments.xlsx"):
 @pytest.mark.unit
 def test_master_sheet_columns_order():
     assert MASTER_SHEET_COLUMNS == [
+        "Shipment Status",
         "Tracking Status", "Delivery Date Status", "Tracking Number", "Carrier",
         "FBA ID", "Shipment Name", "Destination", "Ctns", "Shipping Way",
         "Notes (source)", "Label Created Date", "Expected Delivery Date",
@@ -64,6 +65,7 @@ def test_save_then_load_round_trip(tmp_path):
     path = str(tmp_path / "master.xlsx")
     sheet = {
         "FBA001": {
+            "amazon_shipment_status": "",
             "tracking_status": "pending",
             "delivery_date_status": "pending",
             "tracking": "1Z001",
@@ -115,7 +117,7 @@ def test_save_master_sheet_writes_columns_in_order(tmp_path):
     # openpyxl reads back an empty-string cell as None -- load_master_sheet
     # normalizes this back to "" for callers; this test checks raw cell values.
     assert data_row == [
-        "updated", "pending", "1Z001", "UPS", "FBA001", "Widget", "ORF2", 1,
+        None, "updated", "pending", "1Z001", "UPS", "FBA001", "Widget", "ORF2", 1,
         "express", None, None, None, "Delivered", "2026-06-05 10:00", "US", "wf-abc-123",
         None, None, None,
     ]
@@ -167,7 +169,8 @@ def test_save_master_sheet_multiple_rows_sorted_by_fba_id(tmp_path):
     import openpyxl
     wb = openpyxl.load_workbook(path)
     ws = wb.active
-    fba_ids = [row[4] for row in ws.iter_rows(min_row=2, values_only=True)]
+    fba_id_col = MASTER_SHEET_COLUMNS.index("FBA ID")
+    fba_ids = [row[fba_id_col] for row in ws.iter_rows(min_row=2, values_only=True)]
     assert fba_ids == ["FBA001", "FBA002"]
 
 
@@ -465,3 +468,86 @@ def test_populate_from_input_new_row_has_blank_delivery_window_fields(tmp_config
     assert row["delivery_window_start"] == ""
     assert row["delivery_window_end"] == ""
     assert row["delivery_window_last_checked"] == ""
+
+
+# --- amazon_shipment_status ---------------------------------------------------
+
+@pytest.mark.unit
+def test_save_and_load_round_trips_amazon_shipment_status(tmp_path):
+    path = str(tmp_path / "master.xlsx")
+    sheet = {
+        "FBA001": {
+            "amazon_shipment_status": "Shipped",
+            "fba_id": "FBA001", "tracking": "1Z001", "carrier": "UPS",
+            "name": "", "destination": "", "ctns": "", "shipping_way": "",
+            "notes": "", "region": "US", "tracking_status": "pending",
+            "delivery_date_status": "pending", "label_created_date": "",
+            "expected_delivery_date": "", "status": "", "last_checked": "",
+            "workflow_id": "wf-1",
+            "delivery_window_start": "", "delivery_window_end": "",
+            "delivery_window_last_checked": "",
+        }
+    }
+    save_master_sheet(path, sheet)
+    loaded = load_master_sheet(path)
+    assert loaded["FBA001"]["amazon_shipment_status"] == "Shipped"
+
+
+@pytest.mark.unit
+def test_populate_from_input_new_row_has_blank_amazon_shipment_status(tmp_config):
+    tmp_config = _write_input_sheet(tmp_config)
+    sheet = populate_from_input(tmp_config, {})
+    assert sheet["FBA_CL1"]["amazon_shipment_status"] == ""
+
+
+@pytest.mark.unit
+def test_populate_from_input_preserves_amazon_shipment_status_for_existing_shipment(tmp_config):
+    tmp_config = _write_input_sheet(tmp_config)
+    existing = {
+        "FBA_CL1": {
+            "amazon_shipment_status": "Shipped",
+            "tracking_status": "updated", "delivery_date_status": "updated",
+            "tracking": "1ZCL001", "carrier": "UPS", "fba_id": "FBA_CL1",
+            "name": "Widget Variety Pack", "destination": "BNA6", "ctns": 9,
+            "shipping_way": "express", "notes": "delivered on 2026.02.24",
+            "label_created_date": "2026-02-10", "expected_delivery_date": "2026-02-24",
+            "status": "Delivered", "last_checked": "2026-02-24 09:00",
+            "region": "US", "workflow_id": "wf-already-known",
+        },
+    }
+    sheet = populate_from_input(tmp_config, existing)
+    assert sheet["FBA_CL1"]["amazon_shipment_status"] == "Shipped"
+
+
+@pytest.mark.unit
+def test_load_master_sheet_reads_old_schema_file_missing_shipment_status_column(tmp_path):
+    """Regression test: the persistent master sheet on disk was saved under the
+    old 19-column schema (no 'Shipment Status' column) before this field was
+    added. load_master_sheet must look columns up by header name, not fixed
+    position, so an old file loads with amazon_shipment_status defaulting to
+    "" instead of every other field silently shifting by one column."""
+    import openpyxl
+
+    path = str(tmp_path / "old_master.xlsx")
+    old_columns = [
+        "Tracking Status", "Delivery Date Status", "Tracking Number", "Carrier",
+        "FBA ID", "Shipment Name", "Destination", "Ctns", "Shipping Way",
+        "Notes (source)", "Label Created Date", "Expected Delivery Date",
+        "Current Status", "Last Checked", "Region", "Workflow ID",
+        "Delivery Window Start", "Delivery Window End", "Delivery Window Last Checked",
+    ]
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(old_columns)
+    ws.append([
+        "pending", "pending", "1Z001", "UPS", "FBA001", "Widget", "ORF2", 1,
+        "express", "", "", "", "", "", "US", "wf-abc-123", "", "", "",
+    ])
+    wb.save(path)
+
+    loaded = load_master_sheet(path)
+
+    assert loaded["FBA001"]["amazon_shipment_status"] == ""
+    assert loaded["FBA001"]["fba_id"] == "FBA001"
+    assert loaded["FBA001"]["tracking"] == "1Z001"
+    assert loaded["FBA001"]["workflow_id"] == "wf-abc-123"

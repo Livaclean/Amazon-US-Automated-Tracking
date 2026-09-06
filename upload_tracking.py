@@ -265,12 +265,18 @@ def fetch_shipment_status(page) -> str:
     (2026-09-02): Amazon renders it as `<h6>Status:</h6><kat-badge label="...">`
     -- the "Status:" text and the badge are siblings, and the actual status
     lives in the badge's label attribute, not as visible page text (inner_text
-    misses it entirely). Returns None if the "Status:" label isn't present.
+    misses it entirely). Returns None if the "Status:" label isn't present, or
+    if it's present with no kat-badge sibling -- a bare .locator() call on a
+    selector with no match still auto-waits and raises TimeoutError, which
+    would otherwise propagate uncaught through every caller's per-shipment
+    loop and abort the whole run instead of just this one shipment.
     """
     label = page.get_by_text("Status:", exact=True)
     if label.count() == 0:
         return None
     badge = label.first.locator("xpath=following-sibling::kat-badge[1]")
+    if badge.count() == 0:
+        return None
     return badge.get_attribute("label")
 
 

@@ -37,6 +37,25 @@ def setup_logging(logs_folder: str) -> None:
     logging.getLogger(__name__).info(f"Log file: {log_file}")
 
 
+def resolve_regions(config: dict) -> list:
+    """
+    Returns config's "regions" list, or a synthesized single-region US list
+    (from amazon_base_url) for backward compat with a legacy/minimal config
+    that predates the regions list. Shared by every CLI mode that needs to
+    resolve a region list -- one prior standalone mode (--populate-shipment-
+    status) re-derived region_by_name straight from config.get("regions", [])
+    with no such fallback, so a legacy config silently checked nothing there.
+    """
+    configured_regions = config.get("regions", [])
+    if not configured_regions:
+        configured_regions = [{
+            "name": "US",
+            "amazon_url": config.get("amazon_base_url", "https://sellercentral.amazon.com"),
+            "fc_codes_file": config.get("us_fc_codes_file", "fc_codes/us_fc_codes.txt"),
+        }]
+    return configured_regions
+
+
 def load_config(config_path: str = "config.json") -> dict:
     """Loads config.json with sensible defaults for optional keys."""
     if not Path(config_path).exists():
@@ -459,6 +478,13 @@ def main():
              "check/edit delivery windows for shipments locking within 7 days. Writes a summary "
              "file to logs/. Intended to run from Windows Task Scheduler every Saturday.",
     )
+    parser.add_argument(
+        "--populate-shipment-status", action="store_true",
+        help="Populate logs/shipment_tracking_master.xlsx's Shipment Status column with Amazon's own "
+             "shipment lifecycle status (e.g. Shipped, Delivered). Rows already Delivered by carrier "
+             "tracking are stamped 'Delivered' directly, with no Amazon visit. Only pending shipments "
+             "are checked live. Logs in to Amazon per region.",
+    )
     args = parser.parse_args()
 
     # Pre-initialize so these are always in scope even if an early exception occurs
@@ -538,15 +564,17 @@ def main():
         print(format_weekly_delivery_window_summary(result))
         return
 
+    # Standalone shipment-status population: logs in to Amazon per region,
+    # visits pending shipments' pages to read Amazon's own status badge.
+    # Already-Delivered rows are stamped without a live visit.
+    if args.populate_shipment_status:
+        from shipment_status import run_populate_shipment_status, format_populate_shipment_status_summary
+        result = run_populate_shipment_status(config)
+        print(format_populate_shipment_status_summary(result))
+        return
+
     # Determine which regions to run
-    configured_regions = config.get("regions", [])
-    if not configured_regions:
-        # Backward compat: no regions in config → US only using amazon_base_url
-        configured_regions = [{
-            "name": "US",
-            "amazon_url": config.get("amazon_base_url", "https://sellercentral.amazon.com"),
-            "fc_codes_file": config.get("us_fc_codes_file", "fc_codes/us_fc_codes.txt"),
-        }]
+    configured_regions = resolve_regions(config)
 
     if args.regions:
         allowed = set(args.regions)

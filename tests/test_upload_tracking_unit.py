@@ -69,8 +69,12 @@ def test_navigate_to_shipment_returns_true_for_normal_page():
 # ---------------------------------------------------------------------------
 
 class _FakeBadgeLocator:
-    def __init__(self, label):
+    def __init__(self, label, count=1):
         self._label = label
+        self._count = count
+
+    def count(self):
+        return self._count
 
     def get_attribute(self, name):
         assert name == "label"
@@ -78,9 +82,10 @@ class _FakeBadgeLocator:
 
 
 class _FakeStatusLabelLocator:
-    def __init__(self, count, badge_label=None):
+    def __init__(self, count, badge_label=None, badge_count=1):
         self._count = count
         self._badge_label = badge_label
+        self._badge_count = badge_count
 
     def count(self):
         return self._count
@@ -91,18 +96,19 @@ class _FakeStatusLabelLocator:
 
     def locator(self, selector):
         assert selector == "xpath=following-sibling::kat-badge[1]"
-        return _FakeBadgeLocator(self._badge_label)
+        return _FakeBadgeLocator(self._badge_label, count=self._badge_count)
 
 
 class _FakeStatusPage:
-    def __init__(self, status_label_count=1, badge_label="Shipped"):
+    def __init__(self, status_label_count=1, badge_label="Shipped", badge_count=1):
         self._status_label_count = status_label_count
         self._badge_label = badge_label
+        self._badge_count = badge_count
 
     def get_by_text(self, text, exact=False):
         assert text == "Status:"
         assert exact is True
-        return _FakeStatusLabelLocator(self._status_label_count, self._badge_label)
+        return _FakeStatusLabelLocator(self._status_label_count, self._badge_label, badge_count=self._badge_count)
 
 
 def test_fetch_shipment_status_returns_badge_label():
@@ -112,6 +118,16 @@ def test_fetch_shipment_status_returns_badge_label():
 
 def test_fetch_shipment_status_returns_none_when_status_label_missing():
     page = _FakeStatusPage(status_label_count=0)
+    assert fetch_shipment_status(page) is None
+
+
+def test_fetch_shipment_status_returns_none_when_badge_missing():
+    """Regression test: a 'Status:' label with no immediately-following
+    kat-badge sibling used to call get_attribute() on a Playwright locator
+    with zero matches, which auto-waits and raises TimeoutError instead of
+    returning cleanly -- that would propagate uncaught through every caller's
+    per-shipment loop and abort the whole run."""
+    page = _FakeStatusPage(status_label_count=1, badge_count=0)
     assert fetch_shipment_status(page) is None
 
 

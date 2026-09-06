@@ -13,6 +13,8 @@ import re
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from master_sheet import is_terminal_shipment_status as _is_terminal_shipment_status
+
 logger = logging.getLogger(__name__)
 
 
@@ -212,20 +214,6 @@ def decide_window_action(window_start, window_end, expected_delivery_date, today
         return {"action": "push_one_week", "target_week_start": target_start}
 
     return {"action": "none", "target_week_start": None}
-
-
-# Amazon shipment-status values (see upload_tracking.fetch_shipment_status)
-# past which the delivery window can no longer be edited. Confirmed live
-# (2026-09-02) as real values Amazon uses: "Delivered", "Closed", and
-# "Receiving" (the warehouse has started checking the shipment in) -- all
-# treated as terminal, same as Delivered.
-_TERMINAL_SHIPMENT_STATUSES = {"Delivered", "Closed", "Receiving"}
-
-
-def _is_terminal_shipment_status(status) -> bool:
-    """True once Amazon's own shipment status means its delivery window can
-    no longer be edited -- the weekly sync should stop trying to sync it."""
-    return status in _TERMINAL_SHIPMENT_STATUSES
 
 
 def _merge_overdue_with_newly_locked(pre_run_overdue: set, this_run_outcomes: dict) -> list:
