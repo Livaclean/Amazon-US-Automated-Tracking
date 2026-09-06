@@ -9,6 +9,7 @@ import pytest
 import delivery_window_sync
 from delivery_window_sync import (
     _parse_flexible_date,
+    _parse_ltl_window_input_value,
     _week_bounds,
     decide_window_action,
     sync_window_for_shipment,
@@ -18,6 +19,7 @@ from delivery_window_sync import (
     select_weekly_candidates,
     format_weekly_delivery_window_summary,
     _merge_overdue_with_newly_locked,
+    _is_terminal_shipment_status,
 )
 
 
@@ -52,6 +54,18 @@ def test_parse_flexible_date_day_month_year_no_comma():
 
 
 @pytest.mark.unit
+def test_parse_flexible_date_day_sept_year_four_letter_abbreviation():
+    """Regression test: found live (2026-09-02) that UK/EU (amazon.co.uk,
+    amazon.de) 'Delivery window:' pages spell September as the 4-letter
+    'Sept' instead of the standard 3-letter 'Sep' abbreviation every other
+    month uses -- silently unparseable before this fix, which is exactly
+    what read_shipment_window's dates-found-but-unparseable warning
+    (delivery_window_sync.py) surfaced for FBA15M2N9CHZ and others."""
+    assert _parse_flexible_date("13 Sept 2026") == date(2026, 9, 13)
+    assert _parse_flexible_date("6 Sept 2026") == date(2026, 9, 6)
+
+
+@pytest.mark.unit
 def test_parse_flexible_date_weekday_month_day_no_year_infers_current_year():
     # "today" is well within the same year as the inferred date -- no rollover needed
     result = _parse_flexible_date("Friday, July 17", today=date(2026, 7, 10))
@@ -74,6 +88,37 @@ def test_parse_flexible_date_none_or_blank_returns_none():
 @pytest.mark.unit
 def test_parse_flexible_date_unparseable_returns_none():
     assert _parse_flexible_date("not a date") is None
+
+
+# --- _screenshot ----------------------------------------------------------------
+
+class _FakeScreenshotPage:
+    def __init__(self):
+        self.calls = []
+
+    def screenshot(self, **kwargs):
+        self.calls.append(kwargs)
+
+
+@pytest.mark.unit
+def test_screenshot_captures_full_page(tmp_path):
+    """Regression test: a viewport-only screenshot (the default) missed the
+    actual failure point on FBA19GR6H9VX's page (2026-09-02) because the
+    relevant section renders below the fold -- the one still-unexplained
+    'Delivery window never rendered' pattern stayed undiagnosable because of
+    this. full_page=True must be passed explicitly."""
+    page = _FakeScreenshotPage()
+    delivery_window_sync._screenshot(page, "some_step", str(tmp_path))
+
+    assert len(page.calls) == 1
+    assert page.calls[0]["full_page"] is True
+
+
+@pytest.mark.unit
+def test_screenshot_noop_without_logs_folder():
+    page = _FakeScreenshotPage()
+    delivery_window_sync._screenshot(page, "some_step", None)
+    assert page.calls == []
 
 
 # --- _week_bounds ----------------------------------------------------------------
@@ -262,12 +307,13 @@ class _FakeLocator:
     """Minimal fake satisfying the .count/.first/.click/.wait_for/.get_attribute/
     .is_checked calls apply_window_edit makes on a Playwright locator."""
 
-    def __init__(self, count=1, click_raises=None, aria_label=None, checked=False):
+    def __init__(self, count=1, click_raises=None, aria_label=None, checked=False, locator_return=None):
         self._count = count
         self.click_raises = click_raises
         self._aria_label = aria_label
         self._checked = checked
         self.click_calls = 0
+        self._locator_return = locator_return
 
     @property
     def first(self):
@@ -289,6 +335,13 @@ class _FakeLocator:
 
     def is_checked(self):
         return self._checked
+
+    def locator(self, selector):
+        # By default, simulates "no LTL-style delivery-window input here" --
+        # tests that need one pass locator_return to chain further fakes.
+        if self._locator_return is not None:
+            return self._locator_return
+        return _FakeLocator(count=0)
 
 
 class _FakeKeyboard:
@@ -400,14 +453,18 @@ def test_apply_window_edit_proceeds_normally_when_checkbox_present_but_unchecked
 # --- read_shipment_window ----------------------------------------------------
 
 class _FakeLocatorGroup:
-    """Minimal fake for a multi-element locator (e.g. the 4 'View' links),
-    supporting .nth(i) -> a _FakeLocator."""
+    """Minimal fake for a multi-element locator (e.g. the per-step 'View'
+    links), supporting .nth(i) and .last -> a _FakeLocator."""
 
     def __init__(self, items):
         self._items = items
 
     def nth(self, i):
         return self._items[i]
+
+    @property
+    def last(self):
+        return self._items[-1]
 
 
 class _RaisingLocator(_FakeLocator):
@@ -551,6 +608,142 @@ def test_read_shipment_window_logs_generic_message_when_step4_confirmed_but_view
     assert result is None
     assert any("never rendered its 'Tracking details' section" in r.message for r in caplog.records)
     assert not any("wasn't entered through this workflow" in r.message for r in caplog.records)
+
+
+class _FakeReadWindowPageWindowFound(_FakeReadWindowPage):
+    """Extends _FakeReadWindowPage past the 'Delivery window:' wait -- it
+    renders successfully, but the body text served by inner_text() is
+    controlled by the test so the date-parsing step can be exercised."""
+
+    def __init__(self, body_text: str):
+        super().__init__(enter_tracking_ids_count=0)
+        self._body_text = body_text
+
+    def wait_for_selector(self, selector, timeout=None):
+        if selector in ("text=Track shipment", "text=Delivery window:"):
+            return
+        raise AssertionError(f"unexpected wait_for_selector: {selector!r}")
+
+    def inner_text(self, selector):
+        assert selector == "body"
+        return self._body_text
+
+
+@pytest.mark.unit
+def test_read_shipment_window_logs_when_dates_found_but_unparseable(caplog):
+    """Regression test: found live (2026-09-01) that 6 of a run's 45
+    read_failed outcomes had zero corresponding warning in the log --
+    traced to this exact gap. Unlike the sibling case where the
+    'Delivery window:' text never renders at all (which does log +
+    screenshot), a matched-but-unparseable date silently returned None
+    with no diagnostic trail whatsoever, making it impossible to tell
+    from the log which shipments hit it or why."""
+    page = _FakeReadWindowPageWindowFound(
+        "some page chrome Delivery window: 32 Fooember 2026 - 33 Fooember 2026 more chrome"
+    )
+
+    with caplog.at_level("WARNING", logger="delivery_window_sync"):
+        result = read_shipment_window(page, "wf-1", "FBA001", "https://x")
+
+    assert result is None
+    assert any("couldn't be parsed" in r.message and "FBA001" in r.message for r in caplog.records)
+
+
+@pytest.mark.unit
+def test_read_shipment_window_succeeds_when_dates_parse():
+    page = _FakeReadWindowPageWindowFound(
+        "some page chrome Delivery window: Sep 1, 2026 - Sep 14, 2026 more chrome"
+    )
+
+    result = read_shipment_window(page, "wf-1", "FBA001", "https://x")
+
+    assert result == {"window_start": date(2026, 9, 1), "window_end": date(2026, 9, 14)}
+
+
+@pytest.mark.unit
+def test_parse_ltl_window_input_value_parses_single_trailing_year():
+    """Regression test: confirmed live (2026-09-07, FBA19M5MX8MR) that LTL/FTL
+    shipments render their delivery window as a <kat-input value="Sep 20 -
+    Sep 26, 2026">, not the SPD flow's "Delivery window: Sep 20, 2026 -
+    Sep 26, 2026" text -- only the END date carries a year."""
+    result = _parse_ltl_window_input_value("Sep 20 - Sep 26, 2026", today=date(2026, 9, 6))
+    assert result == {"window_start": date(2026, 9, 20), "window_end": date(2026, 9, 26)}
+
+
+@pytest.mark.unit
+def test_parse_ltl_window_input_value_none_on_malformed_value():
+    assert _parse_ltl_window_input_value("garbage", today=date(2026, 9, 6)) is None
+    assert _parse_ltl_window_input_value("", today=date(2026, 9, 6)) is None
+
+
+@pytest.mark.unit
+def test_parse_ltl_window_input_value_none_on_unparseable_dates():
+    assert _parse_ltl_window_input_value("Fooember 99 - Sep 26, 2026", today=date(2026, 9, 6)) is None
+
+
+class _FakeReadWindowPageLTLStyle(_FakeReadWindowPage):
+    """Extends _FakeReadWindowPage so the colon-text wait still times out
+    (as it always does for LTL/FTL), but the shipment's tab locator chains
+    to a real LTL-style <kat-input> value via .locator() -- confirmed live
+    (2026-09-07) this is where LTL/FTL shipments' window actually lives."""
+
+    def __init__(self, input_value: str):
+        super().__init__(enter_tracking_ids_count=0)
+        window_input = _FakeLocator(count=1, aria_label=input_value)
+        card = _FakeLocator(count=1, locator_return=window_input)
+        self._tab = _FakeLocator(count=1, locator_return=card)
+
+    def wait_for_selector(self, selector, timeout=None):
+        if selector == "text=Track shipment":
+            return
+        if selector == "text=Delivery window:":
+            raise TimeoutError("Delivery window never appeared")
+        raise AssertionError(f"unexpected wait_for_selector: {selector!r}")
+
+
+@pytest.mark.unit
+def test_read_shipment_window_falls_back_to_ltl_style_input(caplog):
+    """Regression test: confirmed live (2026-09-07, FBA19M5MX8MR) that LTL/FTL
+    shipments never render the plain-text 'Delivery window:' label the
+    standard SPD flow waits for -- their window is a <kat-input> value
+    attribute instead. read_shipment_window must fall back to reading that
+    rather than reporting a bogus 'never rendered' failure."""
+    page = _FakeReadWindowPageLTLStyle("Sep 20 - Sep 26, 2026")
+
+    with caplog.at_level("WARNING", logger="delivery_window_sync"):
+        result = read_shipment_window(page, "wf-1", "FBA001", "https://x")
+
+    assert result == {"window_start": date(2026, 9, 20), "window_end": date(2026, 9, 26)}
+    assert not any("never rendered after selecting its tab" in r.message for r in caplog.records)
+
+
+@pytest.mark.unit
+def test_read_shipment_window_clicks_last_view_link_not_fixed_index():
+    """Regression test: confirmed live (2026-09-06, FBA19L4ZZS14) that some
+    shipment methods (SPD / FIST Carriers) give Step 1b its own separate
+    'View' link, producing 5 collapsed-step View links instead of the usual
+    4 -- a hardcoded nth(3) then clicked Step 3 instead of Final step,
+    expanding the wrong section and causing a false 'Shipment ID: ...' tab
+    match against Step 3's plain-text shipment card. 'Final step' is always
+    the last collapsed section regardless of how many precede it, so the
+    fix must click .last, not a fixed index -- this verifies the last (and
+    only the last) View link gets clicked even when there are 5."""
+    page = _FakeReadWindowPageWindowFound(
+        "some page chrome Delivery window: Sep 1, 2026 - Sep 14, 2026 more chrome"
+    )
+    view_items = [_FakeLocator(count=1) for _ in range(5)]
+    page.get_by_text = lambda text, exact=False: (
+        _FakeLocatorGroup(view_items) if text == "View" else
+        page._tab if text.startswith("Shipment ID:") else
+        page._enter_tracking_ids if text == "Enter tracking IDs" else
+        (_ for _ in ()).throw(AssertionError(f"unexpected get_by_text: {text!r}"))
+    )
+
+    result = read_shipment_window(page, "wf-1", "FBA001", "https://x")
+
+    assert result == {"window_start": date(2026, 9, 1), "window_end": date(2026, 9, 14)}
+    assert view_items[-1].click_calls == 1
+    assert all(v.click_calls == 0 for v in view_items[:-1])
 
 
 # --- sync_window_for_shipment ----------------------------------------------------
@@ -900,6 +1093,24 @@ def test_select_delivery_window_sync_candidates_excludes_delivered_and_no_workfl
     assert result == {}
 
 
+# --- _is_terminal_shipment_status ---------------------------------------------
+
+@pytest.mark.unit
+@pytest.mark.parametrize("status", ["Delivered", "Closed", "Receiving"])
+def test_is_terminal_shipment_status_true_for_terminal_statuses(status):
+    """Once Amazon's own shipment status is Delivered, Closed, or Receiving
+    (confirmed live 2026-09-02 as a real status value -- Amazon's warehouse
+    has started checking the shipment in), its delivery window can no longer
+    be edited -- the weekly sync should stop trying."""
+    assert _is_terminal_shipment_status(status) is True
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("status", ["Shipped", "Working", "In transit", "", None])
+def test_is_terminal_shipment_status_false_for_non_terminal_statuses(status):
+    assert _is_terminal_shipment_status(status) is False
+
+
 # --- format_weekly_delivery_window_summary ------------------------------------------
 
 @pytest.mark.unit
@@ -938,6 +1149,23 @@ def test_format_weekly_delivery_window_summary_includes_errors_section_when_pres
         "errors": ["Could not log in to CA -- skipped 3 shipment(s)"],
     })
     assert "Could not log in to CA" in text
+
+
+@pytest.mark.unit
+def test_format_weekly_delivery_window_summary_includes_skipped_shipment_done_section():
+    text = format_weekly_delivery_window_summary({
+        "checked": 0, "not_due": 0, "carrier_managed_skipped": 0,
+        "matched": 0, "edited": 0, "pushed_one_week": 0, "no_action_needed": 0,
+        "new_shipments": [], "overdue_shipments": [], "locked": 0,
+        "read_failed": 0, "read_failed_ids": [],
+        "edit_failed": 0, "edit_failed_ids": [],
+        "skipped_shipment_done": 2, "skipped_shipment_done_ids": ["FBA001", "FBA002"],
+        "errors": [],
+    })
+    assert "Skipped (shipment done)" in text
+    assert "2" in text
+    assert "FBA001" in text
+    assert "FBA002" in text
 
 
 # --- _merge_overdue_with_newly_locked -------------------------------------------

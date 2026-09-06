@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.8.5] - 2026-09-07
+
+### Fixed
+- `read_shipment_window()`'s "Final step: Tracking details" click no longer uses a hardcoded 4th "View" link (`views.nth(3)`) — some shipment methods (e.g. SPD/FIST Carriers, and some CA-region shipments) give Step 1b its own separate collapsed "View", shifting Final step to a 5th link. The old fixed index landed on Step 3 instead, causing a false tab match against Step 3's plain-text shipment card and a spurious 15s timeout waiting for "Delivery window:" text that was never going to appear there. Now clicks `.last`, since Final step is always the last collapsed section regardless of how many precede it. Live-verified: fixed 7 of 11 real `read_failed` shipments from a single run (5 SPD/FIST + 2 CA)
+- LTL/FTL shipments' delivery window is now read correctly — it renders as the `value` attribute of a disabled `<kat-input data-testid="arrival-delivery-window-input">` (e.g. `"Sep 20 - Sep 26, 2026"`), never as a text node, so `wait_for_selector("text=Delivery window:")` could never find it no matter how long it waited. Added a fallback (`_read_ltl_style_window`) that reads the input's value directly once it's known this shipment has no colon-text window, scoped to the correct sibling shipment's own card via its `.shipment-module` ancestor (the input closest ancestor level that bounds exactly one shipment, confirmed live — the next level up already picks up a different sibling's window). Also handles this format's single trailing year (first date has none). Live-verified: fixed the remaining 4 of 11 real `read_failed` shipments
+- `_screenshot()` now captures the full scrollable page (`full_page=True`) instead of just the viewport — a viewport-only capture missed the actual failure point entirely on a real "never rendered" case (confirmed live, FBA19GR6H9VX): the relevant section was below the fold
+- `_parse_flexible_date()` now normalizes UK/EU's 4-letter "Sept" spelling to "Sep" before matching — confirmed live on amazon.co.uk and amazon.de, where "Delivery window:" dates spell September that way instead of the 3-letter abbreviation every other month uses
+- `read_shipment_window()` now logs and screenshots the case where "Delivery window:" dates are matched but don't fit any known format, instead of silently returning `None` with no diagnostic trail — this was a real gap: 6 of a run's 45 `read_failed` outcomes previously had zero corresponding warning in the log
+- The weekly sync now re-checks Amazon's own shipment-status badge every run (`fetch_shipment_status`) instead of only capturing it once at workflow discovery, and skips the window read/edit page visit entirely for shipments whose status has since become `Delivered`, `Closed`, or `Receiving` — these can no longer have their window edited, so visiting them was producing false `read_failed`/`locked` outcomes instead of a clean, distinct `shipment_done` skip
+
 ## [0.8.4] - 2026-09-06
 
 ### Fixed

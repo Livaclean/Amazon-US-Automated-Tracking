@@ -17,7 +17,13 @@ logger = logging.getLogger(__name__)
 
 
 def _screenshot(page, step_name: str, logs_folder: str) -> None:
-    """Saves a screenshot to logs/screenshots/ on error. No-ops without a logs_folder."""
+    """
+    Saves a screenshot to logs/screenshots/ on error. No-ops without a
+    logs_folder. Captures the full scrollable page, not just the viewport --
+    a viewport-only capture missed the actual failure point entirely on a
+    real "never rendered" case (confirmed live 2026-09-02, FBA19GR6H9VX):
+    the relevant section was below the fold.
+    """
     if not logs_folder:
         return
     try:
@@ -25,7 +31,7 @@ def _screenshot(page, step_name: str, logs_folder: str) -> None:
         folder.mkdir(parents=True, exist_ok=True)
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_step = "".join(c if c.isalnum() or c in "-_." else "_" for c in step_name)
-        page.screenshot(path=str(folder / f"{ts}_{safe_step}.png"))
+        page.screenshot(path=str(folder / f"{ts}_{safe_step}.png"), full_page=True)
     except Exception as e:
         logger.debug(f"Screenshot failed ({step_name}): {e}")
 
@@ -34,6 +40,56 @@ def _screenshot(page, step_name: str, logs_folder: str) -> None:
 # day-first "1 Jul 2026" (no comma) instead -- both need to be matched here.
 _WINDOW_DATE = r"(?:[A-Za-z]+ \d{1,2}, \d{4}|\d{1,2} [A-Za-z]+ \d{4})"
 _WINDOW_PATTERN = re.compile(rf"Delivery window:\s*({_WINDOW_DATE})\s*-\s*({_WINDOW_DATE})")
+
+# LTL/FTL shipments (Method: "Less than and full truckload") render their
+# delivery window as the VALUE ATTRIBUTE of a disabled <kat-input
+# data-testid="arrival-delivery-window-input">, e.g. "Sep 20 - Sep 26, 2026"
+# -- confirmed live (2026-09-07, FBA19M5MX8MR). Unlike the plain-text
+# "Delivery window: <date>, <year> - <date>, <year>" label the standard SPD
+# flow renders, this is never a text node at all (inner_text/get_by_text
+# can't see it), and only the END date carries a year.
+_LTL_WINDOW_INPUT_SELECTOR = "kat-input[data-testid='arrival-delivery-window-input']"
+
+
+def _parse_ltl_window_input_value(value: str, fba_id: str = "", today=None) -> dict:
+    """
+    Parses the LTL/FTL delivery-window <kat-input> value (e.g.
+    "Sep 20 - Sep 26, 2026") into {"window_start": date, "window_end": date}.
+    The start date has no year of its own -- inferred the same way
+    _parse_flexible_date already infers a bare month/day's year elsewhere.
+    Returns None if the value doesn't split into exactly two parseable dates.
+    """
+    if not value:
+        return None
+    parts = [p.strip() for p in value.split(" - ")]
+    if len(parts) != 2:
+        logger.warning(f"  {fba_id}: LTL delivery-window input value in unexpected shape: {value!r}")
+        return None
+    start = _parse_flexible_date(parts[0], today=today)
+    end = _parse_flexible_date(parts[1], today=today)
+    if start is None or end is None:
+        logger.warning(f"  {fba_id}: LTL delivery-window input value couldn't be parsed: {value!r}")
+        return None
+    return {"window_start": start, "window_end": end}
+
+
+def _read_ltl_style_window(page, tab, fba_id: str) -> dict:
+    """
+    Fallback for LTL/FTL shipments: reads the delivery window from the
+    <kat-input> described above instead of the plain-text label the standard
+    SPD flow uses. `tab` is the already-located "Shipment ID: {fba_id}"
+    locator -- scoped up to its enclosing shipment card (the smallest common
+    ancestor confirmed live to bound exactly one shipment's own window,
+    2026-09-07) so the right sibling shipment's window is read, not
+    whichever renders first on the page. Returns None if this shipment has
+    no such input (i.e. it's genuinely not an LTL/FTL-style page).
+    """
+    card = tab.first.locator("xpath=ancestor::div[contains(concat(' ', normalize-space(@class), ' '), ' shipment-module ')][1]")
+    window_input = card.locator(_LTL_WINDOW_INPUT_SELECTOR)
+    if window_input.count() == 0:
+        return None
+    value = window_input.first.get_attribute("value")
+    return _parse_ltl_window_input_value(value, fba_id=fba_id)
 
 _DATE_FORMATS_WITH_YEAR = [
     "%m/%d/%Y", "%m/%d/%y",
@@ -69,6 +125,11 @@ def _parse_flexible_date(date_str, today=None):
     date_str = str(date_str).strip()
     if not date_str:
         return None
+    # UK/EU "Delivery window:" pages spell September as the 4-letter "Sept"
+    # instead of the 3-letter "%b" abbreviation every other month uses --
+    # confirmed live (2026-09-02) on amazon.co.uk and amazon.de. Normalize
+    # before matching rather than adding a whole extra format list entry.
+    date_str = re.sub(r"\bSept\b", "Sep", date_str, flags=re.IGNORECASE)
     if today is None:
         today = datetime.now().date()
 
@@ -151,6 +212,20 @@ def decide_window_action(window_start, window_end, expected_delivery_date, today
         return {"action": "push_one_week", "target_week_start": target_start}
 
     return {"action": "none", "target_week_start": None}
+
+
+# Amazon shipment-status values (see upload_tracking.fetch_shipment_status)
+# past which the delivery window can no longer be edited. Confirmed live
+# (2026-09-02) as real values Amazon uses: "Delivered", "Closed", and
+# "Receiving" (the warehouse has started checking the shipment in) -- all
+# treated as terminal, same as Delivered.
+_TERMINAL_SHIPMENT_STATUSES = {"Delivered", "Closed", "Receiving"}
+
+
+def _is_terminal_shipment_status(status) -> bool:
+    """True once Amazon's own shipment status means its delivery window can
+    no longer be edited -- the weekly sync should stop trying to sync it."""
+    return status in _TERMINAL_SHIPMENT_STATUSES
 
 
 def _merge_overdue_with_newly_locked(pre_run_overdue: set, this_run_outcomes: dict) -> list:
@@ -276,10 +351,17 @@ def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str, log
 
     views = page.get_by_text("View", exact=True)
     try:
-        # The 4 "View" links (Step 1/2/3/Final step) render a moment after the
-        # rest of the page paints -- wait for the 4th to actually be there
-        # rather than checking count() once against a guessed fixed delay.
-        views.nth(3).wait_for(state="visible", timeout=15000)
+        # Each collapsed step (Step 1, Step 1b, Step 2, Step 3, Final step...)
+        # has its own "View" link, and they render a moment after the rest of
+        # the page paints -- wait for the last one to actually be there rather
+        # than checking count() once against a guessed fixed delay. The step
+        # count varies by shipment method -- confirmed live (2026-09-06,
+        # FBA19L4ZZS14): SPD/FIST-Carrier workflows give Step 1b its own
+        # separate View, making 5 steps instead of the usual 4, so a hardcoded
+        # nth(3) landed on Step 3 instead of Final step. "Final step" is
+        # always the last collapsed section regardless of how many precede
+        # it, so .last is robust to that variation.
+        views.last.wait_for(state="visible", timeout=15000)
     except Exception:
         # Confirmed live (2026-09-01): same root cause as the empty-tracking-
         # form case below, just caught one step earlier -- when tracking was
@@ -287,8 +369,8 @@ def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str, log
         # this workflow, Step 4 here never gets confirmed, so it's still
         # showing the raw "Tracking information must be provided" carrier
         # form instead of collapsing into a "View" summary link. There's no
-        # 4th View link to wait for in that case; flag it distinctly so it
-        # isn't chased as a scrape/timing bug.
+        # Final-step View link to wait for in that case; flag it distinctly
+        # so it isn't chased as a scrape/timing bug.
         stale_workflow = page.get_by_text("Tracking information must be provided", exact=False).count() > 0
         if stale_workflow:
             logger.warning(
@@ -300,7 +382,7 @@ def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str, log
             logger.warning(f"  {fba_id}: workflow page never rendered its 'Tracking details' section")
         _screenshot(page, f"window_no_tracking_section_{fba_id}", logs_folder)
         return None
-    views.nth(3).click()
+    views.last.click()
 
     try:
         page.wait_for_selector("text=Track shipment", timeout=15000)
@@ -333,6 +415,15 @@ def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str, log
         # once tracking has been entered *through this same page*. There's
         # no selector fix for a section Amazon isn't rendering -- flag it
         # distinctly so it doesn't get investigated again as a scrape bug.
+        # Before giving up, check for the LTL/FTL-style window (a <kat-input>
+        # value attribute, never a text node -- see _read_ltl_style_window)
+        # -- confirmed live 2026-09-07, FBA19M5MX8MR. This is why
+        # "text=Delivery window:" never appears for these shipments even
+        # though a real window is right there on the page.
+        ltl_result = _read_ltl_style_window(page, tab, fba_id)
+        if ltl_result:
+            return ltl_result
+
         stale_workflow = page.get_by_text("Enter tracking IDs", exact=False).count() > 0
         if stale_workflow:
             logger.warning(
@@ -354,6 +445,16 @@ def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str, log
     start = _parse_flexible_date(match.group(1))
     end = _parse_flexible_date(match.group(2))
     if start is None or end is None:
+        # The regex matched -- Amazon rendered a "Delivery window: X - Y"
+        # label -- but the date text inside it didn't fit any known format.
+        # Distinct from the "couldn't be parsed" case above (where the whole
+        # label never matched): here we at least have the raw text, so log
+        # it verbatim instead of silently returning None with no trace.
+        logger.warning(
+            f"  {fba_id}: 'Delivery window' dates found but couldn't be parsed: "
+            f"{match.group(1)!r} - {match.group(2)!r}"
+        )
+        _screenshot(page, f"window_dates_unparseable_{fba_id}", logs_folder)
         return None
     return {"window_start": start, "window_end": end}
 
@@ -653,7 +754,7 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
     from tracking_status import run_check_tracking
     from workflow_discovery import run_workflow_discovery
     from master_sheet import load_master_sheet, save_master_sheet, MASTER_SHEET_PATH_DEFAULT
-    from upload_tracking import create_browser_context
+    from upload_tracking import create_browser_context, navigate_to_shipment, fetch_shipment_status
     from run import wait_for_login
 
     logs_folder = config.get("logs_folder", "logs")
@@ -668,6 +769,7 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
         "matched": 0, "edited": 0, "pushed_one_week": 0, "locked": 0,
         "no_action_needed": 0, "edit_failed": 0, "edit_failed_ids": [],
         "read_failed": 0, "read_failed_ids": [],
+        "skipped_shipment_done": 0, "skipped_shipment_done_ids": [],
         "new_shipments": [], "overdue_shipments": [],
         "errors": errors,
     }
@@ -724,6 +826,24 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
 
             for fba_id in fba_ids:
                 entry = sheet[fba_id]
+
+                # Refresh Amazon's own shipment-status badge every week so it
+                # doesn't go stale after the one-time capture at workflow
+                # discovery. Once it says the shipment is done, its delivery
+                # window can no longer be edited -- skip the window read/edit
+                # page visit entirely instead of letting it fall into a false
+                # "read_failed" or "locked".
+                if navigate_to_shipment(page, fba_id, base_url):
+                    amazon_status = fetch_shipment_status(page)
+                    if amazon_status is not None:
+                        entry["amazon_shipment_status"] = amazon_status
+
+                if _is_terminal_shipment_status(entry.get("amazon_shipment_status")):
+                    this_run_outcomes[fba_id] = "shipment_done"
+                    totals["skipped_shipment_done"] += 1
+                    totals["skipped_shipment_done_ids"].append(fba_id)
+                    continue
+
                 tracking = str(entry.get("tracking", "")).strip()
                 cached = tracking_cache.get(tracking, {})
                 expected_str = cached.get("expected_delivery_date")
@@ -806,6 +926,11 @@ def format_weekly_delivery_window_summary(result: dict) -> str:
     lines.append(
         f"Skipped (no workflow yet) : {result.get('no_workflow', 0)}"
         + (f"   -> {', '.join(no_workflow_ids)}" if no_workflow_ids else "")
+    )
+    skipped_shipment_done_ids = result.get("skipped_shipment_done_ids", [])
+    lines.append(
+        f"Skipped (shipment done)   : {result.get('skipped_shipment_done', 0)}"
+        + (f"   -> {', '.join(skipped_shipment_done_ids)}" if skipped_shipment_done_ids else "")
     )
     lines.append("")
     lines.extend([
