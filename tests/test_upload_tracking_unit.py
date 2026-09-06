@@ -7,6 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 import upload_tracking
 from upload_tracking import navigate_to_shipment, check_amazon_tracking_status
 from upload_tracking import check_all_shipments_on_amazon
+from upload_tracking import fetch_shipment_status
 
 
 class _FakePage:
@@ -58,6 +59,60 @@ def test_navigate_to_shipment_returns_false_for_cross_marketplace_redirect():
 def test_navigate_to_shipment_returns_true_for_normal_page():
     page = _FakePage(html="<html>Tracking details for shipment FBA1</html>")
     assert navigate_to_shipment(page, "FBA1", "https://sellercentral.amazon.com") is True
+
+
+# ---------------------------------------------------------------------------
+# fetch_shipment_status — reads the "Status:" kat-badge on the shipment
+# summary page. Confirmed live (2026-09-02, FBA19M5RJZ2J): Amazon renders
+# `<h6>Status:</h6><kat-badge label="Shipped" ...></kat-badge>` as siblings;
+# the label attribute carries the actual status text, not visible inner_text.
+# ---------------------------------------------------------------------------
+
+class _FakeBadgeLocator:
+    def __init__(self, label):
+        self._label = label
+
+    def get_attribute(self, name):
+        assert name == "label"
+        return self._label
+
+
+class _FakeStatusLabelLocator:
+    def __init__(self, count, badge_label=None):
+        self._count = count
+        self._badge_label = badge_label
+
+    def count(self):
+        return self._count
+
+    @property
+    def first(self):
+        return self
+
+    def locator(self, selector):
+        assert selector == "xpath=following-sibling::kat-badge[1]"
+        return _FakeBadgeLocator(self._badge_label)
+
+
+class _FakeStatusPage:
+    def __init__(self, status_label_count=1, badge_label="Shipped"):
+        self._status_label_count = status_label_count
+        self._badge_label = badge_label
+
+    def get_by_text(self, text, exact=False):
+        assert text == "Status:"
+        assert exact is True
+        return _FakeStatusLabelLocator(self._status_label_count, self._badge_label)
+
+
+def test_fetch_shipment_status_returns_badge_label():
+    page = _FakeStatusPage(status_label_count=1, badge_label="Shipped")
+    assert fetch_shipment_status(page) == "Shipped"
+
+
+def test_fetch_shipment_status_returns_none_when_status_label_missing():
+    page = _FakeStatusPage(status_label_count=0)
+    assert fetch_shipment_status(page) is None
 
 
 # ---------------------------------------------------------------------------

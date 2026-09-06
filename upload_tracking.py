@@ -258,6 +258,22 @@ def navigate_to_shipment(page, fba_id: str, base_url: str) -> bool:
     return True
 
 
+def fetch_shipment_status(page) -> str:
+    """
+    Reads Amazon's own shipment-status badge (e.g. "Shipped", "Delivered") off
+    the shipment summary page navigate_to_shipment() lands on. Confirmed live
+    (2026-09-02): Amazon renders it as `<h6>Status:</h6><kat-badge label="...">`
+    -- the "Status:" text and the badge are siblings, and the actual status
+    lives in the badge's label attribute, not as visible page text (inner_text
+    misses it entirely). Returns None if the "Status:" label isn't present.
+    """
+    label = page.get_by_text("Status:", exact=True)
+    if label.count() == 0:
+        return None
+    badge = label.first.locator("xpath=following-sibling::kat-badge[1]")
+    return badge.get_attribute("label")
+
+
 def _get_tracking_frame(page):
     """
     Returns the iframe frame object for the tracking input section.

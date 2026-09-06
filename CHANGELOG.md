@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.8.6] - 2026-09-07
+
+### Fixed
+- Restored `upload_tracking.fetch_shipment_status()`, missing from the previous commit even though `delivery_window_sync.py` already imports and calls it — v0.8.5 shipped that import without its dependency ever having been committed, which would `ImportError` on a fresh checkout despite working locally (the function existed in the working tree, just never committed). Reads Amazon's own shipment-status badge (e.g. "Shipped", "Delivered") off the shipment summary page — confirmed live 2026-09-02 that Amazon renders it as `<h6>Status:</h6><kat-badge label="...">` siblings, with the actual status in the badge's `label` attribute rather than as visible text
+
 ## [0.8.5] - 2026-09-07
 
 ### Fixed
