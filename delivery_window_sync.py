@@ -568,10 +568,16 @@ def apply_window_edit(page, target_week_start, fba_id: str = "", logs_folder: st
         page.keyboard.press("Escape")
         return "failed"
 
-    day_label = f"{target_week_start.strftime('%B')} {target_week_start.day}, {target_week_start.year}"
-    day_btn = page.get_by_role("button", name=day_label, exact=False)
+    # US-style renders "September 27, 2026"; UK/EU calendars render the
+    # day-first "27 September 2026" instead (confirmed live, FBA15M2N9CHZ/UK
+    # -- same day-first convention _parse_flexible_date already handles for
+    # the plain-text window label, just never applied to this calendar's own
+    # day-button names). Match either.
+    day_label_us = f"{target_week_start.strftime('%B')} {target_week_start.day}, {target_week_start.year}"
+    day_label_intl = f"{target_week_start.day} {target_week_start.strftime('%B')} {target_week_start.year}"
+    day_btn = page.get_by_role("button", name=re.compile(rf"{re.escape(day_label_us)}|{re.escape(day_label_intl)}"))
     if day_btn.count() == 0:
-        logger.warning(f"  Target day {day_label!r} not found or not selectable")
+        logger.warning(f"  Target day {day_label_us!r} / {day_label_intl!r} not found or not selectable")
         _screenshot(page, f"edit_day_not_found_{fba_id}", logs_folder)
         page.keyboard.press("Escape")
         return "failed"

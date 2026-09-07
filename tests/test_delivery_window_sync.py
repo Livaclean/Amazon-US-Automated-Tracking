@@ -364,7 +364,8 @@ class _FakeWindowEditPage:
     returns immediately without needing real navigation."""
 
     def __init__(self, target_year: int, target_month: int, confirm_click_raises=None,
-                 carrier_checkbox_count: int = 0, carrier_checkbox_checked: bool = False):
+                 carrier_checkbox_count: int = 0, carrier_checkbox_checked: bool = False,
+                 day_button_label: str = None):
         next_month = target_month + 1 if target_month < 12 else 1
         next_year = target_year if target_month < 12 else target_year + 1
         self._cal_rgt = _FakeLocator(aria_label=f"{date(next_year, next_month, 1).strftime('%B')} {next_year}")
@@ -372,6 +373,7 @@ class _FakeWindowEditPage:
         self._confirm_btn = _FakeLocator(count=1, click_raises=confirm_click_raises)
         self._day_btn = _FakeLocator(count=1)
         self._carrier_checkbox = _FakeLocator(count=carrier_checkbox_count, checked=carrier_checkbox_checked)
+        self._day_button_label = day_button_label
         self.keyboard = _FakeKeyboard()
 
     def locator(self, selector):
@@ -389,6 +391,15 @@ class _FakeWindowEditPage:
         if role == "checkbox":
             return self._carrier_checkbox
         assert role == "button"
+        # If a specific day-button label is configured (e.g. a UK/EU-style
+        # "27 September 2026"), only "find" the day button when the actual
+        # regex passed by apply_window_edit would really match it --
+        # otherwise this test can't tell a real fix from a fake that just
+        # always says "found" regardless of what was searched for.
+        if self._day_button_label is not None:
+            if hasattr(name, "search") and name.search(self._day_button_label):
+                return self._day_btn
+            return _FakeLocator(count=0)
         return self._day_btn
 
     def wait_for_timeout(self, ms):
@@ -422,6 +433,44 @@ def test_apply_window_edit_returns_edited_on_successful_confirm():
     result = apply_window_edit(page, date(2026, 9, 1))
 
     assert result == "edited"
+
+
+@pytest.mark.unit
+def test_apply_window_edit_finds_day_button_with_uk_style_day_first_label():
+    """Regression test: confirmed live (2026-09-07, FBA15M2N9CHZ/UK) that
+    UK/EU calendars render day-button accessible names day-first with no
+    comma ("27 September 2026") instead of the US-style "September 27,
+    2026" the code searched for -- every UK/EU push_one_week attempt landing
+    on such a day failed with "Target day ... not found or not selectable"
+    even though the button was right there, just differently worded. Same
+    day-first convention _parse_flexible_date already handles for the
+    plain-text window label; the calendar's own day buttons needed the same
+    fix separately."""
+    page = _FakeWindowEditPage(2026, 9, day_button_label="27 September 2026")
+
+    result = apply_window_edit(page, date(2026, 9, 27))
+
+    assert result == "edited"
+    assert page._day_btn.click_calls == 1
+
+
+@pytest.mark.unit
+def test_apply_window_edit_still_finds_day_button_with_us_style_label():
+    page = _FakeWindowEditPage(2026, 9, day_button_label="September 27, 2026")
+
+    result = apply_window_edit(page, date(2026, 9, 27))
+
+    assert result == "edited"
+
+
+@pytest.mark.unit
+def test_apply_window_edit_returns_failed_when_day_button_genuinely_missing():
+    page = _FakeWindowEditPage(2026, 9, day_button_label="15 October 2026")
+
+    result = apply_window_edit(page, date(2026, 9, 27))
+
+    assert result == "failed"
+    assert page._day_btn.click_calls == 0
 
 
 @pytest.mark.unit
