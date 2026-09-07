@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.11.0] - 2026-09-08
+
+### Added
+- New `AWD-UK` region: Amazon now offers AWD in the UK market, so `STAR-`-prefixed shipments can no longer be assumed to always belong to US AWD. Added a dedicated region config (`sellercentral.amazon.co.uk`, `fc_codes/awd_uk_fc_codes.txt`) alongside the existing `AWD` (US) region. `fc_resolver.py`'s AWD-only checks were generalized to recognize any `AWD`/`AWD-*` region so market-specific AWD regions are excluded from live probing the same way `AWD` already was; an unrecognized `STAR-` FC code still defaults to `AWD` (US). Live-verified: `STAR-WNYYUFTQTVKE2` (FC code `IEUA`) loads correctly at `sellercentral.amazon.co.uk/awd/inbound-shipment/.../tracking_spd`.
+
+### Changed
+- FC code `IEUA` moved from `fc_codes/awd_fc_codes.txt` (US) to the new `fc_codes/awd_uk_fc_codes.txt` (UK) -- it had been auto-assigned to the US list on 2026-08-25, before UK AWD support existed.
+
 ## [0.10.0] - 2026-09-07
 
 ### Added
