@@ -1,0 +1,4 @@
+# UK Amazon Warehousing & Distribution (AWD) FC prefixes
+# Shipment IDs start with STAR-
+# moved from awd_fc_codes.txt 2026-09-08, confirmed via STAR-XC5QGHXKYAF26
+IEUA

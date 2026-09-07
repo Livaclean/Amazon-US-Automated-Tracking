@@ -283,6 +283,58 @@ def test_probe_fc_codes_awd_sharing_url_with_us_does_not_block_us_resolution():
     assert resolved_by_fc["STAR9"].region == "AWD"
 
 
+def test_probe_fc_codes_defaults_unknown_star_fc_to_awd_even_with_awd_uk_configured():
+    """An AWD region for another market (AWD-UK) must not change the fallback:
+    a STAR- FC code not already known to belong to AWD-UK still defaults to the
+    plain "AWD" region, per the "all other AWD are for US AWD" policy."""
+    regions = [
+        {"name": "AWD", "amazon_url": "https://sellercentral.amazon.com"},
+        {"name": "AWD-UK", "amazon_url": "https://sellercentral.amazon.co.uk"},
+        {"name": "UK", "amazon_url": "https://sellercentral.amazon.co.uk"},
+    ]
+    unresolved_by_fc = {
+        "STAR9": [{"fc_code": "STAR9", "fba_id": "STAR-ABC123"}],
+    }
+
+    def fake_login(page, region_name, amazon_url, timeout_seconds=60):
+        raise AssertionError(f"login should not be attempted for AWD FC codes, got region={region_name}")
+
+    def fake_navigate(page, fba_id, base_url):
+        raise AssertionError("navigate_fn should not be called for STAR- FBA IDs")
+
+    result = probe_fc_codes(None, unresolved_by_fc, regions, fake_login, fake_navigate)
+
+    assert len(result.resolved) == 1
+    assert result.resolved[0].region == "AWD"
+
+
+def test_probe_fc_codes_excludes_awd_uk_from_probing_like_awd():
+    """AWD-UK shares its amazon_url with the regular UK region. It must be excluded
+    from the live-probing loop entirely (like AWD is) so it neither gets logged into
+    nor falsely creates a shared-URL ambiguity that blocks ordinary UK FC codes from
+    resolving to "UK"."""
+    regions = [
+        {"name": "AWD-UK", "amazon_url": "https://sellercentral.amazon.co.uk"},
+        {"name": "UK", "amazon_url": "https://sellercentral.amazon.co.uk"},
+    ]
+    unresolved_by_fc = {
+        "MQJ1": [{"fc_code": "MQJ1", "fba_id": "FBA1"}],
+    }
+
+    def fake_login(page, region_name, amazon_url, timeout_seconds=60):
+        assert region_name != "AWD-UK", "AWD-UK should never be logged into for probing"
+        return True
+
+    def fake_navigate(page, fba_id, base_url):
+        return base_url == "https://sellercentral.amazon.co.uk"
+
+    result = probe_fc_codes(None, unresolved_by_fc, regions, fake_login, fake_navigate)
+
+    resolved_by_fc = {m.fc_code: m for m in result.resolved}
+    assert result.unresolved == []
+    assert resolved_by_fc["MQJ1"].region == "UK"
+
+
 def test_probe_fc_codes_leaves_ambiguous_shared_url_match_unresolved():
     """A non-AWD FC code that matches under a region whose amazon_url is shared by
     another configured region is genuinely ambiguous — navigate_fn can't tell EU and

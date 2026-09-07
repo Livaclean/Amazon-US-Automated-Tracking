@@ -156,6 +156,16 @@ def _dedupe_fba_ids(rows: list) -> list:
     return seen
 
 
+def _is_awd_region(region: dict) -> bool:
+    """
+    True for the default AWD region ("AWD", e.g. US) and any market-specific AWD
+    region ("AWD-UK", "AWD-EU", ...). All AWD-type regions are resolved directly
+    from the STAR- prefix pre-pass, never via live probing.
+    """
+    name = region["name"]
+    return name == "AWD" or name.startswith("AWD-")
+
+
 def probe_fc_codes(page, unresolved_by_fc: dict, configured_regions: list,
                     wait_for_login_fn, navigate_fn, login_timeout_seconds: int = 60) -> FcResolutionResult:
     """
@@ -167,10 +177,14 @@ def probe_fc_codes(page, unresolved_by_fc: dict, configured_regions: list,
     navigate_fn: callable(page, fba_id, base_url) -> bool
     Any FC code still unresolved after every region has been tried goes into `unresolved`.
 
-    STAR-prefixed FBA IDs (AWD shipments) are resolved directly to the region named "AWD",
-    without probing — navigate_to_shipment already routes STAR- IDs to the AWD URL pattern
-    regardless of which region's amazon_url is passed, so probing would falsely match
-    whichever non-AWD region happens to share AWD's amazon_url (typically US).
+    STAR-prefixed FBA IDs (AWD shipments) are resolved directly to a region satisfying
+    _is_awd_region, without probing — navigate_to_shipment already routes STAR- IDs to
+    the AWD URL pattern regardless of which region's amazon_url is passed, so probing
+    would falsely match whichever non-AWD region happens to share that amazon_url
+    (typically US, or a market-specific AWD region's own market, e.g. AWD-UK sharing
+    a URL with UK). A STAR- FC code not already known to a market-specific AWD region's
+    fc_codes_file (matched earlier in parse_excel.py) always defaults here to the plain
+    "AWD" region.
 
     Non-AWD FC codes are never resolved to a region whose amazon_url is shared by another
     configured region (e.g. UK/EU/FR sharing amazon.de) — a successful probe there is
@@ -182,7 +196,7 @@ def probe_fc_codes(page, unresolved_by_fc: dict, configured_regions: list,
 
     url_to_regions = {}
     for region in configured_regions:
-        if region["name"] == "AWD":
+        if _is_awd_region(region):
             continue
         url_to_regions.setdefault(region["amazon_url"], []).append(region["name"])
 
@@ -205,7 +219,7 @@ def probe_fc_codes(page, unresolved_by_fc: dict, configured_regions: list,
             break
         region_name = region["name"]
         amazon_url = region["amazon_url"]
-        if region_name == "AWD":
+        if _is_awd_region(region):
             continue
 
         logged_in = wait_for_login_fn(page, region_name, amazon_url, timeout_seconds=login_timeout_seconds)
