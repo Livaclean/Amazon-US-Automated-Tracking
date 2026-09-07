@@ -1309,3 +1309,24 @@ def test_merge_overdue_with_newly_locked_ignores_non_locked_outcomes():
         "FBA004": "edit_failed", "FBA005": "carrier_managed", "FBA006": "no_action_needed",
     })
     assert result == []
+
+
+@pytest.mark.unit
+def test_merge_overdue_with_newly_locked_excludes_shipment_done_resolved_this_run():
+    """Regression test: confirmed live 2026-09-08 -- 9 of 18 shipments flagged
+    'Overdue (missed lock / needs attention)' in a real weekly-sync run had
+    actually just been confirmed Closed/Delivered/Receiving on Amazon that
+    same run (outcome "shipment_done", short-circuited before decide_window_
+    action could ever run). A pre-run-overdue shipment resolved as
+    shipment_done this run is done, not overdue -- it must drop out of the
+    final overdue set instead of lingering there via the plain union."""
+    result = _merge_overdue_with_newly_locked({"FBA001"}, {"FBA001": "shipment_done"})
+    assert result == []
+
+
+@pytest.mark.unit
+def test_merge_overdue_with_newly_locked_keeps_other_pre_run_overdue_when_one_resolves():
+    result = _merge_overdue_with_newly_locked(
+        {"FBA001", "FBA002"}, {"FBA001": "shipment_done", "FBA002": "locked"}
+    )
+    assert result == ["FBA002"]

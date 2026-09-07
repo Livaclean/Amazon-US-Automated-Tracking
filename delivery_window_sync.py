@@ -218,7 +218,15 @@ def decide_window_action(window_start, window_end, expected_delivery_date, today
 
 def _merge_overdue_with_newly_locked(pre_run_overdue: set, this_run_outcomes: dict) -> list:
     """
-    Merges pre-run overdue shipments with any newly discovered locked outcomes this run.
+    Merges pre-run overdue shipments with any newly discovered locked outcomes this run,
+    dropping any pre-run-overdue shipment this run confirmed is actually done.
+
+    A pre-run-overdue shipment's window has already started, so decide_window_action()
+    always resolves it to "locked" -- unless the shipment_done short-circuit in
+    run_weekly_delivery_window_sync catches it first (Amazon's own status now says
+    Delivered/Closed/Receiving). "Overdue" is meant to mean "missed the lock / needs
+    attention" -- a shipment confirmed done this run needs neither, so it must not
+    stay flagged just because it was overdue when the run started.
 
     Args:
         pre_run_overdue: Set of FBA IDs that were already overdue before this run
@@ -227,9 +235,12 @@ def _merge_overdue_with_newly_locked(pre_run_overdue: set, this_run_outcomes: di
 
     Returns:
         Sorted list of all FBA IDs that should be flagged as overdue in the summary:
-        the union of pre_run_overdue and any FBA IDs with a "locked" outcome this run.
+        the union of pre_run_overdue and any FBA IDs with a "locked" outcome this run,
+        minus any resolved as "shipment_done" this run.
     """
     newly_locked = {fba_id for fba_id, outcome in this_run_outcomes.items() if outcome == "locked"}
+    resolved_done = {fba_id for fba_id, outcome in this_run_outcomes.items() if outcome == "shipment_done"}
+    pre_run_overdue = pre_run_overdue - resolved_done
     return sorted(pre_run_overdue | newly_locked)
 
 
