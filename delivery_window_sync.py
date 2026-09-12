@@ -791,7 +791,10 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
     from datetime import date as _date
     from tracking_status import run_check_tracking
     from workflow_discovery import run_workflow_discovery
-    from master_sheet import load_master_sheet, save_master_sheet, MASTER_SHEET_PATH_DEFAULT
+    from master_sheet import (
+        load_master_sheet, save_master_sheet, MASTER_SHEET_PATH_DEFAULT,
+        sync_carrier_check_fields, sync_delivered_status,
+    )
     from upload_tracking import create_browser_context, navigate_to_shipment, fetch_shipment_status
     from run import wait_for_login
 
@@ -826,6 +829,18 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
         tracking_cache_path = config.get("tracking_status_cache")
         from tracking_status import load_status_cache, STATUS_CACHE_PATH_DEFAULT
         tracking_cache = load_status_cache(tracking_cache_path or STATUS_CACHE_PATH_DEFAULT)
+
+        # Propagate this run's just-refreshed carrier data into the master
+        # sheet *before* selecting this week's candidates -- otherwise a
+        # shipment the carrier now reports Delivered stays flagged "pending"
+        # here, gets a needless Amazon window-check visit below, and its
+        # Expected Delivery Date/Current Status columns stay stale even
+        # though run_check_tracking() just fetched fresh values into the
+        # cache. Saved immediately so this isn't lost on the zero-candidate
+        # early return just below.
+        sheet = sync_carrier_check_fields(sheet, tracking_cache)
+        sheet = sync_delivered_status(sheet, tracking_cache)
+        save_master_sheet(path, sheet)
 
         selection = select_weekly_candidates(sheet, today)
         candidates = selection["candidates"]

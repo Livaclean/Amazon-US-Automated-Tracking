@@ -25,6 +25,8 @@ from tracking_status import (
     _dhl_status_from_api,
     _row_context_from_xls_book,
     _check_fedex_status,
+    select_master_sheet_check_entries,
+    build_master_sheet_check_list,
 )
 
 # Real UPS tracking-detail page text (captured live) for a shipment whose label
@@ -425,6 +427,83 @@ def test_build_check_list_skips_blank_tracking(tmp_config):
 
     entries = build_check_list(tmp_config)
     assert entries == []
+
+
+def _sheet_row(**overrides):
+    row = {
+        "fba_id": "FBA_DEFAULT", "tracking": "1Z_DEFAULT", "carrier": "UPS",
+        "region": "US", "name": "Widget", "destination": "BNA6",
+        "ctns": 9, "shipping_way": "express", "notes": "",
+        "tracking_status": "pending", "delivery_date_status": "pending",
+        "amazon_shipment_status": "Shipped",
+    }
+    row.update(overrides)
+    return row
+
+
+@pytest.mark.unit
+def test_select_master_sheet_check_entries_includes_pending_shipment_with_tracking():
+    sheet = {"FBA001": _sheet_row(fba_id="FBA001", tracking="1Z001", carrier="UPS")}
+    entries = select_master_sheet_check_entries(sheet)
+    assert len(entries) == 1
+    e = entries[0]
+    assert e["fba_id"] == "FBA001"
+    assert e["tracking"] == "1Z001"
+    assert e["carrier"] == "UPS"
+    assert e["region"] == "US"
+    assert e["name"] == "Widget"
+    assert e["destination"] == "BNA6"
+    assert e["ctns"] == 9
+    assert e["shipping_way"] == "express"
+
+
+@pytest.mark.unit
+def test_select_master_sheet_check_entries_skips_carrier_delivered():
+    sheet = {"FBA001": _sheet_row(fba_id="FBA001", tracking_status="Delivered")}
+    entries = select_master_sheet_check_entries(sheet)
+    assert entries == []
+
+
+@pytest.mark.unit
+def test_select_master_sheet_check_entries_skips_delivery_date_status_delivered():
+    sheet = {"FBA001": _sheet_row(fba_id="FBA001", delivery_date_status="Delivered")}
+    entries = select_master_sheet_check_entries(sheet)
+    assert entries == []
+
+
+@pytest.mark.unit
+def test_select_master_sheet_check_entries_skips_terminal_amazon_shipment_status():
+    sheet = {"FBA001": _sheet_row(fba_id="FBA001", amazon_shipment_status="Closed")}
+    entries = select_master_sheet_check_entries(sheet)
+    assert entries == []
+
+
+@pytest.mark.unit
+def test_select_master_sheet_check_entries_skips_blank_tracking():
+    sheet = {"FBA001": _sheet_row(fba_id="FBA001", tracking="")}
+    entries = select_master_sheet_check_entries(sheet)
+    assert entries == []
+
+
+@pytest.mark.unit
+def test_select_master_sheet_check_entries_skips_slash_placeholder_tracking():
+    sheet = {"FBA001": _sheet_row(fba_id="FBA001", tracking="/")}
+    entries = select_master_sheet_check_entries(sheet)
+    assert entries == []
+
+
+@pytest.mark.unit
+def test_build_master_sheet_check_list_reads_open_rows_from_disk(tmp_path):
+    from master_sheet import save_master_sheet
+
+    path = str(tmp_path / "master.xlsx")
+    save_master_sheet(path, {
+        "FBA001": _sheet_row(fba_id="FBA001", tracking="1Z001", carrier="UPS"),
+        "FBA002": _sheet_row(fba_id="FBA002", tracking_status="Delivered"),
+    })
+
+    entries = build_master_sheet_check_list({"master_sheet_path": path})
+    assert [e["fba_id"] for e in entries] == ["FBA001"]
 
 
 @pytest.mark.unit

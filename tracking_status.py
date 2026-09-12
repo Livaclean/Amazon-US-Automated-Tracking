@@ -640,6 +640,56 @@ def build_check_list(config: dict) -> list:
     return result
 
 
+def select_master_sheet_check_entries(sheet: dict) -> list:
+    """
+    Pure companion to build_check_list(): turns master-sheet rows not yet
+    resolved into check-list entries shaped the same way, so
+    run_check_tracking() can refresh carrier status for every open shipment
+    every run -- not just whatever tracking numbers happen to be sitting in a
+    fresh input/ Excel file at the time (input files are deleted once the
+    main upload flow processes them, so input/ is normally empty and this
+    refresh step was otherwise a no-op for shipments uploaded in past runs).
+
+    Skips a row if it's already resolved (is_carrier_delivered or a terminal
+    Amazon shipment status) or has no real tracking number yet (blank, or the
+    "/" placeholder used elsewhere for not-yet-tracked shipments).
+    """
+    from master_sheet import is_carrier_delivered, is_terminal_shipment_status
+
+    result = []
+    for fba_id, entry in sheet.items():
+        if is_carrier_delivered(entry):
+            continue
+        if is_terminal_shipment_status(entry.get("amazon_shipment_status")):
+            continue
+        tracking = str(entry.get("tracking") or "").strip()
+        if not tracking or tracking == "/":
+            continue
+        result.append({
+            "region": entry.get("region", ""),
+            "fba_id": fba_id,
+            "tracking": tracking,
+            "carrier": entry.get("carrier", ""),
+            "row_number": None,
+            "name": entry.get("name", ""),
+            "destination": entry.get("destination", ""),
+            "ctns": entry.get("ctns", ""),
+            "shipping_way": entry.get("shipping_way", ""),
+            "notes": entry.get("notes", ""),
+        })
+    return result
+
+
+def build_master_sheet_check_list(config: dict) -> list:
+    """I/O wrapper for select_master_sheet_check_entries(): loads the master
+    sheet from disk and selects its still-open rows as check-list entries."""
+    from master_sheet import load_master_sheet, MASTER_SHEET_PATH_DEFAULT
+
+    path = config.get("master_sheet_path", MASTER_SHEET_PATH_DEFAULT)
+    sheet = load_master_sheet(path)
+    return select_master_sheet_check_entries(sheet)
+
+
 def load_status_cache(path: str) -> dict:
     """Reads the persistent tracking-status workbook into {tracking_number: {field: value}}."""
     if not Path(path).exists():
@@ -713,12 +763,19 @@ def run_check_tracking(config: dict) -> CheckTrackingResult:
     every shipment's tracking number (one visit per unique tracking number, skipping
     any already cached as "Delivered"), and persists results to the tracking-status
     cache workbook after every check so progress survives a mid-run crash.
+
+    Combines build_check_list() (whatever's currently sitting in input/) with
+    build_master_sheet_check_list() (every still-open row already in the
+    master sheet) so a shipment's carrier status keeps getting refreshed on
+    every run even after its input Excel file has been processed and deleted
+    -- input-folder entries come first so their richer row context wins as
+    the "primary" entry for a tracking number both sources share.
     """
     from upload_tracking import create_browser_context
 
     cache_path = config.get("tracking_status_cache", STATUS_CACHE_PATH_DEFAULT)
 
-    entries = build_check_list(config)
+    entries = build_check_list(config) + build_master_sheet_check_list(config)
     grouped = group_by_tracking(entries)
     cache = load_status_cache(cache_path)
 
