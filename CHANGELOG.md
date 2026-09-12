@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.11.1] - 2026-09-12
+
+### Fixed
+- Weekly delivery-window sync's "refresh carrier tracking data" step (`run_check_tracking()`) only ever checked tracking numbers found in whatever Excel file currently sat in `input/` -- but the main upload flow deletes each input file once it's processed, so `input/` is normally empty and this step was a silent no-op for shipments uploaded in past runs. Confirmed live: 64 of 65 currently-pending tracking numbers hadn't been carrier-checked in 11+ days. Added `select_master_sheet_check_entries()`/`build_master_sheet_check_list()` (`tracking_status.py`) so every still-open master-sheet row now also gets refreshed every run, not just ones from a fresh input file.
+- That refresh also exposed a second gap: `run_weekly_delivery_window_sync()` never propagated the freshly-refreshed carrier cache back into the master sheet's own Delivered flags, so a shipment the carrier now reports Delivered stayed flagged "pending" indefinitely and kept getting a needless Amazon window-check visit every week. Now calls `sync_carrier_check_fields()`/`sync_delivered_status()` (`master_sheet.py`) right after loading the sheet, saved immediately so it isn't lost on a zero-candidate week. Live-verified: 18 tracking numbers (30 master-sheet rows) that had actually been delivered 11+ days ago were still "pending" before this fix; all correctly flipped to "Delivered" after, and the following run's candidate pool dropped accordingly (36 -> 32).
+
 ## [0.11.0] - 2026-09-08
 
 ### Added
