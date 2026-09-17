@@ -307,6 +307,23 @@ def _get_tracking_context(page, fba_id: str):
     return None
 
 
+def _count_shiptrack_confirmed(tracking_frame) -> int:
+    """
+    Counts boxes already tracked via Amazon's own "ShipTrack" carrier integration.
+    For these, Amazon auto-fills and confirms the tracking ID itself (shown as a
+    read-only field per box with a "<check> Confirmed" badge) instead of showing
+    the normal editable inputs our selectors look for — so the usual
+    input[placeholder*='auto fill'/'Enter tracking'] query finds nothing even
+    though the shipment is fully and correctly tracked. Confirmed live 2026-09-18:
+    a whole batch of shipments were being reported as timed-out/check_failed and
+    retried forever even though Seller Central showed them complete.
+    """
+    try:
+        return len(tracking_frame.query_selector_all(".validation-confirmed"))
+    except Exception:
+        return 0
+
+
 def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict, force: bool = False, pad_to_fill: bool = False) -> dict:
     """
     Fills tracking numbers into the per-box input fields in the tracking iframe,
@@ -395,6 +412,16 @@ def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict, 
         return result
 
     if not all_inputs:
+        confirmed_count = _count_shiptrack_confirmed(tracking_frame)
+        if confirmed_count > 0:
+            logger.info(
+                f"  {fba_id}: {confirmed_count} box(es) already tracked via Amazon ShipTrack "
+                f"(carrier-confirmed) — no manual entry needed"
+            )
+            result["status"] = "skipped"
+            result["already_existed"] = len(sub_ids)
+            result["shiptrack_confirmed"] = True
+            return result
         logger.warning(f"  No tracking inputs found in iframe for {fba_id} — may already be filled")
         result["status"] = "skipped"
         return result
@@ -759,6 +786,8 @@ def check_amazon_tracking_status(page, fba_id: str, config: dict) -> str:
         return "check_failed"
 
     if not inputs:
+        if _count_shiptrack_confirmed(tracking_frame) > 0:
+            return "complete"
         return "check_failed"
 
     filled_count = 0
@@ -900,6 +929,14 @@ def upload_all_shipments(shipments: dict, config: dict, page, force: bool = Fals
 
             if last_result["status"] in ("not_found", "failed") and filled_this_pass == 0:
                 r["status"] = last_result["status"]
+                break
+
+            if last_result.get("shiptrack_confirmed"):
+                # Amazon already tracks every box itself via ShipTrack — there is
+                # nothing left for us to fill, so don't leave this queued for a
+                # perpetual retry (see _count_shiptrack_confirmed).
+                remaining_ids = []
+                r["status"] = "skipped"
                 break
 
             if filled_this_pass == 0:

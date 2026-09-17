@@ -143,3 +143,7 @@ IGA3
 HIA1
 # auto-added 2026-08-31, confirmed via FBA19MKR4YXC
 BJC1
+# auto-added 2026-09-18, confirmed via FBA19LVT4NZL
+CHM2
+# auto-added 2026-09-18, confirmed via FBA19NFW9F6F
+IPA1

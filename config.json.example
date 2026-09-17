@@ -17,6 +17,7 @@
     { "name": "UK", "amazon_url": "https://sellercentral.amazon.co.uk", "fc_codes_file": "fc_codes/uk_fc_codes.txt" },
     { "name": "EU", "amazon_url": "https://sellercentral.amazon.de",    "fc_codes_file": "fc_codes/eu_fc_codes.txt" },
     { "name": "AWD", "amazon_url": "https://sellercentral.amazon.com",   "fc_codes_file": "fc_codes/awd_fc_codes.txt" },
-    { "name": "AWD-UK", "amazon_url": "https://sellercentral.amazon.co.uk", "fc_codes_file": "fc_codes/awd_uk_fc_codes.txt" }
+    { "name": "AWD-UK", "amazon_url": "https://sellercentral.amazon.co.uk", "fc_codes_file": "fc_codes/awd_uk_fc_codes.txt" },
+    { "name": "MX",  "amazon_url": "https://sellercentral.amazon.com.mx", "fc_codes_file": "fc_codes/mx_fc_codes.txt" }
   ]
 }
