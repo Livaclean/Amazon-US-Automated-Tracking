@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.12.1] - 2026-09-18
+
+### Changed
+- README's "Supported Regions" table and file-tree fc_codes listing still only showed US/CA/UK/EU/AWD from the original release -- AU, FR, and AWD-UK were added in later versions without updating either, and MX was missing after v0.12.0. Brought both back in sync with the actual `config.json` region list.
+
 ## [0.12.0] - 2026-09-18
 
 ### Added
