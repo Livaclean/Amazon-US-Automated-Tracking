@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.12.3] - 2026-09-18
+
+### Fixed
+- `_is_ltl_shipment()` only checked for `.npcp-ltl-container`, the read-only Bill-of-Lading view shown once a Pro/Freight number exists -- a shipment with none yet skips that view entirely and renders the edit form directly in `.npcp-ltl-edit` instead, so it was never recognized as LTL at all and fell straight back to the old per-box timeout path. Confirmed live against a genuinely empty shipment (`FBA19NFW044R`, found via user report) -- `check_amazon_tracking_status()` returned `check_failed` instead of `empty`. Also fixed `_fill_ltl_tracking()`: the direct-edit-form state has no `.edit-button` either, but a missing edit-button was treated as a hard failure -- now it's clicked only when present.
+
 ## [0.12.2] - 2026-09-18
 
 ### Fixed
