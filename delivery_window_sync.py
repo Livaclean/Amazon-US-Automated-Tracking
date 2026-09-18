@@ -220,34 +220,6 @@ def decide_window_action(window_start, window_end, expected_delivery_date, today
     return {"action": "none", "target_week_start": None}
 
 
-def _merge_overdue_with_newly_locked(pre_run_overdue: set, this_run_outcomes: dict) -> list:
-    """
-    Merges pre-run overdue shipments with any newly discovered locked outcomes this run,
-    dropping any pre-run-overdue shipment this run confirmed is actually done.
-
-    A pre-run-overdue shipment's window has already started, so decide_window_action()
-    always resolves it to "locked" -- unless the shipment_done short-circuit in
-    run_weekly_delivery_window_sync catches it first (Amazon's own status now says
-    Delivered/Closed/Receiving). "Overdue" is meant to mean "missed the lock / needs
-    attention" -- a shipment confirmed done this run needs neither, so it must not
-    stay flagged just because it was overdue when the run started.
-
-    Args:
-        pre_run_overdue: Set of FBA IDs that were already overdue before this run
-                         (window_start < today at time of run start).
-        this_run_outcomes: Dict mapping FBA ID to outcome string for every candidate checked.
-
-    Returns:
-        Sorted list of all FBA IDs that should be flagged as overdue in the summary:
-        the union of pre_run_overdue and any FBA IDs with a "locked" outcome this run,
-        minus any resolved as "shipment_done" this run.
-    """
-    newly_locked = {fba_id for fba_id, outcome in this_run_outcomes.items() if outcome == "locked"}
-    resolved_done = {fba_id for fba_id, outcome in this_run_outcomes.items() if outcome == "shipment_done"}
-    pre_run_overdue = pre_run_overdue - resolved_done
-    return sorted(pre_run_overdue | newly_locked)
-
-
 def _parse_window_date_cell(raw) -> "date | None":
     """Parses a master-sheet window_start/window_end cell into a date, or
     None if blank/unparseable. Handles the same datetime/date-object cases
@@ -266,28 +238,38 @@ def _parse_window_date_cell(raw) -> "date | None":
 def select_weekly_candidates(sheet: dict, today) -> dict:
     """
     Browser-free local filter deciding which master-sheet rows need a live
-    Amazon check today: never-checked rows, rows whose recorded delivery
-    window starts within the next 7 days (about to lock), and -- regardless
-    of how far out the window is -- rows whose freshly-refreshed expected
-    delivery date (already synced into the sheet before this filter runs, so
-    no browser needed here) no longer falls inside the recorded window.
-    That last case is what lets a window scheduled weeks out get pulled in
-    as soon as real carrier info shows it's coming sooner than expected,
-    instead of waiting until the (wrong, too-late) window happens to be
-    within 7 days on its own. A stale (already-past) expected date can't
-    result in any real action, so it's ignored the same way
-    decide_window_action() ignores one. Rows with neither trigger are
-    skipped -- they'll surface again once due, or once new carrier info
-    creates a mismatch, on a future run. Rows already Delivered are excluded
-    entirely; rows already flagged carrier-managed or missing a Workflow ID
-    are skipped (the latter needs discovery first, run separately before
-    this filter).
+    Amazon check today.
+
+    Saturday runs a full sweep: every row not already Delivered, not
+    flagged carrier-managed, with a known Workflow ID, and not already
+    window-closed (see below) becomes a candidate regardless of how far out
+    its window is -- including never-checked rows getting their first
+    window read. This is also the only day decide_window_action's
+    push_one_week can ever fire (it only triggers when today is exactly one
+    day before a Sunday-starting window, i.e. a Saturday), so restricting
+    the comprehensive sweep to Saturday loses no defensive coverage.
+
+    Every other day only promotes a row whose freshly-refreshed expected
+    delivery date (already synced into the sheet before this filter runs,
+    so no browser needed here) no longer falls inside its recorded window --
+    real evidence something changed. A stale (already-past) expected date
+    can't result in any real action, so it's ignored the same way
+    decide_window_action() ignores one. A never-checked row, or a due-soon
+    row with no such mismatch, simply waits for Saturday instead of getting
+    a needless daily visit.
+
+    A row whose recorded window has already started is permanently
+    excluded as "window_closed" (Amazon's edit lock always equals the
+    window's start date, so nothing further can ever be done for it) --
+    returned separately, never as a candidate, so the caller can tag it
+    once and never visit it again regardless of day or mismatch.
     """
     candidates = []
-    overdue = set()
+    window_closed = []
     not_due = []
     no_workflow = []
     carrier_managed = []
+    is_saturday = today.weekday() == 5  # Amazon windows always start Sunday, so Saturday is the full-sweep day
 
     for fba_id, entry in sheet.items():
         if entry.get("tracking_status") == "Delivered" or entry.get("delivery_date_status") == "Delivered":
@@ -299,51 +281,43 @@ def select_weekly_candidates(sheet: dict, today) -> dict:
             no_workflow.append(fba_id)
             continue
 
-        window_start_raw = entry.get("delivery_window_start") or ""
-        if hasattr(window_start_raw, "strftime"):
-            # openpyxl returns a real datetime/date object instead of a string
-            # if Excel auto-converted an ISO-looking text cell on save -- a
-            # real risk since the master sheet is a file the user opens and
-            # re-saves in Excel.
-            window_start_str = window_start_raw.strftime("%Y-%m-%d")
-        else:
-            window_start_str = str(window_start_raw).strip()
+        window_start = _parse_window_date_cell(entry.get("delivery_window_start"))
 
-        if not window_start_str:
-            candidates.append(fba_id)
+        if window_start is not None and window_start <= today:
+            # Locked -- matches decide_window_action's own today >= window_start
+            # lock condition. Nothing can ever be edited here again.
+            window_closed.append(fba_id)
             continue
 
-        try:
-            window_start = datetime.strptime(window_start_str, "%Y-%m-%d").date()
-        except ValueError:
-            # A malformed/unparseable value shouldn't crash the whole run --
-            # treat it the same as "never checked" so it gets a fresh live read.
-            candidates.append(fba_id)
-            continue
-        days_out = (window_start - today).days
-        if days_out < 0:
-            candidates.append(fba_id)
-            overdue.add(fba_id)
-        elif days_out <= 7:
-            candidates.append(fba_id)
-        else:
-            expected_date = _parse_flexible_date(entry.get("expected_delivery_date"), today)
-            if expected_date is not None and expected_date < today:
-                expected_date = None  # stale -- decide_window_action would discard it too
-            window_end = _parse_window_date_cell(entry.get("delivery_window_end"))
-            mismatched = (
-                expected_date is not None
-                and window_end is not None
-                and not (window_start <= expected_date <= window_end)
-            )
-            if mismatched:
+        if window_start is None:
+            # Never checked -- only picked up on Saturday's full sweep.
+            if is_saturday:
                 candidates.append(fba_id)
             else:
                 not_due.append(fba_id)
+            continue
+
+        if is_saturday:
+            candidates.append(fba_id)
+            continue
+
+        expected_date = _parse_flexible_date(entry.get("expected_delivery_date"), today)
+        if expected_date is not None and expected_date < today:
+            expected_date = None  # stale -- decide_window_action would discard it too
+        window_end = _parse_window_date_cell(entry.get("delivery_window_end"))
+        mismatched = (
+            expected_date is not None
+            and window_end is not None
+            and not (window_start <= expected_date <= window_end)
+        )
+        if mismatched:
+            candidates.append(fba_id)
+        else:
+            not_due.append(fba_id)
 
     return {
         "candidates": candidates,
-        "overdue": overdue,
+        "window_closed": window_closed,
         "not_due": not_due,
         "no_workflow": no_workflow,
         "carrier_managed": carrier_managed,
@@ -367,7 +341,7 @@ def _dismiss_onboarding_modal(page) -> None:
     modal.first.click()
 
 
-def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str, logs_folder: str = None) -> dict:
+def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str, logs_folder: str = None, page_state: dict = None) -> dict:
     """
     Navigates to the shipment's workflow page, opens the tracking-details
     section, selects fba_id's own tab, and reads its current delivery
@@ -376,59 +350,124 @@ def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str, log
     couldn't be found/parsed. Saves a screenshot to logs/screenshots/ on
     every failure path so a "never rendered" warning has a page state to
     diagnose against instead of just a guess.
+
+    page_state: optional dict the caller can reuse across consecutive calls
+    for shipments that share a workflow_id, to skip re-navigating and
+    re-detecting Final Step's tab UI -- that whole sequence (goto, modal
+    dismiss, proceed-button check, tabbed-UI detection) is workflow-level,
+    not per-shipment, so redoing it for every sibling shipment on the same
+    workflow wastes a full page reload each time. Shape:
+    {"workflow_id": str, "mode": "tabbed" | "legacy"}, mutated in place --
+    pass the same dict across a run of same-workflow calls. Left at None
+    (the default), behavior is unchanged: always navigates fresh.
     """
-    url = f"{base_url}/fba/sendtoamazon?wf={workflow_id}"
-    try:
-        page.goto(url, timeout=30000)
-        page.wait_for_load_state("load", timeout=15000)
-    except Exception as e:
-        logger.warning(f"  {fba_id}: failed to load workflow page {url}: {e}")
-        _screenshot(page, f"window_load_failed_{fba_id}", logs_folder)
-        return None
+    reuse = page_state is not None and page_state.get("workflow_id") == workflow_id and page_state.get("mode") is not None
 
-    _dismiss_onboarding_modal(page)
+    if reuse:
+        mode = page_state["mode"]
+    else:
+        url = f"{base_url}/fba/sendtoamazon?wf={workflow_id}"
+        try:
+            page.goto(url, timeout=30000)
+            page.wait_for_load_state("load", timeout=15000)
+        except Exception as e:
+            logger.warning(f"  {fba_id}: failed to load workflow page {url}: {e}")
+            _screenshot(page, f"window_load_failed_{fba_id}", logs_folder)
+            return None
 
-    # A shipment still sitting at Step 3 ("Print box labels") shows "Proceed
-    # to enter tracking details" directly on page load, since Step 3 is the
-    # active/open section by default for it -- this must be checked and
-    # clicked BEFORE the "View" links below are touched, not after: clicking
-    # a different (already-collapsed) step's "View" link re-expands that
-    # step as part of the page's accordion behavior, which collapses Step 3
-    # back closed and hides this button. Clicking it unlocks the Final step
-    # / tracking-tab UI, which is what "not found among this workflow's
-    # shipment tabs" was actually stuck behind. This whole page can take
-    # 10-20+s to finish rendering, so the button needs its own bounded wait
-    # rather than an immediate count() check. Confirmed live 2026-09-18,
-    # FBA15MB4TFGC.
-    proceed_button = page.locator("[data-testid='proceed-tracking-details-button']")
-    try:
-        proceed_button.first.wait_for(state="visible", timeout=10000)
-        proceed_button.first.click()
-        page.wait_for_timeout(2000)
-    except Exception:
-        pass  # normal case: shipment already past Step 3, no such button here
+        _dismiss_onboarding_modal(page)
 
-    # Final step's own shipment tabs carry a dedicated
-    # data-testid="shipment-tracking-tab" and are already present in the DOM
-    # without any "View" click at all -- unlike Steps 1-3, Final step has no
-    # separate collapsed "View" summary of its own. Confirmed live
-    # 2026-09-19 (FBA19MPKXSNQ, a 5-sibling-shipment workflow): there were
-    # only 3 "View" links total (one each for Steps 1-3), so the old code's
-    # views.last.click() was actually re-expanding Step 3 and matching one
-    # of ITS OWN "Shipment ID: ..." cards instead of Final step's real,
-    # distinct tab -- explaining a "goes back to Step 3" symptom seen live.
-    # Try this robust, decoy-proof path first; fall back to the older
-    # View-click + generic-text approach for pages that don't use this
-    # tabbed UI at all (e.g. LTL/FTL, confirmed live 2026-09-07 to use a
-    # different, non-tabbed card layout).
-    tabbed_tabs = page.locator("[data-testid='shipment-tracking-tab']")
-    tabbed_ui_present = True
-    try:
-        tabbed_tabs.first.wait_for(state="visible", timeout=10000)
-    except Exception:
-        tabbed_ui_present = False
+        # A shipment still sitting at Step 3 ("Print box labels") shows "Proceed
+        # to enter tracking details" directly on page load, since Step 3 is the
+        # active/open section by default for it -- this must be checked and
+        # clicked BEFORE the "View" links below are touched, not after: clicking
+        # a different (already-collapsed) step's "View" link re-expands that
+        # step as part of the page's accordion behavior, which collapses Step 3
+        # back closed and hides this button. Clicking it unlocks the Final step
+        # / tracking-tab UI, which is what "not found among this workflow's
+        # shipment tabs" was actually stuck behind. This whole page can take
+        # 10-20+s to finish rendering, so the button needs its own bounded wait
+        # rather than an immediate count() check. Confirmed live 2026-09-18,
+        # FBA15MB4TFGC.
+        proceed_button = page.locator("[data-testid='proceed-tracking-details-button']")
+        try:
+            proceed_button.first.wait_for(state="visible", timeout=10000)
+            proceed_button.first.click()
+            page.wait_for_timeout(2000)
+        except Exception:
+            pass  # normal case: shipment already past Step 3, no such button here
 
-    if tabbed_ui_present:
+        # Final step's own shipment tabs carry a dedicated
+        # data-testid="shipment-tracking-tab" and are already present in the DOM
+        # without any "View" click at all -- unlike Steps 1-3, Final step has no
+        # separate collapsed "View" summary of its own. Confirmed live
+        # 2026-09-19 (FBA19MPKXSNQ, a 5-sibling-shipment workflow): there were
+        # only 3 "View" links total (one each for Steps 1-3), so the old code's
+        # views.last.click() was actually re-expanding Step 3 and matching one
+        # of ITS OWN "Shipment ID: ..." cards instead of Final step's real,
+        # distinct tab -- explaining a "goes back to Step 3" symptom seen live.
+        # Try this robust, decoy-proof path first; fall back to the older
+        # View-click + generic-text approach for pages that don't use this
+        # tabbed UI at all (e.g. LTL/FTL, confirmed live 2026-09-07 to use a
+        # different, non-tabbed card layout).
+        tabbed_tabs = page.locator("[data-testid='shipment-tracking-tab']")
+        tabbed_ui_present = True
+        try:
+            tabbed_tabs.first.wait_for(state="visible", timeout=10000)
+        except Exception:
+            tabbed_ui_present = False
+
+        mode = "tabbed" if tabbed_ui_present else "legacy"
+
+        if mode == "legacy":
+            views = page.get_by_text("View", exact=True)
+            try:
+                # Each collapsed step (Step 1, Step 1b, Step 2, Step 3, Final step...)
+                # has its own "View" link, and they render a moment after the rest of
+                # the page paints -- wait for the last one to actually be there rather
+                # than checking count() once against a guessed fixed delay. The step
+                # count varies by shipment method -- confirmed live (2026-09-06,
+                # FBA19L4ZZS14): SPD/FIST-Carrier workflows give Step 1b its own
+                # separate View, making 5 steps instead of the usual 4, so a hardcoded
+                # nth(3) landed on Step 3 instead of Final step. "Final step" is
+                # always the last collapsed section regardless of how many precede
+                # it, so .last is robust to that variation.
+                views.last.wait_for(state="visible", timeout=15000)
+            except Exception:
+                # Confirmed live (2026-09-01): same root cause as the empty-tracking-
+                # form case below, just caught one step earlier -- when tracking was
+                # entered through the newer inbound-shipment tracking page instead of
+                # this workflow, Step 4 here never gets confirmed, so it's still
+                # showing the raw "Tracking information must be provided" carrier
+                # form instead of collapsing into a "View" summary link. There's no
+                # Final-step View link to wait for in that case; flag it distinctly
+                # so it isn't chased as a scrape/timing bug.
+                stale_workflow = page.get_by_text("Tracking information must be provided", exact=False).count() > 0
+                if stale_workflow:
+                    logger.warning(
+                        f"  {fba_id}: workflow page's Step 4 still shows an unconfirmed carrier form -- "
+                        f"tracking for this shipment wasn't entered through this workflow, so "
+                        f"Amazon never renders a delivery window here (not a scrape failure)"
+                    )
+                else:
+                    logger.warning(f"  {fba_id}: workflow page never rendered its 'Tracking details' section")
+                _screenshot(page, f"window_no_tracking_section_{fba_id}", logs_folder)
+                return None
+            views.last.click()
+
+            try:
+                page.wait_for_selector("text=Track shipment", timeout=15000)
+            except Exception:
+                logger.warning(f"  {fba_id}: tracking-details section never rendered")
+                _screenshot(page, f"window_no_track_shipment_{fba_id}", logs_folder)
+                return None
+
+        if page_state is not None:
+            page_state["workflow_id"] = workflow_id
+            page_state["mode"] = mode
+
+    if mode == "tabbed":
+        tabbed_tabs = page.locator("[data-testid='shipment-tracking-tab']")
         # Plain substring match, not a regex -- confirmed live (2026-09-19)
         # that Playwright's has_text filter silently returns zero matches
         # with a \b-word-boundary regex here even though the exact same
@@ -444,48 +483,6 @@ def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str, log
             return None
         tab.first.click()
     else:
-        views = page.get_by_text("View", exact=True)
-        try:
-            # Each collapsed step (Step 1, Step 1b, Step 2, Step 3, Final step...)
-            # has its own "View" link, and they render a moment after the rest of
-            # the page paints -- wait for the last one to actually be there rather
-            # than checking count() once against a guessed fixed delay. The step
-            # count varies by shipment method -- confirmed live (2026-09-06,
-            # FBA19L4ZZS14): SPD/FIST-Carrier workflows give Step 1b its own
-            # separate View, making 5 steps instead of the usual 4, so a hardcoded
-            # nth(3) landed on Step 3 instead of Final step. "Final step" is
-            # always the last collapsed section regardless of how many precede
-            # it, so .last is robust to that variation.
-            views.last.wait_for(state="visible", timeout=15000)
-        except Exception:
-            # Confirmed live (2026-09-01): same root cause as the empty-tracking-
-            # form case below, just caught one step earlier -- when tracking was
-            # entered through the newer inbound-shipment tracking page instead of
-            # this workflow, Step 4 here never gets confirmed, so it's still
-            # showing the raw "Tracking information must be provided" carrier
-            # form instead of collapsing into a "View" summary link. There's no
-            # Final-step View link to wait for in that case; flag it distinctly
-            # so it isn't chased as a scrape/timing bug.
-            stale_workflow = page.get_by_text("Tracking information must be provided", exact=False).count() > 0
-            if stale_workflow:
-                logger.warning(
-                    f"  {fba_id}: workflow page's Step 4 still shows an unconfirmed carrier form -- "
-                    f"tracking for this shipment wasn't entered through this workflow, so "
-                    f"Amazon never renders a delivery window here (not a scrape failure)"
-                )
-            else:
-                logger.warning(f"  {fba_id}: workflow page never rendered its 'Tracking details' section")
-            _screenshot(page, f"window_no_tracking_section_{fba_id}", logs_folder)
-            return None
-        views.last.click()
-
-        try:
-            page.wait_for_selector("text=Track shipment", timeout=15000)
-        except Exception:
-            logger.warning(f"  {fba_id}: tracking-details section never rendered")
-            _screenshot(page, f"window_no_track_shipment_{fba_id}", logs_folder)
-            return None
-
         # A workflow can list several sibling shipments' tabs here, and they can
         # render progressively -- checking count() the instant "Track shipment"
         # appears can catch this fba_id's own tab a moment before it's actually
@@ -715,11 +712,11 @@ def apply_window_edit(page, target_week_start, fba_id: str = "", logs_folder: st
     return "edited"
 
 
-def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str, expected_delivery_date, today, logs_folder: str = None) -> dict:
+def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str, expected_delivery_date, today, logs_folder: str = None, page_state: dict = None) -> dict:
     """
     Reads fba_id's current delivery window, decides what to do via
     decide_window_action(), and applies an edit if one is called for.
-    Returns {"outcome": ..., "new_delivery_date_status": "updated" | "pending",
+    Returns {"outcome": ..., "new_delivery_date_status": "updated" | "pending" | "window_closed",
     "window_start": date | None, "window_end": date | None} -- the window
     dates are the live-read window on every outcome except a successful
     "edit"/"push_one_week", where they're the *new* target window instead
@@ -730,7 +727,8 @@ def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str,
     Outcomes: "read_failed" (couldn't read the current window), "matched"
     (expected date already inside the window -- confirmed correct, no edit
     needed), "no_action_needed" (no expected date yet, window not urgent),
-    "locked" (window's start date has passed, can't be edited), "edit" /
+    "locked" (window's start date has passed, can't be edited -- status
+    "window_closed" so the caller never visits this shipment again), "edit" /
     "push_one_week" (the corresponding decide_window_action action was
     successfully applied), "carrier_managed" (the shipment's carrier owns
     delivery-window updates -- Amazon disables manual edits for it, so this
@@ -741,8 +739,12 @@ def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str,
     mean the window now demonstrably reflects a real expected date.
     "push_one_week" stays "pending": it's a nudge re-verified next week,
     not a real resolution.
+
+    page_state is forwarded as-is to read_shipment_window -- see its own
+    docstring. Pass the same dict across consecutive calls for shipments
+    that share a workflow_id to skip redundant page reloads.
     """
-    window = read_shipment_window(page, workflow_id, fba_id, base_url, logs_folder=logs_folder)
+    window = read_shipment_window(page, workflow_id, fba_id, base_url, logs_folder=logs_folder, page_state=page_state)
     if window is None:
         return {"outcome": "read_failed", "new_delivery_date_status": "pending",
                 "window_start": None, "window_end": None}
@@ -751,7 +753,7 @@ def sync_window_for_shipment(page, base_url: str, fba_id: str, workflow_id: str,
     action = decision["action"]
 
     if action == "locked":
-        return {"outcome": "locked", "new_delivery_date_status": "pending",
+        return {"outcome": "locked", "new_delivery_date_status": "window_closed",
                 "window_start": window["window_start"], "window_end": window["window_end"]}
 
     if action == "none":
@@ -916,7 +918,7 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
         "no_action_needed": 0, "edit_failed": 0, "edit_failed_ids": [],
         "read_failed": 0, "read_failed_ids": [],
         "skipped_shipment_done": 0, "skipped_shipment_done_ids": [],
-        "new_shipments": [], "overdue_shipments": [],
+        "new_shipments": [], "window_closed": 0, "window_closed_ids": [],
         "errors": errors,
     }
 
@@ -950,7 +952,17 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
         selection = select_weekly_candidates(sheet, today)
         candidates = selection["candidates"]
         new_shipments = [fba_id for fba_id in candidates if not sheet[fba_id].get("delivery_window_start")]
-        overdue_ids = set(selection["overdue"])
+        window_closed_ids = selection["window_closed"]
+
+        # A window-closed shipment can never be edited again -- tag it once
+        # here so it's permanently excluded from every future run's
+        # candidates, instead of being re-visited (and re-confirmed "still
+        # locked") forever. It'll still transition to "Delivered" later via
+        # sync_delivered_status() above, entirely from carrier data, with no
+        # further Amazon visit needed.
+        for fba_id in window_closed_ids:
+            sheet[fba_id]["delivery_date_status"] = "window_closed"
+        save_master_sheet(path, sheet)
 
         totals["checked"] = len(candidates)
         totals["not_due"] = len(selection["not_due"])
@@ -958,7 +970,8 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
         totals["no_workflow"] = len(selection["no_workflow"])
         totals["no_workflow_ids"] = selection["no_workflow"]
         totals["new_shipments"] = new_shipments
-        totals["overdue_shipments"] = sorted(overdue_ids)
+        totals["window_closed"] = len(window_closed_ids)
+        totals["window_closed_ids"] = window_closed_ids
 
         if not candidates:
             return totals
@@ -982,68 +995,99 @@ def run_weekly_delivery_window_sync(config: dict) -> dict:
                 errors.append(f"Could not log in to {region_name} -- skipped {len(fba_ids)} shipment(s)")
                 continue
 
+            # Group this region's candidates by workflow_id, preserving
+            # relative order otherwise -- several sibling shipments sharing
+            # one workflow_id can then be read back to back off a single
+            # page load instead of each re-navigating to the same workflow
+            # URL (confirmed live: a 5-sibling-shipment workflow was
+            # reloaded from scratch 5 separate times before this fix).
+            by_workflow = {}
+            workflow_order = []
             for fba_id in fba_ids:
-                entry = sheet[fba_id]
+                wf = sheet[fba_id]["workflow_id"]
+                if wf not in by_workflow:
+                    by_workflow[wf] = []
+                    workflow_order.append(wf)
+                by_workflow[wf].append(fba_id)
 
-                # Refresh Amazon's own shipment-status badge every week so it
-                # doesn't go stale after the one-time capture at workflow
-                # discovery. Once it says the shipment is done, its delivery
-                # window can no longer be edited -- skip the window read/edit
-                # page visit entirely instead of letting it fall into a false
+            for workflow_id in workflow_order:
+                workflow_fba_ids = by_workflow[workflow_id]
+
+                # Pass 1: refresh Amazon's own shipment-status badge for
+                # every shipment in this workflow group -- this necessarily
+                # visits a different page per shipment (each has its own
+                # status-page URL, no sharing possible), so it's done as its
+                # own pass, before the window-read pass below reuses one
+                # page load across the whole group instead of losing that
+                # reuse to this pass's navigations interleaving with it.
+                # Once a shipment's status is terminal, its delivery window
+                # can no longer be edited -- skip the window read/edit page
+                # visit entirely instead of letting it fall into a false
                 # "read_failed" or "locked".
-                if navigate_to_shipment(page, fba_id, base_url):
-                    amazon_status = fetch_shipment_status(page)
-                    if amazon_status is not None:
-                        entry["amazon_shipment_status"] = amazon_status
+                active_fba_ids = []
+                for fba_id in workflow_fba_ids:
+                    entry = sheet[fba_id]
+                    if navigate_to_shipment(page, fba_id, base_url):
+                        amazon_status = fetch_shipment_status(page)
+                        if amazon_status is not None:
+                            entry["amazon_shipment_status"] = amazon_status
 
-                if _is_terminal_shipment_status(entry.get("amazon_shipment_status")):
-                    this_run_outcomes[fba_id] = "shipment_done"
-                    totals["skipped_shipment_done"] += 1
-                    totals["skipped_shipment_done_ids"].append(fba_id)
+                    if _is_terminal_shipment_status(entry.get("amazon_shipment_status")):
+                        this_run_outcomes[fba_id] = "shipment_done"
+                        totals["skipped_shipment_done"] += 1
+                        totals["skipped_shipment_done_ids"].append(fba_id)
+                        continue
+                    active_fba_ids.append(fba_id)
+
+                if not active_fba_ids:
                     continue
 
-                tracking = str(entry.get("tracking", "")).strip()
-                cached = tracking_cache.get(tracking, {})
-                expected_str = cached.get("expected_delivery_date")
-                expected_date = _parse_flexible_date(expected_str, today) if expected_str else None
+                # Pass 2: read/sync each remaining sibling's window, reusing
+                # one page load across the whole group via page_state.
+                page_state = {}
+                for fba_id in active_fba_ids:
+                    entry = sheet[fba_id]
+                    tracking = str(entry.get("tracking", "")).strip()
+                    cached = tracking_cache.get(tracking, {})
+                    expected_str = cached.get("expected_delivery_date")
+                    expected_date = _parse_flexible_date(expected_str, today) if expected_str else None
 
-                result = sync_window_for_shipment(
-                    page, base_url, fba_id, entry["workflow_id"], expected_date, today, logs_folder=logs_folder
-                )
-                outcome = result["outcome"]
-                this_run_outcomes[fba_id] = outcome
-                if outcome == "read_failed":
-                    # The only outcome where read_shipment_window itself failed --
-                    # nothing was read, so there's nothing to persist.
-                    totals["read_failed"] += 1
-                    totals["read_failed_ids"].append(fba_id)
-                else:
-                    # Every other outcome means the live read succeeded (Task 3:
-                    # result["window_start"] is only None on "read_failed"), so
-                    # the persistence below always applies here -- including
-                    # "edit_failed", where the read succeeded but the subsequent
-                    # edit attempt didn't; the shipment was still genuinely
-                    # checked this run and delivery_window_last_checked should
-                    # reflect that.
-                    if outcome == "edit_failed":
-                        totals["edit_failed"] += 1
-                        totals["edit_failed_ids"].append(fba_id)
+                    result = sync_window_for_shipment(
+                        page, base_url, fba_id, workflow_id, expected_date, today,
+                        logs_folder=logs_folder, page_state=page_state,
+                    )
+                    outcome = result["outcome"]
+                    this_run_outcomes[fba_id] = outcome
+                    if outcome == "read_failed":
+                        # The only outcome where read_shipment_window itself failed --
+                        # nothing was read, so there's nothing to persist.
+                        totals["read_failed"] += 1
+                        totals["read_failed_ids"].append(fba_id)
                     else:
-                        key = {"matched": "matched", "edit": "edited", "push_one_week": "pushed_one_week",
-                               "locked": "locked", "no_action_needed": "no_action_needed"}.get(outcome)
-                        if key:
-                            totals[key] += 1
-                        if outcome == "carrier_managed":
-                            totals["carrier_managed_skipped"] += 1
-                    entry["delivery_date_status"] = result["new_delivery_date_status"] if outcome != "carrier_managed" else "carrier_managed"
-                    if result["window_start"]:
-                        entry["delivery_window_start"] = result["window_start"].strftime("%Y-%m-%d")
-                        entry["delivery_window_end"] = result["window_end"].strftime("%Y-%m-%d")
-                        entry["delivery_window_last_checked"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                        # Every other outcome means the live read succeeded (Task 3:
+                        # result["window_start"] is only None on "read_failed"), so
+                        # the persistence below always applies here -- including
+                        # "edit_failed", where the read succeeded but the subsequent
+                        # edit attempt didn't; the shipment was still genuinely
+                        # checked this run and delivery_window_last_checked should
+                        # reflect that.
+                        if outcome == "edit_failed":
+                            totals["edit_failed"] += 1
+                            totals["edit_failed_ids"].append(fba_id)
+                        else:
+                            key = {"matched": "matched", "edit": "edited", "push_one_week": "pushed_one_week",
+                                   "locked": "locked", "no_action_needed": "no_action_needed"}.get(outcome)
+                            if key:
+                                totals[key] += 1
+                            if outcome == "carrier_managed":
+                                totals["carrier_managed_skipped"] += 1
+                        entry["delivery_date_status"] = result["new_delivery_date_status"] if outcome != "carrier_managed" else "carrier_managed"
+                        if result["window_start"]:
+                            entry["delivery_window_start"] = result["window_start"].strftime("%Y-%m-%d")
+                            entry["delivery_window_end"] = result["window_end"].strftime("%Y-%m-%d")
+                            entry["delivery_window_last_checked"] = datetime.now().strftime("%Y-%m-%d %H:%M")
 
             save_master_sheet(path, sheet)
-
-        totals["overdue_shipments"] = _merge_overdue_with_newly_locked(overdue_ids, this_run_outcomes)
     except RuntimeError as e:
         # e.g. a previous run's Chrome process crashed and left the automation
         # profile locked (spec: Error Handling table) -- report it in the
@@ -1076,8 +1120,8 @@ def format_weekly_delivery_window_summary(result: dict) -> str:
         "=" * 60,
         f"WEEKLY DELIVERY WINDOW SYNC SUMMARY - {datetime.now().strftime('%Y-%m-%d %H:%M')}",
         "=" * 60,
-        f"Checked this week          : {result['checked']}   (window starting within 7 days, or never checked)",
-        f"Skipped (not due)          : {result['not_due']}  (window further out -- no browser visit needed)",
+        f"Checked this week          : {result['checked']}   (full sweep on Saturday; a real update detected any other day)",
+        f"Skipped (not due)          : {result['not_due']}  (no evidence of change today -- no browser visit needed)",
         f"Skipped (carrier-managed)  : {result['carrier_managed_skipped']}",
     ]
     no_workflow_ids = result.get("no_workflow_ids", [])
@@ -1098,8 +1142,8 @@ def format_weekly_delivery_window_summary(result: dict) -> str:
     ])
     new_shipments = result.get("new_shipments", [])
     lines.append(f"Newly discovered & recorded: {len(new_shipments)}" + (f"   -> {', '.join(new_shipments)}" if new_shipments else ""))
-    overdue = result.get("overdue_shipments", [])
-    lines.append(f"Overdue (missed lock / needs attention): {len(overdue)}" + (f"  -> {', '.join(overdue)}" if overdue else ""))
+    window_closed_ids = result.get("window_closed_ids", [])
+    lines.append(f"Window closed (locked, permanently skipped): {result.get('window_closed', 0)}" + (f"  -> {', '.join(window_closed_ids)}" if window_closed_ids else ""))
     lines.append(f"Locked (can't be edited):   {result['locked']}")
     lines.append(f"No action needed:           {result.get('no_action_needed', 0)}")
     read_failed_ids = result.get("read_failed_ids", [])

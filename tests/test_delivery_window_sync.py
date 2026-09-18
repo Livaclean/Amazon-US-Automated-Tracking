@@ -19,7 +19,6 @@ from delivery_window_sync import (
     format_delivery_window_sync_summary,
     select_weekly_candidates,
     format_weekly_delivery_window_summary,
-    _merge_overdue_with_newly_locked,
     _is_terminal_shipment_status,
 )
 
@@ -623,9 +622,10 @@ class _FakeReadWindowPage:
         # fall back to the View-click + generic-text approach these fixtures
         # exist to test.
         self._tabs = _RaisingLocator(count=0)
+        self.goto_calls = 0
 
     def goto(self, url, timeout=None):
-        pass
+        self.goto_calls += 1
 
     def wait_for_load_state(self, state=None, timeout=None):
         pass
@@ -1042,6 +1042,99 @@ def test_read_shipment_window_tabbed_ui_reports_not_found_without_falling_back(c
 
 
 @pytest.mark.unit
+def test_read_shipment_window_page_state_skips_navigation_for_same_workflow():
+    """Perf fix: several sibling shipments sharing a workflow_id were each
+    getting a full page reload -- the whole navigate + modal-dismiss +
+    proceed-button + tab-UI-detection sequence is workflow-level, not
+    per-shipment. When page_state already has this workflow_id's mode
+    cached, read_shipment_window must skip straight to selecting the tab
+    without navigating again."""
+    page = _FakeReadWindowPageTabbedUI(
+        "some page chrome Delivery window: Sep 20, 2026 - Sep 26, 2026 more chrome",
+        tab_fba_ids=["FBA001", "FBA002"],
+    )
+    page_state = {"workflow_id": "wf-1", "mode": "tabbed"}
+
+    result = read_shipment_window(page, "wf-1", "FBA002", "https://x", page_state=page_state)
+
+    assert result == {"window_start": date(2026, 9, 20), "window_end": date(2026, 9, 26)}
+    assert page.goto_calls == 0
+    assert page_state == {"workflow_id": "wf-1", "mode": "tabbed"}
+
+
+@pytest.mark.unit
+def test_read_shipment_window_page_state_populated_on_first_tabbed_call():
+    page = _FakeReadWindowPageTabbedUI(
+        "some page chrome Delivery window: Sep 20, 2026 - Sep 26, 2026 more chrome",
+        tab_fba_ids=["FBA001"],
+    )
+    page_state = {}
+
+    result = read_shipment_window(page, "wf-1", "FBA001", "https://x", page_state=page_state)
+
+    assert result == {"window_start": date(2026, 9, 20), "window_end": date(2026, 9, 26)}
+    assert page.goto_calls == 1
+    assert page_state == {"workflow_id": "wf-1", "mode": "tabbed"}
+
+
+@pytest.mark.unit
+def test_read_shipment_window_page_state_populated_on_first_legacy_call():
+    page = _FakeReadWindowPageWindowFound(
+        "some page chrome Delivery window: Sep 1, 2026 - Sep 14, 2026 more chrome"
+    )
+    page_state = {}
+
+    result = read_shipment_window(page, "wf-1", "FBA001", "https://x", page_state=page_state)
+
+    assert result == {"window_start": date(2026, 9, 1), "window_end": date(2026, 9, 14)}
+    assert page.goto_calls == 1
+    assert page_state == {"workflow_id": "wf-1", "mode": "legacy"}
+
+
+@pytest.mark.unit
+def test_read_shipment_window_page_state_legacy_reuse_skips_navigation():
+    page = _FakeReadWindowPageWindowFound(
+        "some page chrome Delivery window: Sep 1, 2026 - Sep 14, 2026 more chrome"
+    )
+    page_state = {"workflow_id": "wf-1", "mode": "legacy"}
+
+    result = read_shipment_window(page, "wf-1", "FBA001", "https://x", page_state=page_state)
+
+    assert result == {"window_start": date(2026, 9, 1), "window_end": date(2026, 9, 14)}
+    assert page.goto_calls == 0
+
+
+@pytest.mark.unit
+def test_read_shipment_window_page_state_renavigates_for_different_workflow():
+    page = _FakeReadWindowPageTabbedUI(
+        "some page chrome Delivery window: Sep 20, 2026 - Sep 26, 2026 more chrome",
+        tab_fba_ids=["FBA001"],
+    )
+    page_state = {"workflow_id": "wf-OLD", "mode": "tabbed"}
+
+    result = read_shipment_window(page, "wf-NEW", "FBA001", "https://x", page_state=page_state)
+
+    assert result == {"window_start": date(2026, 9, 20), "window_end": date(2026, 9, 26)}
+    assert page.goto_calls == 1
+    assert page_state == {"workflow_id": "wf-NEW", "mode": "tabbed"}
+
+
+@pytest.mark.unit
+def test_read_shipment_window_without_page_state_always_navigates():
+    """Regression guard: page_state is opt-in -- omitting it (the default)
+    must behave exactly as before, always navigating fresh."""
+    page = _FakeReadWindowPageTabbedUI(
+        "some page chrome Delivery window: Sep 20, 2026 - Sep 26, 2026 more chrome",
+        tab_fba_ids=["FBA001"],
+    )
+
+    result = read_shipment_window(page, "wf-1", "FBA001", "https://x")
+
+    assert result == {"window_start": date(2026, 9, 20), "window_end": date(2026, 9, 26)}
+    assert page.goto_calls == 1
+
+
+@pytest.mark.unit
 def test_read_shipment_window_waits_for_tab_instead_of_instant_count_check(caplog):
     """Regression test: confirmed live 2026-09-18 (FBA19MPKXSNQ) that a
     workflow listing several sibling shipments' tabs can render them
@@ -1175,7 +1268,7 @@ def test_sync_window_for_shipment_locked(monkeypatch):
         page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
         expected_delivery_date=date(2026, 8, 8), today=date(2026, 8, 10),
     )
-    assert result == {"outcome": "locked", "new_delivery_date_status": "pending",
+    assert result == {"outcome": "locked", "new_delivery_date_status": "window_closed",
                       "window_start": date(2026, 8, 9), "window_end": date(2026, 8, 15)}
 
 
@@ -1343,108 +1436,173 @@ def _row(**overrides):
     return row
 
 
+# 2026-08-29 is a Saturday (the only day a full sweep runs); 2026-08-26 is
+# the Wednesday used for every "daily, non-full-sweep" test below.
+_SATURDAY = date(2026, 8, 29)
+_WEDNESDAY = date(2026, 8, 26)
+
+
 @pytest.mark.unit
-def test_select_weekly_candidates_includes_never_checked_shipment():
+def test_select_weekly_candidates_saturday_includes_never_checked_shipment():
     sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start="")}
-    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    result = select_weekly_candidates(sheet, today=_SATURDAY)
     assert result["candidates"] == ["FBA001"]
 
 
 @pytest.mark.unit
-def test_select_weekly_candidates_includes_window_starting_within_seven_days():
+def test_select_weekly_candidates_saturday_includes_window_starting_tomorrow():
     sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start="2026-08-30")}  # +1 day
-    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    result = select_weekly_candidates(sheet, today=_SATURDAY)
     assert result["candidates"] == ["FBA001"]
 
 
 @pytest.mark.unit
-def test_select_weekly_candidates_includes_window_starting_exactly_seven_days_out():
-    sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start="2026-09-05")}  # +7 days
-    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+def test_select_weekly_candidates_saturday_is_a_full_sweep_regardless_of_window_distance():
+    """Saturday must behave like the original weekly full run: every
+    not-yet-closed, non-delivered shipment gets a live visit regardless of
+    how far out its window is or whether anything changed -- this is the
+    comprehensive check that also lets decide_window_action's push_one_week
+    fire correctly (it can only ever trigger when today is the day before a
+    Sunday-starting window, i.e. a Saturday)."""
+    sheet = {"FBA001": _row(
+        fba_id="FBA001",
+        delivery_window_start="2026-09-27", delivery_window_end="2026-10-03",  # +29 days
+        expected_delivery_date="2026-09-29",  # matches the window -- no mismatch at all
+    )}
+    result = select_weekly_candidates(sheet, today=_SATURDAY)
     assert result["candidates"] == ["FBA001"]
 
 
 @pytest.mark.unit
-def test_select_weekly_candidates_excludes_window_starting_eight_days_out():
-    sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start="2026-09-06")}  # +8 days
-    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+def test_select_weekly_candidates_non_saturday_defers_never_checked_shipment():
+    """New shipments only get their first window read on Saturday's full
+    sweep, per explicit instruction -- a non-Saturday run must not visit
+    them yet."""
+    sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start="")}
+    result = select_weekly_candidates(sheet, today=_WEDNESDAY)
     assert result["candidates"] == []
     assert result["not_due"] == ["FBA001"]
 
 
 @pytest.mark.unit
-def test_select_weekly_candidates_promotes_far_out_window_when_expected_date_earlier():
-    # Window is scheduled weeks out, but fresh carrier data (already synced
-    # into the sheet before this filter runs) says it's actually coming much
-    # sooner -- daily runs must catch this immediately, not wait until the
-    # (wrong, too-late) window happens to be within 7 days.
+def test_select_weekly_candidates_non_saturday_defers_due_soon_window_without_mismatch():
+    """A window starting soon but with no evidence anything changed must
+    wait for Saturday's full sweep on a non-Saturday day -- only a real
+    mismatch (or Saturday) should trigger a live visit now."""
+    sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start="2026-08-27")}  # +1 day
+    result = select_weekly_candidates(sheet, today=_WEDNESDAY)
+    assert result["candidates"] == []
+    assert result["not_due"] == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_non_saturday_promotes_when_expected_date_earlier():
+    # Fresh carrier data (already synced into the sheet before this filter
+    # runs) says the shipment is coming in sooner than the recorded window --
+    # a daily run must catch this immediately, any day of the week.
     sheet = {"FBA001": _row(
         fba_id="FBA001",
-        delivery_window_start="2026-09-27", delivery_window_end="2026-10-03",  # +29 days
+        delivery_window_start="2026-09-27", delivery_window_end="2026-10-03",  # +32 days
         expected_delivery_date="2026-09-05",  # weeks before the scheduled window
     )}
-    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    result = select_weekly_candidates(sheet, today=_WEDNESDAY)
     assert result["candidates"] == ["FBA001"]
 
 
 @pytest.mark.unit
-def test_select_weekly_candidates_promotes_far_out_window_when_expected_date_later():
+def test_select_weekly_candidates_non_saturday_promotes_when_expected_date_later():
     sheet = {"FBA001": _row(
         fba_id="FBA001",
-        delivery_window_start="2026-09-06", delivery_window_end="2026-09-12",  # +8 days
+        delivery_window_start="2026-08-30", delivery_window_end="2026-09-05",  # +4 days
         expected_delivery_date="2026-10-01",  # weeks after the scheduled window
     )}
-    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    result = select_weekly_candidates(sheet, today=_WEDNESDAY)
     assert result["candidates"] == ["FBA001"]
 
 
 @pytest.mark.unit
-def test_select_weekly_candidates_does_not_promote_far_out_window_when_expected_date_matches():
+def test_select_weekly_candidates_non_saturday_does_not_promote_when_expected_date_matches():
     sheet = {"FBA001": _row(
         fba_id="FBA001",
-        delivery_window_start="2026-09-27", delivery_window_end="2026-10-03",  # +29 days
+        delivery_window_start="2026-09-27", delivery_window_end="2026-10-03",  # +32 days
         expected_delivery_date="2026-09-29",  # inside the scheduled window
     )}
-    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    result = select_weekly_candidates(sheet, today=_WEDNESDAY)
     assert result["candidates"] == []
     assert result["not_due"] == ["FBA001"]
 
 
 @pytest.mark.unit
-def test_select_weekly_candidates_does_not_promote_far_out_window_with_stale_expected_date():
+def test_select_weekly_candidates_non_saturday_does_not_promote_with_stale_expected_date():
     # A stale (already-past) expected date can't result in any real action --
     # decide_window_action would just discard it -- so it must not trigger an
     # otherwise-unnecessary Amazon visit.
     sheet = {"FBA001": _row(
         fba_id="FBA001",
-        delivery_window_start="2026-09-27", delivery_window_end="2026-10-03",  # +29 days
+        delivery_window_start="2026-09-27", delivery_window_end="2026-10-03",  # +32 days
         expected_delivery_date="2026-08-01",  # already in the past
     )}
-    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    result = select_weekly_candidates(sheet, today=_WEDNESDAY)
     assert result["candidates"] == []
     assert result["not_due"] == ["FBA001"]
 
 
 @pytest.mark.unit
-def test_select_weekly_candidates_does_not_promote_far_out_window_when_no_expected_date():
-    # Regression guard: no fresh carrier info at all -- the original "not
-    # due yet" behavior for far-out windows must be unaffected.
+def test_select_weekly_candidates_non_saturday_does_not_promote_when_no_expected_date():
+    # Regression guard: no fresh carrier info at all -- must stay not due.
     sheet = {"FBA001": _row(
         fba_id="FBA001",
-        delivery_window_start="2026-09-27", delivery_window_end="2026-10-03",  # +29 days
+        delivery_window_start="2026-09-27", delivery_window_end="2026-10-03",  # +32 days
         expected_delivery_date="",
     )}
-    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    result = select_weekly_candidates(sheet, today=_WEDNESDAY)
     assert result["candidates"] == []
     assert result["not_due"] == ["FBA001"]
 
 
 @pytest.mark.unit
-def test_select_weekly_candidates_flags_past_window_start_as_overdue_but_still_a_candidate():
+def test_select_weekly_candidates_window_closed_when_start_is_in_the_past():
+    """A shipment whose recorded window has already locked (Amazon's edit
+    cutoff always equals the window's start date) can never be acted on
+    again -- it must be permanently excluded from candidates entirely
+    (returned as "window_closed" instead), not repeatedly re-visited."""
     sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start="2026-08-20")}  # in the past
-    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
-    assert result["candidates"] == ["FBA001"]
-    assert result["overdue"] == {"FBA001"}
+    result = select_weekly_candidates(sheet, today=_SATURDAY)
+    assert result["candidates"] == []
+    assert result["window_closed"] == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_window_closed_when_start_is_exactly_today():
+    """Boundary case matching decide_window_action's own lock condition
+    (today >= window_start, not strictly greater-than) -- a window starting
+    today is already locked, not still editable."""
+    sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start="2026-08-29")}
+    result = select_weekly_candidates(sheet, today=_SATURDAY)
+    assert result["candidates"] == []
+    assert result["window_closed"] == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_not_window_closed_when_start_is_tomorrow():
+    sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start="2026-08-30")}
+    result = select_weekly_candidates(sheet, today=_SATURDAY)
+    assert result["window_closed"] == []
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_window_closed_excluded_even_when_mismatched():
+    """Nothing can be edited once the window is locked, so a mismatched
+    expected date must not resurrect it as a candidate -- window_closed
+    takes precedence over the mismatch-promotion check."""
+    sheet = {"FBA001": _row(
+        fba_id="FBA001",
+        delivery_window_start="2026-08-20", delivery_window_end="2026-08-26",  # already locked
+        expected_delivery_date="2026-09-15",  # well outside the (locked) window
+    )}
+    result = select_weekly_candidates(sheet, today=_WEDNESDAY)
+    assert result["candidates"] == []
+    assert result["window_closed"] == ["FBA001"]
 
 
 @pytest.mark.unit
@@ -1565,7 +1723,7 @@ def test_format_weekly_delivery_window_summary_includes_all_sections():
         "matched": 3, "edited": 2, "pushed_one_week": 5,
         "no_action_needed": 1,
         "new_shipments": ["FBA19ABCDEF1", "FBA19ABCDEF2"],
-        "overdue_shipments": ["FBA19XYZ1234"],
+        "window_closed": 1, "window_closed_ids": ["FBA19XYZ1234"],
         "locked": 0, "read_failed": 2,
         "read_failed_ids": ["FBA15GDQMSCT", "FBA15GDT80ZL"],
         "edit_failed": 1, "edit_failed_ids": ["FBA15GDT80ZL"],
@@ -1574,6 +1732,7 @@ def test_format_weekly_delivery_window_summary_includes_all_sections():
     assert "Checked this week" in text
     assert "14" in text
     assert "FBA19ABCDEF1" in text
+    assert "Window closed" in text
     assert "FBA19XYZ1234" in text
     assert "FBA15GDQMSCT" in text
     assert "Edit failed" in text
@@ -1587,7 +1746,7 @@ def test_format_weekly_delivery_window_summary_includes_errors_section_when_pres
     text = format_weekly_delivery_window_summary({
         "checked": 0, "not_due": 0, "carrier_managed_skipped": 0,
         "matched": 0, "edited": 0, "pushed_one_week": 0, "no_action_needed": 0,
-        "new_shipments": [], "overdue_shipments": [], "locked": 0,
+        "new_shipments": [], "window_closed": 0, "window_closed_ids": [], "locked": 0,
         "read_failed": 0, "read_failed_ids": [],
         "edit_failed": 0, "edit_failed_ids": [],
         "errors": ["Could not log in to CA -- skipped 3 shipment(s)"],
@@ -1600,7 +1759,7 @@ def test_format_weekly_delivery_window_summary_includes_skipped_shipment_done_se
     text = format_weekly_delivery_window_summary({
         "checked": 0, "not_due": 0, "carrier_managed_skipped": 0,
         "matched": 0, "edited": 0, "pushed_one_week": 0, "no_action_needed": 0,
-        "new_shipments": [], "overdue_shipments": [], "locked": 0,
+        "new_shipments": [], "window_closed": 0, "window_closed_ids": [], "locked": 0,
         "read_failed": 0, "read_failed_ids": [],
         "edit_failed": 0, "edit_failed_ids": [],
         "skipped_shipment_done": 2, "skipped_shipment_done_ids": ["FBA001", "FBA002"],
@@ -1612,51 +1771,3 @@ def test_format_weekly_delivery_window_summary_includes_skipped_shipment_done_se
     assert "FBA002" in text
 
 
-# --- _merge_overdue_with_newly_locked -------------------------------------------
-
-@pytest.mark.unit
-def test_merge_overdue_with_newly_locked_includes_pre_run_overdue():
-    result = _merge_overdue_with_newly_locked({"FBA001"}, {"FBA002": "matched"})
-    assert result == ["FBA001"]
-
-
-@pytest.mark.unit
-def test_merge_overdue_with_newly_locked_includes_this_run_locked_outcomes():
-    result = _merge_overdue_with_newly_locked(set(), {"FBA001": "locked", "FBA002": "matched"})
-    assert result == ["FBA001"]
-
-
-@pytest.mark.unit
-def test_merge_overdue_with_newly_locked_dedupes_when_both_apply():
-    result = _merge_overdue_with_newly_locked({"FBA001"}, {"FBA001": "locked"})
-    assert result == ["FBA001"]
-
-
-@pytest.mark.unit
-def test_merge_overdue_with_newly_locked_ignores_non_locked_outcomes():
-    result = _merge_overdue_with_newly_locked(set(), {
-        "FBA001": "matched", "FBA002": "edited", "FBA003": "read_failed",
-        "FBA004": "edit_failed", "FBA005": "carrier_managed", "FBA006": "no_action_needed",
-    })
-    assert result == []
-
-
-@pytest.mark.unit
-def test_merge_overdue_with_newly_locked_excludes_shipment_done_resolved_this_run():
-    """Regression test: confirmed live 2026-09-08 -- 9 of 18 shipments flagged
-    'Overdue (missed lock / needs attention)' in a real weekly-sync run had
-    actually just been confirmed Closed/Delivered/Receiving on Amazon that
-    same run (outcome "shipment_done", short-circuited before decide_window_
-    action could ever run). A pre-run-overdue shipment resolved as
-    shipment_done this run is done, not overdue -- it must drop out of the
-    final overdue set instead of lingering there via the plain union."""
-    result = _merge_overdue_with_newly_locked({"FBA001"}, {"FBA001": "shipment_done"})
-    assert result == []
-
-
-@pytest.mark.unit
-def test_merge_overdue_with_newly_locked_keeps_other_pre_run_overdue_when_one_resolves():
-    result = _merge_overdue_with_newly_locked(
-        {"FBA001", "FBA002"}, {"FBA001": "shipment_done", "FBA002": "locked"}
-    )
-    assert result == ["FBA002"]
