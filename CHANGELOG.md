@@ -3,6 +3,13 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.14.0] - 2026-09-19
+
+### Changed
+- `select_weekly_candidates()` now only runs a full sweep (every non-delivered, non-closed shipment with a Workflow ID, including brand-new ones getting their first window read) on Saturday. Every other day it only visits a shipment whose freshly-refreshed expected delivery date no longer matches its recorded window -- real evidence something changed -- instead of visiting every due-soon shipment daily regardless of whether anything actually happened. Saturday is also the only day `decide_window_action`'s push_one_week can ever fire, so no defensive coverage is lost.
+- A shipment whose recorded delivery window has already started (Amazon's edit lock always equals the window's start date) is now tagged `delivery_date_status = "window_closed"` and permanently excluded from candidates, instead of being repeatedly re-visited as "overdue" forever. It still transitions to "Delivered" automatically via the existing carrier-side check, with no further Amazon visit needed. Removed the now-unnecessary `_merge_overdue_with_newly_locked` reconciliation this replaces.
+- `read_shipment_window()` accepts an optional `page_state` dict so consecutive calls for shipments sharing a `workflow_id` can skip re-navigating and re-detecting Final Step's tab UI -- that whole sequence is workflow-level, not per-shipment. `run_weekly_delivery_window_sync()` now groups candidates by workflow before visiting them, so several sibling shipments on one workflow share a single page load. Live-verified: a 5-sibling-shipment workflow that previously needed 5 full page reloads (~125s+) now needs one (28.3s total).
+
 ## [0.13.0] - 2026-09-19
 
 ### Changed
