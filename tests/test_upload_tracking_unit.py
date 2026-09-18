@@ -210,7 +210,11 @@ class _FakeInput:
 class _FakeFrame:
     """Minimal fake satisfying the tracking-iframe calls upload_tracking_to_shipment
     makes: wait_for_selector, evaluate (scroll), query_selector_all (inputs),
-    query_selector (Update all button — a _FakeInput doubles as a clickable button)."""
+    query_selector (Update all button — a _FakeInput doubles as a clickable button).
+    Selector-aware (rather than matching anything) so it correctly simulates a
+    regular per-box shipment page: LTL/ShipTrack-only selectors (.npcp-ltl-*,
+    .validation-confirmed, .edit-button) must return nothing here, or every
+    test would be misdetected as one of those alternate shipment types."""
 
     def __init__(self, inputs):
         self._inputs = inputs
@@ -222,10 +226,14 @@ class _FakeFrame:
         pass
 
     def query_selector_all(self, selector):
-        return self._inputs
+        if "auto fill" in selector or "Enter tracking" in selector:
+            return self._inputs
+        return []
 
     def query_selector(self, selector):
-        return _FakeInput()
+        if "Update all" in selector or "submit" in selector or selector == "button.button":
+            return _FakeInput()
+        return None
 
 
 def test_upload_tracking_pad_to_fill_duplicates_single_id_across_all_empty_slots(monkeypatch):
@@ -282,3 +290,104 @@ def test_upload_tracking_without_pad_to_fill_only_fills_one_slot(monkeypatch):
     assert filled_values == ["1Z999AA10123456784"]
     assert result["succeeded"] == 1
     assert result["empty_slots_remaining"] == 3
+
+
+# LTL/freight shipments — single Pro/Freight Bill Number instead of per-box grid
+# (see _is_ltl_shipment / _fill_ltl_tracking / _get_ltl_pro_freight_value)
+
+class _FakeLtlFrame:
+    """Fake tracking iframe for an LTL/freight (pallet) shipment: no per-box
+    input grid at all -- just a Bill-of-Lading widget with one Pro/Freight
+    value, shown read-only with an "(Edit)" link until clicked."""
+
+    def __init__(self, pro_freight_value=""):
+        self.pro_freight_value = pro_freight_value
+        self.edit_clicked = False
+        self.save_clicked = False
+        self.pro_freight_input = _FakeInput(value=pro_freight_value)
+
+    def query_selector_all(self, selector):
+        return []
+
+    def query_selector(self, selector):
+        if selector == ".npcp-ltl-container":
+            return _FakeInput()
+        if selector == ".npcp-ltl-tracking-numbers":
+            return self
+        if selector == ".edit-button":
+            return self
+        if selector == "kat-input.pro-freight-input":
+            return self.pro_freight_input
+        if selector == "kat-button.bol-save":
+            return self
+        return None
+
+    def inner_text(self):
+        # Mirrors the read-only view's flattened text, e.g.
+        # "Bill of Lading (BOL)\nPro/Freight: 1ZK581742024872981 (Edit)"
+        if self.pro_freight_value:
+            return f"Bill of Lading (BOL)\nPro/Freight: {self.pro_freight_value} (Edit)"
+        return "Bill of Lading (BOL)\nPro/Freight:  (Edit)"
+
+    def click(self):
+        # Used for both the .edit-button and kat-button.bol-save fakes
+        self.edit_clicked = True
+        self.save_clicked = True
+
+
+def test_upload_tracking_ltl_already_filled_skips_without_editing(monkeypatch):
+    """An LTL shipment whose Pro/Freight number is already entered needs no
+    action -- must not click Edit or touch the input at all."""
+    frame = _FakeLtlFrame(pro_freight_value="1ZK581742024872981")
+    monkeypatch.setattr(upload_tracking, "_get_tracking_context", lambda page, fba_id: frame)
+    page = _FakePage()
+
+    result = upload_tracking.upload_tracking_to_shipment(
+        page, ["1ZK581742024872981", "1ZK581742024872982"], "FBA_LTL_1", {"logs_folder": "logs"},
+    )
+
+    assert frame.edit_clicked is False
+    assert result["already_existed"] == 2
+    assert result["succeeded"] == 0
+    assert result["already_tracked_externally"] is True
+    assert result["status"] == "success"
+
+
+def test_upload_tracking_ltl_empty_fills_single_pro_freight_number(monkeypatch):
+    """An LTL shipment with no Pro/Freight number yet: clicks Edit, fills the
+    single field with the shipment's main tracking number (sub_ids[0]) -- not
+    the whole per-box pool -- and clicks Save."""
+    frame = _FakeLtlFrame(pro_freight_value="")
+    monkeypatch.setattr(upload_tracking, "_get_tracking_context", lambda page, fba_id: frame)
+    page = _FakePage()
+
+    result = upload_tracking.upload_tracking_to_shipment(
+        page, ["1ZK581742024872981", "1ZK581742024872982"], "FBA_LTL_2", {"logs_folder": "logs"},
+    )
+
+    assert frame.edit_clicked is True
+    assert frame.save_clicked is True
+    assert frame.pro_freight_input.value == "1ZK581742024872981"
+    assert result["succeeded"] == 1
+    assert result["status"] == "success"
+    assert result["uploaded_ids"] == ["1ZK581742024872981", "1ZK581742024872982"]
+
+
+def test_check_amazon_tracking_status_ltl_filled_is_complete(monkeypatch):
+    frame = _FakeLtlFrame(pro_freight_value="1ZK581742024872981")
+    monkeypatch.setattr(upload_tracking, "navigate_to_shipment", lambda page, fba_id, base_url: True)
+    monkeypatch.setattr(upload_tracking, "_get_tracking_context", lambda page, fba_id: frame)
+    page = _FakePage()
+
+    status = check_amazon_tracking_status(page, "FBA_LTL_1", {})
+    assert status == "complete"
+
+
+def test_check_amazon_tracking_status_ltl_empty_is_empty(monkeypatch):
+    frame = _FakeLtlFrame(pro_freight_value="")
+    monkeypatch.setattr(upload_tracking, "navigate_to_shipment", lambda page, fba_id, base_url: True)
+    monkeypatch.setattr(upload_tracking, "_get_tracking_context", lambda page, fba_id: frame)
+    page = _FakePage()
+
+    status = check_amazon_tracking_status(page, "FBA_LTL_2", {})
+    assert status == "empty"

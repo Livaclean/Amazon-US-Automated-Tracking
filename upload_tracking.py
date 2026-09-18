@@ -1,5 +1,6 @@
 # upload_tracking.py
 import logging
+import re
 import time
 from pathlib import Path
 from typing import Optional
@@ -324,6 +325,148 @@ def _count_shiptrack_confirmed(tracking_frame) -> int:
         return 0
 
 
+def _is_ltl_shipment(tracking_frame) -> bool:
+    """
+    True for LTL/freight (pallet) shipments, which track a single Pro/Freight
+    Bill Number for the whole shipment instead of one tracking ID per box.
+    These use a completely different widget (".npcp-ltl-container") from the
+    per-box grid our placeholder-based input selectors look for, so every LTL
+    shipment was being reported as timed-out/check_failed forever even though
+    it was already fully and correctly tracked. Confirmed live 2026-09-18:
+    every shipment in a batch of 11 "unresolved" timeouts was actually an LTL
+    shipment with its Pro/Freight number already filled and Shipped.
+    """
+    try:
+        return tracking_frame.query_selector(".npcp-ltl-container") is not None
+    except Exception:
+        return False
+
+
+def _wait_for_ltl_or_inputs(tracking_frame, page, timeout_ms: int = 10000) -> bool:
+    """
+    Polls for either the LTL Bill-of-Lading widget or the regular per-box
+    input grid to finish rendering, whichever comes first. Returns True if
+    the LTL widget rendered (caller should use the LTL-specific handling);
+    False otherwise (regular grid found, or nothing rendered in time --
+    caller's existing wait_for_selector/timeout handling covers that case).
+
+    Necessary because the iframe element itself can be reachable before its
+    own client-side app has painted -- checking _is_ltl_shipment() the moment
+    the iframe is found races that render and loses every time, wrongly
+    falling through to the per-box timeout path even for a genuine LTL
+    shipment (confirmed live 2026-09-18).
+    """
+    for _ in range(max(1, timeout_ms // 500)):
+        if _is_ltl_shipment(tracking_frame):
+            return True
+        try:
+            if tracking_frame.query_selector_all(
+                "input[placeholder*='auto fill'], input[placeholder*='Enter tracking']"
+            ):
+                return False
+        except Exception:
+            pass
+        page.wait_for_timeout(500)
+    return False
+
+
+def _get_ltl_pro_freight_value(tracking_frame) -> str:
+    """
+    Returns the current Pro/Freight Bill Number from an LTL shipment's
+    read-only Bill-of-Lading view (e.g. "Pro/Freight: 1ZK581742024872981
+    (Edit)"), or "" if not yet entered. Only meaningful when
+    _is_ltl_shipment() is True.
+    """
+    container = tracking_frame.query_selector(".npcp-ltl-tracking-numbers")
+    if not container:
+        return ""
+    try:
+        text = container.inner_text()
+    except Exception:
+        return ""
+    m = re.search(r"Pro/Freight:\s*([A-Za-z0-9-]+)", text)
+    return m.group(1) if m else ""
+
+
+def _fill_ltl_tracking(tracking_frame, page, sub_ids: list, fba_id: str, force: bool = False) -> dict:
+    """
+    Fills the single Pro/Freight Bill Number for an LTL/freight shipment,
+    using sub_ids[0] (the shipment's main tracking number — LTL shipments
+    have no real per-box sub-IDs, so the whole pool collapses to one value).
+    Clicks the read-only view's "(Edit)" link to reveal the edit form
+    (kat-input.pro-freight-input + kat-button.bol-save), confirmed live via
+    DOM inspection 2026-09-18 -- NOT yet exercised end-to-end against a
+    genuinely empty LTL shipment (none existed in the batch that surfaced
+    this), so verify the first real fill closely.
+    """
+    result = {
+        "fba_id": fba_id, "status": "success", "total": len(sub_ids),
+        "succeeded": 0, "already_existed": 0, "failed": 0,
+        "tracking_results": [], "empty_slots_remaining": 0,
+    }
+    if not sub_ids:
+        result["status"] = "skipped"
+        return result
+
+    main_tracking = sub_ids[0]
+    current_value = _get_ltl_pro_freight_value(tracking_frame)
+
+    if current_value and not force:
+        logger.info(
+            f"  {fba_id}: LTL shipment already has Pro/Freight number "
+            f"{current_value!r} — no action needed"
+        )
+        result["already_existed"] = len(sub_ids)
+        result["already_tracked_externally"] = True
+        return result
+
+    edit_link = tracking_frame.query_selector(".edit-button")
+    if not edit_link:
+        logger.warning(f"  Could not find LTL edit link for {fba_id}")
+        result["status"] = "failed"
+        result["failed"] = len(sub_ids)
+        return result
+
+    try:
+        edit_link.click()
+        page.wait_for_timeout(1000)
+        pro_freight_input = tracking_frame.query_selector("kat-input.pro-freight-input")
+        if not pro_freight_input:
+            logger.warning(f"  Could not find LTL Pro/Freight input for {fba_id}")
+            result["status"] = "failed"
+            result["failed"] = len(sub_ids)
+            return result
+
+        pro_freight_input.click()
+        pro_freight_input.evaluate("e => { if (e.select) e.select(); }")
+        pro_freight_input.fill(main_tracking)
+
+        save_btn = tracking_frame.query_selector("kat-button.bol-save")
+        if not save_btn:
+            logger.warning(f"  Could not find LTL Save button for {fba_id}")
+            result["status"] = "failed"
+            result["failed"] = len(sub_ids)
+            return result
+        save_btn.click()
+        page.wait_for_timeout(2000)
+
+        logger.info(f"  {fba_id}: saved LTL Pro/Freight number {main_tracking!r}")
+        result["succeeded"] = 1
+        result["tracking_results"].append({
+            "tracking_number": main_tracking, "status": "success",
+            "message": "Filled LTL Pro/Freight number",
+        })
+        # One physical value covers the whole shipment -- treat every scraped
+        # sub_id as handled so the caller doesn't loop back for more passes.
+        result["uploaded_ids"] = list(sub_ids)
+    except Exception as e:
+        logger.error(f"  Error filling LTL Pro/Freight number for {fba_id}: {e}")
+        result["status"] = "failed"
+        result["failed"] = len(sub_ids)
+
+    return result
+
+
 def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict, force: bool = False, pad_to_fill: bool = False) -> dict:
     """
     Fills tracking numbers into the per-box input fields in the tracking iframe,
@@ -377,6 +520,9 @@ def upload_tracking_to_shipment(page, sub_ids: list, fba_id: str, config: dict, 
         result["status"] = "failed"
         result["failed"] = len(sub_ids)
         return result
+
+    if _wait_for_ltl_or_inputs(tracking_frame, page):
+        return _fill_ltl_tracking(tracking_frame, page, sub_ids, fba_id, force=force)
 
     # Wait for the DOM to fully render its inputs
     try:
@@ -759,6 +905,9 @@ def check_amazon_tracking_status(page, fba_id: str, config: dict) -> str:
         logger.warning(f"  [check] No tracking context found for {fba_id}")
         return "check_failed"
 
+    if _wait_for_ltl_or_inputs(tracking_frame, page):
+        return "complete" if _get_ltl_pro_freight_value(tracking_frame) else "empty"
+
     try:
         tracking_frame.wait_for_selector("input[placeholder*='auto fill'], input[placeholder*='Enter tracking']", timeout=10000)
     except Exception:
@@ -931,10 +1080,11 @@ def upload_all_shipments(shipments: dict, config: dict, page, force: bool = Fals
                 r["status"] = last_result["status"]
                 break
 
-            if last_result.get("shiptrack_confirmed"):
-                # Amazon already tracks every box itself via ShipTrack — there is
-                # nothing left for us to fill, so don't leave this queued for a
-                # perpetual retry (see _count_shiptrack_confirmed).
+            if last_result.get("shiptrack_confirmed") or last_result.get("already_tracked_externally"):
+                # Already fully tracked outside this pool -- either Amazon's own
+                # ShipTrack (per-box) or an LTL shipment's single Pro/Freight
+                # number already filled. Nothing left for us to do, so don't
+                # leave this queued for a perpetual retry.
                 remaining_ids = []
                 r["status"] = "skipped"
                 break
