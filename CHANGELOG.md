@@ -3,6 +3,16 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.13.0] - 2026-09-19
+
+### Changed
+- `decide_window_action()` now only pushes a shipment's window out one week on the exact last safe day (Saturday, one day before Amazon's Sunday-start windows lock) instead of any day within 7 days of locking -- built for the delivery-window sync now running daily instead of weekly, so it can't fire on more than one day per week's cycle and skip a week or push early if a run slips a day late.
+- `select_weekly_candidates()` now also pulls in a shipment whose window is more than 7 days out if its freshly-refreshed expected delivery date no longer falls inside that window, so real carrier info showing a shipment coming in sooner (or later) than expected gets acted on the same day it's discovered instead of waiting until the window happens to be within 7 days on its own.
+- `master_sheet.populate_from_input()` now keeps the first tracking number seen for a given FBA ID within a run and logs a warning on conflict, instead of letting a later source row silently overwrite it -- a defensive fix for UPS shipments where only the main tracking number (not a sub-tracking number sharing the same FBA ID) actually carries delivery status.
+
+### Fixed
+- `read_shipment_window()` was misreading or entirely failing to read the delivery window for shipments whose "Send to Amazon" workflow lists several sibling shipments together: (1) a shipment still sitting at Step 3 ("Print box labels") needed "Proceed to enter tracking details" clicked before its Final Step tab could ever be found -- confirmed live, FBA15MB4TFGC; (2) sibling tabs can render progressively, so an instant `count()` check could catch a real tab a beat before it painted and wrongly report "not found" -- confirmed live, FBA19MPKXSNQ; (3) Final Step has no "View" link of its own (only Steps 1-3 do), so the old code's `views.last.click()` was actually re-expanding Step 3 and matching one of its own decoy "Shipment ID: ..." cards instead of Final Step's real tab -- confirmed live across a 5-sibling-shipment workflow, fixed by locating Final Step's tabs directly via their own `data-testid="shipment-tracking-tab"` attribute instead. Live-verified against 22 of the 23 real shipments that failed in a full weekly run; the 23rd was a genuine incomplete workflow (Step 4 never filled in on Amazon's side), not a scrape bug.
+
 ## [0.12.3] - 2026-09-18
 
 ### Fixed
