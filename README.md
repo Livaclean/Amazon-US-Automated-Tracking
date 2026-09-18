@@ -1,6 +1,6 @@
 # Amazon Automated Tracking Number Uploader
 
-Automates uploading carrier tracking numbers from a supplier Excel file to Amazon Seller Central FBA/AWD shipments. Supports multiple regions (US, CA, UK, EU).
+Automates uploading carrier tracking numbers from a supplier Excel file to Amazon Seller Central FBA/AWD shipments. Supports multiple regions (US, CA, UK, EU, AU, FR, MX) plus AWD.
 
 ---
 
@@ -22,8 +22,13 @@ Automates uploading carrier tracking numbers from a supplier Excel file to Amazo
 | CA | sellercentral.amazon.ca | `fc_codes/ca_fc_codes.txt` |
 | UK | sellercentral.amazon.co.uk | `fc_codes/uk_fc_codes.txt` |
 | EU | sellercentral.amazon.de | `fc_codes/eu_fc_codes.txt` |
+| AU | sellercentral.amazon.com.au | `fc_codes/au_fc_codes.txt` |
+| FR | sellercentral.amazon.de | `fc_codes/fr_fc_codes.txt` |
+| MX | sellercentral.amazon.com.mx | `fc_codes/mx_fc_codes.txt` |
+| AWD | sellercentral.amazon.com | `fc_codes/awd_fc_codes.txt` |
+| AWD-UK | sellercentral.amazon.co.uk | `fc_codes/awd_uk_fc_codes.txt` |
 
-AWD shipments (IDs starting with `STAR-`) are also supported and routed to the correct region.
+AWD/AWD-UK shipments (IDs starting with `STAR-`) are routed to the correct market-specific AWD region automatically; an unrecognized `STAR-` FC code defaults to `AWD` (US).
 
 ---
 
@@ -222,7 +227,11 @@ Amazon-US-Automated-Tracking/
 │   ├── ca_fc_codes.txt         # Canada FC prefixes
 │   ├── uk_fc_codes.txt         # UK FC prefixes
 │   ├── eu_fc_codes.txt         # EU FC prefixes
-│   ├── awd_fc_codes.txt        # AWD warehouse prefixes
+│   ├── au_fc_codes.txt         # Australia FC prefixes
+│   ├── fr_fc_codes.txt         # France FC prefixes
+│   ├── mx_fc_codes.txt         # Mexico FC prefixes
+│   ├── awd_fc_codes.txt        # AWD (US) warehouse prefixes
+│   ├── awd_uk_fc_codes.txt     # AWD (UK) warehouse prefixes
 │   └── ignored_fc_codes.txt    # FC codes confirmed unresolvable in any region (not re-probed)
 ├── input/                      # Drop Excel files here
 ├── output/                     # Processed Excel files moved here
