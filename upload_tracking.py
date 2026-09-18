@@ -329,15 +329,26 @@ def _is_ltl_shipment(tracking_frame) -> bool:
     """
     True for LTL/freight (pallet) shipments, which track a single Pro/Freight
     Bill Number for the whole shipment instead of one tracking ID per box.
-    These use a completely different widget (".npcp-ltl-container") from the
-    per-box grid our placeholder-based input selectors look for, so every LTL
-    shipment was being reported as timed-out/check_failed forever even though
-    it was already fully and correctly tracked. Confirmed live 2026-09-18:
-    every shipment in a batch of 11 "unresolved" timeouts was actually an LTL
+    These use a completely different widget from the per-box grid our
+    placeholder-based input selectors look for, so every LTL shipment was
+    being reported as timed-out/check_failed forever even though it was
+    already fully and correctly tracked. Confirmed live 2026-09-18: every
+    shipment in a batch of 11 "unresolved" timeouts was actually an LTL
     shipment with its Pro/Freight number already filled and Shipped.
+
+    Two different containers depending on fill state (confirmed live
+    2026-09-18 against a genuinely empty one, FBA19NFW044R): already-filled
+    shipments show a read-only view in ".npcp-ltl-container" with an
+    "(Edit)" link; a shipment with no Pro/Freight number yet skips the
+    read-only view entirely and renders the edit form directly in
+    ".npcp-ltl-edit" -- checking only the first container missed every
+    genuinely-empty LTL shipment.
     """
     try:
-        return tracking_frame.query_selector(".npcp-ltl-container") is not None
+        return (
+            tracking_frame.query_selector(".npcp-ltl-container") is not None
+            or tracking_frame.query_selector(".npcp-ltl-edit") is not None
+        )
     except Exception:
         return False
 
@@ -393,11 +404,12 @@ def _fill_ltl_tracking(tracking_frame, page, sub_ids: list, fba_id: str, force: 
     Fills the single Pro/Freight Bill Number for an LTL/freight shipment,
     using sub_ids[0] (the shipment's main tracking number — LTL shipments
     have no real per-box sub-IDs, so the whole pool collapses to one value).
-    Clicks the read-only view's "(Edit)" link to reveal the edit form
-    (kat-input.pro-freight-input + kat-button.bol-save), confirmed live via
-    DOM inspection 2026-09-18 -- NOT yet exercised end-to-end against a
-    genuinely empty LTL shipment (none existed in the batch that surfaced
-    this), so verify the first real fill closely.
+    Clicks the read-only view's "(Edit)" link (".edit-button") to reveal the
+    edit form when present; a shipment with no Pro/Freight number yet has no
+    read-only view or edit-button at all and renders the edit form
+    (kat-input.pro-freight-input + kat-button.bol-save) directly, so the
+    click is skipped rather than treated as a failure when the link is
+    simply absent. Both cases confirmed live via DOM inspection 2026-09-18.
     """
     result = {
         "fba_id": fba_id, "status": "success", "total": len(sub_ids),
@@ -420,16 +432,12 @@ def _fill_ltl_tracking(tracking_frame, page, sub_ids: list, fba_id: str, force: 
         result["already_tracked_externally"] = True
         return result
 
-    edit_link = tracking_frame.query_selector(".edit-button")
-    if not edit_link:
-        logger.warning(f"  Could not find LTL edit link for {fba_id}")
-        result["status"] = "failed"
-        result["failed"] = len(sub_ids)
-        return result
-
     try:
-        edit_link.click()
-        page.wait_for_timeout(1000)
+        edit_link = tracking_frame.query_selector(".edit-button")
+        if edit_link:
+            edit_link.click()
+            page.wait_for_timeout(1000)
+
         pro_freight_input = tracking_frame.query_selector("kat-input.pro-freight-input")
         if not pro_freight_input:
             logger.warning(f"  Could not find LTL Pro/Freight input for {fba_id}")

@@ -296,9 +296,9 @@ def test_upload_tracking_without_pad_to_fill_only_fills_one_slot(monkeypatch):
 # (see _is_ltl_shipment / _fill_ltl_tracking / _get_ltl_pro_freight_value)
 
 class _FakeLtlFrame:
-    """Fake tracking iframe for an LTL/freight (pallet) shipment: no per-box
-    input grid at all -- just a Bill-of-Lading widget with one Pro/Freight
-    value, shown read-only with an "(Edit)" link until clicked."""
+    """Fake tracking iframe for an LTL/freight (pallet) shipment that already
+    has a Pro/Freight value: shown read-only in ".npcp-ltl-container" with an
+    "(Edit)" link until clicked (confirmed live 2026-09-18)."""
 
     def __init__(self, pro_freight_value=""):
         self.pro_freight_value = pro_freight_value
@@ -332,6 +332,36 @@ class _FakeLtlFrame:
     def click(self):
         # Used for both the .edit-button and kat-button.bol-save fakes
         self.edit_clicked = True
+        self.save_clicked = True
+
+
+class _FakeLtlEmptyFrame:
+    """Fake tracking iframe for an LTL shipment with NO Pro/Freight number
+    yet: unlike _FakeLtlFrame there is no read-only view or "(Edit)" link at
+    all -- Amazon renders the edit form directly in ".npcp-ltl-edit" instead
+    of ".npcp-ltl-container". Confirmed live 2026-09-18 against a genuinely
+    empty shipment (FBA19NFW044R); the earlier fix (checking only
+    .npcp-ltl-container) never recognized this state as LTL at all."""
+
+    def __init__(self):
+        self.save_clicked = False
+        self.pro_freight_input = _FakeInput(value="")
+
+    def query_selector_all(self, selector):
+        return []
+
+    def query_selector(self, selector):
+        if selector == ".npcp-ltl-edit":
+            return _FakeInput()
+        if selector == "kat-input.pro-freight-input":
+            return self.pro_freight_input
+        if selector == "kat-button.bol-save":
+            return self
+        # No ".npcp-ltl-container", ".npcp-ltl-tracking-numbers", or
+        # ".edit-button" -- none exist in this state.
+        return None
+
+    def click(self):
         self.save_clicked = True
 
 
@@ -371,6 +401,38 @@ def test_upload_tracking_ltl_empty_fills_single_pro_freight_number(monkeypatch):
     assert result["succeeded"] == 1
     assert result["status"] == "success"
     assert result["uploaded_ids"] == ["1ZK581742024872981", "1ZK581742024872982"]
+
+
+def test_upload_tracking_ltl_empty_direct_edit_form_no_edit_button(monkeypatch):
+    """A genuinely empty LTL shipment renders the edit form directly (no
+    read-only view, no "(Edit)" link to click) -- must still find the input
+    and Save button and fill sub_ids[0] without erroring on the missing
+    edit-button."""
+    frame = _FakeLtlEmptyFrame()
+    monkeypatch.setattr(upload_tracking, "_get_tracking_context", lambda page, fba_id: frame)
+    page = _FakePage()
+
+    result = upload_tracking.upload_tracking_to_shipment(
+        page, ["1Z0JH5420323365472"], "FBA_LTL_3", {"logs_folder": "logs"},
+    )
+
+    assert frame.pro_freight_input.value == "1Z0JH5420323365472"
+    assert frame.save_clicked is True
+    assert result["succeeded"] == 1
+    assert result["status"] == "success"
+    assert result["failed"] == 0
+
+
+def test_check_amazon_tracking_status_ltl_empty_direct_edit_form_is_empty(monkeypatch):
+    """_is_ltl_shipment must recognize the direct-edit-form container
+    (.npcp-ltl-edit), not just the read-only view's (.npcp-ltl-container)."""
+    frame = _FakeLtlEmptyFrame()
+    monkeypatch.setattr(upload_tracking, "navigate_to_shipment", lambda page, fba_id, base_url: True)
+    monkeypatch.setattr(upload_tracking, "_get_tracking_context", lambda page, fba_id: frame)
+    page = _FakePage()
+
+    status = check_amazon_tracking_status(page, "FBA_LTL_3", {})
+    assert status == "empty"
 
 
 def test_check_amazon_tracking_status_ltl_filled_is_complete(monkeypatch):
