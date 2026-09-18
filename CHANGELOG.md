@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.12.0] - 2026-09-18
+
+### Added
+- New `MX` region (`sellercentral.amazon.com.mx`, `fc_codes/mx_fc_codes.txt`): FC code `MEX2` was previously unresolvable in any configured market and fell into `ignored_fc_codes.txt`. Confirmed live that it belongs to the Mexico marketplace, so `MX` is now a fully supported region like `US`/`CA`/`UK`/etc.
+
+### Fixed
+- Amazon's own "ShipTrack" carrier integration auto-fills and confirms tracking per box (shown as a read-only field with a "Confirmed" badge) instead of the normal editable inputs `check_amazon_tracking_status()` and `upload_tracking_to_shipment()` look for. That left both functions finding zero inputs and reporting `check_failed`/timeout forever, even though Seller Central showed the shipment fully tracked -- confirmed live across 19 shipments in US/CA/UK/EU that kept getting queued for retry run after run despite already being complete. Added `_count_shiptrack_confirmed()` to detect the `.validation-confirmed` badge: `check_amazon_tracking_status()` now returns `"complete"` instead of `"check_failed"`, and `upload_all_shipments()` clears the shipment's remaining IDs so it lands in the done cache instead of being excluded as having unfilled slots. Live-verified on `FBA19MKJGNC4`.
+
 ## [0.11.1] - 2026-09-12
 
 ### Fixed
