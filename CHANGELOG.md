@@ -3,6 +3,11 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [0.12.2] - 2026-09-18
+
+### Fixed
+- Every shipment previously reported as a timed-out/`check_failed` iframe detection turned out to be an LTL (pallet/freight) shipment: Amazon shows these on a completely different widget -- a single "Pro/Freight Bill Number" under "Bill of Lading (BOL)" -- instead of the per-box grid `check_amazon_tracking_status()` and `upload_tracking_to_shipment()` look for. That left every LTL shipment stuck retrying forever even when Seller Central already showed it Shipped with a real tracking number. Confirmed live: all 11 "unresolved" shipments in a batch (US/CA/UK) were LTL, all already correctly tracked. Added `_is_ltl_shipment()`/`_get_ltl_pro_freight_value()` to detect the `.npcp-ltl-container` widget and read its value, `_fill_ltl_tracking()` to save the shipment's single main tracking number when genuinely empty, and `_wait_for_ltl_or_inputs()` to poll for whichever widget renders first (checking immediately raced the LTL widget's client-side render and lost every time). Live-verified the detection path; the empty-field fill path is built from DOM inspection but not yet exercised against a genuinely empty LTL shipment.
+
 ## [0.12.1] - 2026-09-18
 
 ### Changed
