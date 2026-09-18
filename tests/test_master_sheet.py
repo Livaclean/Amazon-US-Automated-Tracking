@@ -258,6 +258,39 @@ def test_populate_from_input_refreshes_source_fields_for_existing_shipment(tmp_c
     assert row["tracking_status"] == "updated"
 
 
+@pytest.mark.unit
+def test_populate_from_input_keeps_first_tracking_when_fba_id_has_multiple_values(tmp_config, caplog):
+    """A supplier row-ordering quirk (or a same-FBA row appearing twice across
+    a source sheet) must not let whichever tracking number happens to be
+    processed last silently win -- that's how a shipment's stored "tracking"
+    could end up pointing at a UPS child/sub-package number instead of the
+    shipment's real main tracking number, which never gets carrier status
+    updates on its own page even after the whole shipment is delivered. The
+    first-seen value must always win, deterministically, with a warning
+    logged so a genuine conflict doesn't pass by silently."""
+    import openpyxl as xl
+    from pathlib import Path
+
+    wb = xl.Workbook()
+    ws = wb.active
+    ws.append(["SYSTEM NO", "Order No", "ITEMS", "DESTINATION", "FBA ID",
+               "NO OF CTNS", "SHIPPING WAY", "TRACKING NUMBERS", "CARRIER", "ETD", None])
+    ws.append(["A1", "Widget Variety Pack", None, "BNA6", "FBA_DUP",
+               9, "express", "1ZMAIN001", "UPS", None, None])
+    ws.append(["A1", "Widget Variety Pack", None, "BNA6", "FBA_DUP",
+               9, "express", "1ZSUB002", "UPS", None, None])
+    path = Path(tmp_config["input_folder"]) / "shipments.xlsx"
+    wb.save(path)
+    tmp_config.update(CONTEXT_CONFIG)
+
+    with caplog.at_level("WARNING", logger="master_sheet"):
+        sheet = populate_from_input(tmp_config, {})
+
+    assert sheet["FBA_DUP"]["tracking"] == "1ZMAIN001"
+    assert any("FBA_DUP" in r.message and "1ZMAIN001" in r.message and "1ZSUB002" in r.message
+               for r in caplog.records)
+
+
 # --- run_update_master_sheet / format_update_master_sheet_summary ------------
 
 @pytest.mark.unit

@@ -142,14 +142,38 @@ def populate_from_input(config: dict, master_sheet: dict) -> dict:
     keep their status/workflow fields untouched -- only their source fields
     (tracking, carrier, name, destination, ctns, shipping_way, notes, region)
     are refreshed, in case the supplier's sheet changed since the last run.
+
+    If the same FBA ID appears more than once in THIS call's build_check_list()
+    (e.g. a supplier row-ordering quirk), only the first entry's tracking
+    number is kept -- previously whichever entry happened to be processed
+    last silently won, which could point a shipment's stored tracking number
+    at a UPS child/sub-package number instead of its real main tracking
+    number (the child never gets carrier status updates on its own page, even
+    after the whole shipment is delivered). A conflicting later value is
+    logged as a warning rather than applied silently.
+
     Returns a new dict; does not mutate master_sheet in place.
     """
     from tracking_status import build_check_list
 
     result = {fba_id: dict(entry) for fba_id, entry in master_sheet.items()}
+    seen_this_call = {}  # fba_id -> tracking value from the first entry seen this call
     for entry in build_check_list(config):
         fba_id = entry["fba_id"]
         source = {field: entry.get(field, "") for field in _SOURCE_FIELDS}
+
+        if fba_id in seen_this_call:
+            first_tracking = seen_this_call[fba_id]
+            this_tracking = source.get("tracking", "")
+            if this_tracking and this_tracking != first_tracking:
+                logger.warning(
+                    f"{fba_id}: multiple distinct tracking numbers in the source sheet "
+                    f"({first_tracking!r} vs {this_tracking!r}) -- keeping the first "
+                    f"({first_tracking!r}) as the shipment's tracking number"
+                )
+            continue
+        seen_this_call[fba_id] = source.get("tracking", "")
+
         if fba_id in result:
             result[fba_id].update(source)
         else:

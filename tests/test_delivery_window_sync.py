@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from datetime import date
 
@@ -195,14 +196,31 @@ def test_decide_window_action_edit_when_expected_date_after_window():
 
 
 @pytest.mark.unit
-def test_decide_window_action_push_one_week_when_no_expected_date_and_window_starts_soon():
+def test_decide_window_action_push_one_week_only_on_last_safe_day():
+    # Daily runs must not push speculatively on just any day within the old
+    # 7-day window -- only on the actual last safe day before lock (Saturday,
+    # i.e. exactly 1 day before window_start, which is always a Sunday).
+    # Pushing earlier than necessary throws away days that could still bring
+    # real carrier info and let an "edit" happen instead of a guess.
+    result = decide_window_action(
+        window_start=date(2026, 8, 16), window_end=date(2026, 8, 22),
+        expected_delivery_date=None, today=date(2026, 8, 15),
+    )
+    # window_end + 1 day = Aug 23, 2026 (already a Sunday -- window_end's own
+    # week-alignment carries through, so no extra _week_bounds shift needed)
+    assert result == {"action": "push_one_week", "target_week_start": date(2026, 8, 23)}
+
+
+@pytest.mark.unit
+def test_decide_window_action_none_when_six_days_out_and_no_expected_date():
+    # Was "push_one_week" under the old <7-days trigger; daily runs must
+    # leave it alone this far out and wait for either real carrier info or
+    # the actual last safe day (Saturday).
     result = decide_window_action(
         window_start=date(2026, 8, 16), window_end=date(2026, 8, 22),
         expected_delivery_date=None, today=date(2026, 8, 10),
     )
-    # window_start + 7 days = Aug 23, 2026 (already a Sunday -- window_start's
-    # own week-alignment carries through, so no extra _week_bounds shift needed)
-    assert result == {"action": "push_one_week", "target_week_start": date(2026, 8, 23)}
+    assert result == {"action": "none", "target_week_start": None}
 
 
 @pytest.mark.unit
@@ -232,16 +250,14 @@ def test_decide_window_action_none_boundary_exactly_seven_days():
 
 
 @pytest.mark.unit
-def test_decide_window_action_push_one_week_boundary_exactly_six_days():
-    # One day closer to locking than the "none" boundary above -- now urgent
-    # enough to push. window_start=Aug 17 (Monday) + 7 days = Aug 24 (Monday)
-    # -> _week_bounds normalizes that to its containing week: Aug 23 (Sun).
+def test_decide_window_action_none_boundary_exactly_six_days():
+    # One day closer to locking than the "none" boundary above -- still not
+    # the last safe day (Saturday), so daily runs must still leave it alone.
     result = decide_window_action(
         window_start=date(2026, 8, 17), window_end=date(2026, 8, 23),
         expected_delivery_date=None, today=date(2026, 8, 11),
     )
-    assert result["action"] == "push_one_week"
-    assert result["target_week_start"] == date(2026, 8, 23)
+    assert result == {"action": "none", "target_week_start": None}
 
 
 @pytest.mark.unit
@@ -254,7 +270,7 @@ def test_decide_window_action_push_one_week_target_clears_a_two_week_window():
     # real end instead, however long the window actually is.
     result = decide_window_action(
         window_start=date(2026, 8, 16), window_end=date(2026, 8, 29),
-        expected_delivery_date=None, today=date(2026, 8, 11),
+        expected_delivery_date=None, today=date(2026, 8, 15),
     )
     assert result["action"] == "push_one_week"
     assert result["target_week_start"] == date(2026, 8, 30)
@@ -285,7 +301,7 @@ def test_decide_window_action_stale_expected_date_falls_back_to_none():
 def test_decide_window_action_stale_expected_date_falls_back_to_push_one_week():
     result = decide_window_action(
         window_start=date(2026, 8, 16), window_end=date(2026, 8, 22),
-        expected_delivery_date=date(2026, 8, 2), today=date(2026, 8, 10),
+        expected_delivery_date=date(2026, 8, 2), today=date(2026, 8, 15),
     )
     assert result == {"action": "push_one_week", "target_week_start": date(2026, 8, 23)}
 
@@ -600,6 +616,13 @@ class _FakeReadWindowPage:
         self._view_link = _FakeLocator(count=1)
         self._tab = _FakeLocator(count=1)
         self._enter_tracking_ids = _FakeLocator(count=enter_tracking_ids_count)
+        # Normal case: shipment already past Step 3 -- no such button here.
+        self._proceed_button = _RaisingLocator(count=0)
+        # Normal case (for these older fixtures): the page doesn't use the
+        # newer tabbed Final-step UI at all, so read_shipment_window must
+        # fall back to the View-click + generic-text approach these fixtures
+        # exist to test.
+        self._tabs = _RaisingLocator(count=0)
 
     def goto(self, url, timeout=None):
         pass
@@ -608,12 +631,16 @@ class _FakeReadWindowPage:
         pass
 
     def locator(self, selector):
-        assert selector == "kat-modal[visible='true']"
-
-        class _ModalLocator:
-            def locator(_self, sub_selector):
-                return self._onboarding_modal_close
-        return _ModalLocator()
+        if selector == "kat-modal[visible='true']":
+            class _ModalLocator:
+                def locator(_self, sub_selector):
+                    return self._onboarding_modal_close
+            return _ModalLocator()
+        if selector == "[data-testid='proceed-tracking-details-button']":
+            return self._proceed_button
+        if selector == "[data-testid='shipment-tracking-tab']":
+            return self._tabs
+        raise AssertionError(f"unexpected locator: {selector!r}")
 
     def get_by_text(self, text, exact=False):
         if text == "View":
@@ -671,6 +698,8 @@ class _FakeReadWindowPageNoTrackingSection:
         self._tracking_info_needed_count = tracking_info_needed_count
         self._onboarding_modal_close = _RaisingLocator(count=0)
         self._view_link = _RaisingLocator(count=1)
+        self._proceed_button = _RaisingLocator(count=0)
+        self._tabs = _RaisingLocator(count=0)
 
     def goto(self, url, timeout=None):
         pass
@@ -679,12 +708,16 @@ class _FakeReadWindowPageNoTrackingSection:
         pass
 
     def locator(self, selector):
-        assert selector == "kat-modal[visible='true']"
-
-        class _ModalLocator:
-            def locator(_self, sub_selector):
-                return self._onboarding_modal_close
-        return _ModalLocator()
+        if selector == "kat-modal[visible='true']":
+            class _ModalLocator:
+                def locator(_self, sub_selector):
+                    return self._onboarding_modal_close
+            return _ModalLocator()
+        if selector == "[data-testid='proceed-tracking-details-button']":
+            return self._proceed_button
+        if selector == "[data-testid='shipment-tracking-tab']":
+            return self._tabs
+        raise AssertionError(f"unexpected locator: {selector!r}")
 
     def get_by_text(self, text, exact=False):
         if text == "View":
@@ -813,6 +846,236 @@ class _FakeReadWindowPageLTLStyle(_FakeReadWindowPage):
         if selector == "text=Delivery window:":
             raise TimeoutError("Delivery window never appeared")
         raise AssertionError(f"unexpected wait_for_selector: {selector!r}")
+
+
+class _ProceedButtonLocator(_FakeLocator):
+    """A clickable 'Proceed to enter tracking details' button that flips the
+    owning page's _advanced flag on click, so the fake can model the tab
+    only becoming findable AFTER that click -- proving the fix actually
+    depends on clicking it, not just querying for it."""
+
+    def __init__(self, page_ref):
+        super().__init__(count=1)
+        self._page_ref = page_ref
+
+    def wait_for(self, state=None, timeout=None):
+        pass  # visible immediately, unlike the base _FakeLocator default
+
+    def click(self, timeout=None):
+        super().click(timeout=timeout)
+        self._page_ref._advanced = True
+
+
+class _FakeReadWindowPageStuckAtStep3(_FakeReadWindowPage):
+    """A shipment whose workflow hasn't been advanced past Step 3 ('Print
+    box labels') into its Final step / tracking-tab UI yet. An unrelated
+    'Track Shipment <fba> - <dest>' link elsewhere on the page (linking out
+    to carrier tracking, unrelated to this workflow's own tab system)
+    satisfies the generic "text=Track shipment" wait even though the real
+    tracking-tab section never rendered, so the shipment's tab is only
+    findable after clicking "Proceed to enter tracking details". Confirmed
+    live 2026-09-18, FBA15MB4TFGC."""
+
+    def __init__(self, body_text: str):
+        super().__init__(enter_tracking_ids_count=0)
+        self._advanced = False
+        self._proceed_button = _ProceedButtonLocator(self)
+        self._body_text = body_text
+
+    def locator(self, selector):
+        if selector == "[data-testid='proceed-tracking-details-button']":
+            return self._proceed_button
+        return super().locator(selector)
+
+    def get_by_text(self, text, exact=False):
+        if text.startswith("Shipment ID:"):
+            return self._tab if self._advanced else _RaisingLocator(count=0)
+        return super().get_by_text(text, exact=exact)
+
+    def wait_for_selector(self, selector, timeout=None):
+        if selector in ("text=Track shipment", "text=Delivery window:"):
+            return
+        raise AssertionError(f"unexpected wait_for_selector: {selector!r}")
+
+    def inner_text(self, selector):
+        assert selector == "body"
+        return self._body_text
+
+
+@pytest.mark.unit
+def test_read_shipment_window_clicks_proceed_button_when_stuck_at_step_3():
+    """Regression test: confirmed live 2026-09-18 (FBA15MB4TFGC) that a
+    shipment still sitting at Step 3 was misreported as 'not found among
+    this workflow's shipment tabs' -- an unrelated 'Track Shipment' link
+    elsewhere on the page satisfied the generic wait, so the tab search ran
+    before the real tracking-tab UI ever rendered. Clicking "Proceed to
+    enter tracking details" first must reveal the real tab."""
+    page = _FakeReadWindowPageStuckAtStep3(
+        "some page chrome Delivery window: Sep 1, 2026 - Sep 14, 2026 more chrome"
+    )
+
+    result = read_shipment_window(page, "wf-1", "FBA001", "https://x")
+
+    assert page._proceed_button.click_calls == 1
+    assert result == {"window_start": date(2026, 9, 1), "window_end": date(2026, 9, 14)}
+
+
+@pytest.mark.unit
+def test_read_shipment_window_does_not_click_proceed_button_when_already_advanced():
+    """Regression guard: when the tracking-tab UI already rendered normally
+    (the common case), the 'Proceed to enter tracking details' button
+    doesn't exist on the page at all -- must not error trying to click a
+    button that isn't there."""
+    page = _FakeReadWindowPageWindowFound(
+        "some page chrome Delivery window: Sep 1, 2026 - Sep 14, 2026 more chrome"
+    )
+
+    result = read_shipment_window(page, "wf-1", "FBA001", "https://x")
+
+    assert result == {"window_start": date(2026, 9, 1), "window_end": date(2026, 9, 14)}
+
+
+class _FakeTabsLocator:
+    """Fake for page.locator("[data-testid='shipment-tracking-tab']"). Models
+    N sibling tabs, one per fba_id in tab_fba_ids; .filter(has_text=regex)
+    narrows to whichever tab's fba_id the regex matches (0 or 1, since real
+    FBA IDs never overlap as substrings of one another)."""
+
+    def __init__(self, tab_fba_ids):
+        self._tab_fba_ids = tab_fba_ids
+        self._matched_locators = {}  # fba_id -> _FakeLocator, so click_calls can be asserted per-id
+
+    @property
+    def first(self):
+        if not self._tab_fba_ids:
+            return _RaisingLocator(count=0)
+        return _FakeLocator(count=len(self._tab_fba_ids))
+
+    def filter(self, has_text=None):
+        # Production code passes a plain string (not a regex) -- confirmed
+        # live that Playwright's has_text filter silently returns zero
+        # matches with a \b-word-boundary regex even on exact text.
+        assert isinstance(has_text, str), f"expected a plain string, got {has_text!r}"
+        matches = [f for f in self._tab_fba_ids if has_text in f]
+        if not matches:
+            return _RaisingLocator(count=0)
+        matched_id = matches[0]
+        if matched_id not in self._matched_locators:
+            self._matched_locators[matched_id] = _FakeLocator(count=1)
+        return self._matched_locators[matched_id]
+
+
+class _FakeReadWindowPageTabbedUI(_FakeReadWindowPage):
+    """Models the newly-discovered Final-step UI: shipment tabs carry their
+    own data-testid='shipment-tracking-tab' and are already present in the
+    DOM without any 'View' click needed. Confirmed live 2026-09-19,
+    FBA19MPKXSNQ -- a 5-sibling-shipment workflow where there are only 3
+    'View' links total (one each for Steps 1-3; Final step has none of its
+    own), so the old code's views.last.click() was actually re-expanding
+    Step 3 and matching one of ITS OWN 'Shipment ID: ...' cards instead of
+    Final step's real, distinct tab -- explaining the "goes back to Step 3"
+    symptom seen live. get_by_text raises here to prove the fix never falls
+    back to that old path when the tabbed UI is present."""
+
+    def __init__(self, body_text, tab_fba_ids):
+        super().__init__(enter_tracking_ids_count=0)
+        self._body_text = body_text
+        self._tabs = _FakeTabsLocator(tab_fba_ids)
+
+    def locator(self, selector):
+        if selector == "[data-testid='shipment-tracking-tab']":
+            return self._tabs
+        return super().locator(selector)
+
+    def get_by_text(self, text, exact=False):
+        raise AssertionError(
+            f"unexpected get_by_text {text!r} -- the tabbed-UI path must never "
+            f"fall back to the old View-click / generic-text tab lookup"
+        )
+
+    def wait_for_selector(self, selector, timeout=None):
+        if selector == "text=Delivery window:":
+            return
+        raise AssertionError(f"unexpected wait_for_selector: {selector!r}")
+
+    def inner_text(self, selector):
+        assert selector == "body"
+        return self._body_text
+
+
+@pytest.mark.unit
+def test_read_shipment_window_uses_tabbed_ui_when_shipment_tracking_tab_present():
+    """Regression test: confirmed live 2026-09-19 (FBA19MPKXSNQ) that Final
+    step's own shipment tabs carry data-testid='shipment-tracking-tab' and
+    render without any 'View' click at all. When this data-testid is
+    present, read_shipment_window must go straight to the matching tab
+    instead of the old View-click + generic-text lookup, which was
+    misclicking Step 3's own 'View' and matching its decoy card content."""
+    page = _FakeReadWindowPageTabbedUI(
+        "some page chrome Delivery window: Sep 20, 2026 - Sep 26, 2026 more chrome",
+        tab_fba_ids=["FBA19MPP72TJ", "FBA19MPKXSNQ", "FBA19MPPQLDL", "FBA19MPL0VFS", "FBA19MPL09FP"],
+    )
+
+    result = read_shipment_window(page, "wf-1", "FBA19MPKXSNQ", "https://x")
+
+    assert result == {"window_start": date(2026, 9, 20), "window_end": date(2026, 9, 26)}
+    assert page._tabs._matched_locators["FBA19MPKXSNQ"].click_calls == 1
+
+
+@pytest.mark.unit
+def test_read_shipment_window_tabbed_ui_reports_not_found_without_falling_back(caplog):
+    """Regression guard: when the tabbed UI is present but this specific
+    fba_id genuinely isn't among its tabs, it must be reported as 'not
+    found' directly -- never fall back to the old generic page-wide
+    'Shipment ID: ...' text search, which is exactly the decoy-matching
+    mechanism this fix exists to avoid."""
+    page = _FakeReadWindowPageTabbedUI(
+        "irrelevant body",
+        tab_fba_ids=["FBA_OTHER1", "FBA_OTHER2"],
+    )
+
+    with caplog.at_level("WARNING", logger="delivery_window_sync"):
+        result = read_shipment_window(page, "wf-1", "FBA001", "https://x")
+
+    assert result is None
+    assert any("not found among this workflow's shipment tabs" in r.message for r in caplog.records)
+
+
+@pytest.mark.unit
+def test_read_shipment_window_waits_for_tab_instead_of_instant_count_check(caplog):
+    """Regression test: confirmed live 2026-09-18 (FBA19MPKXSNQ) that a
+    workflow listing several sibling shipments' tabs can render them
+    progressively -- an instant count() check the moment "Track shipment"
+    appears can catch this fba_id's own tab a beat before it's actually
+    painted and wrongly report "not found", even though a more patient
+    check finds it (and every sibling tab) moments later. The tab lookup
+    must wait_for() visibility rather than checking count() once."""
+    page = _FakeReadWindowPageWindowFound(
+        "some page chrome Delivery window: Sep 1, 2026 - Sep 14, 2026 more chrome"
+    )
+
+    result = read_shipment_window(page, "wf-1", "FBA001", "https://x")
+
+    assert result == {"window_start": date(2026, 9, 1), "window_end": date(2026, 9, 14)}
+
+
+@pytest.mark.unit
+def test_read_shipment_window_logs_not_found_when_tab_genuinely_absent(caplog):
+    """Regression guard: a shipment truly missing from this workflow (wrong
+    workflow, or a genuinely different marketplace/tab set) must still be
+    reported as "not found" rather than hanging or erroring -- wait_for()
+    raising on a locator that matches zero elements must be treated the
+    same way count() == 0 was."""
+    page = _FakeReadWindowPageWindowFound(
+        "some page chrome Delivery window: Sep 1, 2026 - Sep 14, 2026 more chrome"
+    )
+    page._tab = _RaisingLocator(count=0)
+
+    with caplog.at_level("WARNING", logger="delivery_window_sync"):
+        result = read_shipment_window(page, "wf-1", "FBA001", "https://x")
+
+    assert result is None
+    assert any("not found among this workflow's shipment tabs" in r.message for r in caplog.records)
 
 
 @pytest.mark.unit
@@ -972,12 +1235,12 @@ def test_sync_window_for_shipment_push_one_week_success(monkeypatch):
     monkeypatch.setattr(delivery_window_sync, "apply_window_edit", lambda page, target, **kw: "edited")
     result = sync_window_for_shipment(
         page=None, base_url="https://x", fba_id="FBA001", workflow_id="wf-1",
-        expected_delivery_date=None, today=date(2026, 8, 10),
+        expected_delivery_date=None, today=date(2026, 8, 15),
     )
     # push_one_week is a stopgap, not a real resolution -- stays "pending" so
     # it keeps getting rechecked for a real expected date.
-    # target_week_start for this "no date, window starting soon" case is Aug 23
-    # (window_start Aug 16 + 7 days = Aug 23, which is already a Sunday)
+    # target_week_start for this "no date, last safe day before lock" case is
+    # Aug 23 (window_end Aug 22 + 1 day, which is already a Sunday)
     assert result == {"outcome": "push_one_week", "new_delivery_date_status": "pending",
                       "window_start": date(2026, 8, 23), "window_end": date(2026, 8, 29)}
 
@@ -1104,6 +1367,73 @@ def test_select_weekly_candidates_includes_window_starting_exactly_seven_days_ou
 @pytest.mark.unit
 def test_select_weekly_candidates_excludes_window_starting_eight_days_out():
     sheet = {"FBA001": _row(fba_id="FBA001", delivery_window_start="2026-09-06")}  # +8 days
+    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    assert result["candidates"] == []
+    assert result["not_due"] == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_promotes_far_out_window_when_expected_date_earlier():
+    # Window is scheduled weeks out, but fresh carrier data (already synced
+    # into the sheet before this filter runs) says it's actually coming much
+    # sooner -- daily runs must catch this immediately, not wait until the
+    # (wrong, too-late) window happens to be within 7 days.
+    sheet = {"FBA001": _row(
+        fba_id="FBA001",
+        delivery_window_start="2026-09-27", delivery_window_end="2026-10-03",  # +29 days
+        expected_delivery_date="2026-09-05",  # weeks before the scheduled window
+    )}
+    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    assert result["candidates"] == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_promotes_far_out_window_when_expected_date_later():
+    sheet = {"FBA001": _row(
+        fba_id="FBA001",
+        delivery_window_start="2026-09-06", delivery_window_end="2026-09-12",  # +8 days
+        expected_delivery_date="2026-10-01",  # weeks after the scheduled window
+    )}
+    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    assert result["candidates"] == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_does_not_promote_far_out_window_when_expected_date_matches():
+    sheet = {"FBA001": _row(
+        fba_id="FBA001",
+        delivery_window_start="2026-09-27", delivery_window_end="2026-10-03",  # +29 days
+        expected_delivery_date="2026-09-29",  # inside the scheduled window
+    )}
+    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    assert result["candidates"] == []
+    assert result["not_due"] == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_does_not_promote_far_out_window_with_stale_expected_date():
+    # A stale (already-past) expected date can't result in any real action --
+    # decide_window_action would just discard it -- so it must not trigger an
+    # otherwise-unnecessary Amazon visit.
+    sheet = {"FBA001": _row(
+        fba_id="FBA001",
+        delivery_window_start="2026-09-27", delivery_window_end="2026-10-03",  # +29 days
+        expected_delivery_date="2026-08-01",  # already in the past
+    )}
+    result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
+    assert result["candidates"] == []
+    assert result["not_due"] == ["FBA001"]
+
+
+@pytest.mark.unit
+def test_select_weekly_candidates_does_not_promote_far_out_window_when_no_expected_date():
+    # Regression guard: no fresh carrier info at all -- the original "not
+    # due yet" behavior for far-out windows must be unaffected.
+    sheet = {"FBA001": _row(
+        fba_id="FBA001",
+        delivery_window_start="2026-09-27", delivery_window_end="2026-10-03",  # +29 days
+        expected_delivery_date="",
+    )}
     result = select_weekly_candidates(sheet, today=date(2026, 8, 29))
     assert result["candidates"] == []
     assert result["not_due"] == ["FBA001"]

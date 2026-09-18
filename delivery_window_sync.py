@@ -182,15 +182,19 @@ def decide_window_action(window_start, window_end, expected_delivery_date, today
       to need a defensive push.
     - "edit": the expected date is known and falls outside the window -- move
       the window to the calendar week containing it.
-    - "push_one_week": no expected date yet, and the window starts within
-      the next 6 days (about to lock) -- push it out to the week right after
-      the window's real end (whatever that window's actual length is) so it
-      doesn't lock on a guess; the weekly sync cadence will re-verify this
-      shipment next Saturday and can adjust further if needed. A window
-      exactly 7 days out is deliberately left alone: it still has a full
-      week of runway, and treating it as urgent made a run that slipped one
-      day past its Saturday schedule push shipments a week early (confirmed
-      live 2026-09-06, FBA15M2N9CHZ/FBA15M85HW20).
+    - "push_one_week": no expected date yet, and today is the last safe day
+      before the window locks (Amazon windows always start on a Sunday, so
+      that's exactly 1 day out -- Saturday) -- push it out to the week right
+      after the window's real end (whatever that window's actual length is)
+      so it doesn't lock on a guess. Under daily runs, waiting for this exact
+      day (rather than any day within a week of locking) maximizes the
+      chance real carrier info arrives first and an "edit" happens instead
+      of a guess, and it can only ever fire once per week's cycle -- so a
+      shipment can't get pushed twice and skip an extra week. A window
+      further out than that is deliberately left alone: treating it as
+      urgent too early made a run that slipped one day past its Saturday
+      schedule push shipments a week early (confirmed live 2026-09-06,
+      FBA15M2N9CHZ/FBA15M85HW20).
 
     A strictly-past expected_delivery_date (an overdue "In Transit" package
     whose cached date has already gone by) is treated the same as having no
@@ -209,7 +213,7 @@ def decide_window_action(window_start, window_end, expected_delivery_date, today
         target_start, _ = _week_bounds(expected_delivery_date)
         return {"action": "edit", "target_week_start": target_start}
 
-    if (window_start - today).days < 7:
+    if (window_start - today).days == 1:
         target_start, _ = _week_bounds(window_end + timedelta(days=1))
         return {"action": "push_one_week", "target_week_start": target_start}
 
@@ -244,16 +248,40 @@ def _merge_overdue_with_newly_locked(pre_run_overdue: set, this_run_outcomes: di
     return sorted(pre_run_overdue | newly_locked)
 
 
+def _parse_window_date_cell(raw) -> "date | None":
+    """Parses a master-sheet window_start/window_end cell into a date, or
+    None if blank/unparseable. Handles the same datetime/date-object cases
+    as select_weekly_candidates always has (Excel auto-conversion risk)."""
+    if hasattr(raw, "strftime"):
+        raw = raw.strftime("%Y-%m-%d")
+    raw = str(raw or "").strip()
+    if not raw:
+        return None
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
 def select_weekly_candidates(sheet: dict, today) -> dict:
     """
     Browser-free local filter deciding which master-sheet rows need a live
-    Amazon check this week: never-checked rows, and rows whose recorded
-    delivery window starts within the next 7 days (about to lock). Rows with
-    a window recorded further out are skipped -- they'll surface again once
-    they're within 7 days on a future run. Rows already Delivered are
-    excluded entirely; rows already flagged carrier-managed or missing a
-    Workflow ID are skipped (the latter needs discovery first, run
-    separately before this filter).
+    Amazon check today: never-checked rows, rows whose recorded delivery
+    window starts within the next 7 days (about to lock), and -- regardless
+    of how far out the window is -- rows whose freshly-refreshed expected
+    delivery date (already synced into the sheet before this filter runs, so
+    no browser needed here) no longer falls inside the recorded window.
+    That last case is what lets a window scheduled weeks out get pulled in
+    as soon as real carrier info shows it's coming sooner than expected,
+    instead of waiting until the (wrong, too-late) window happens to be
+    within 7 days on its own. A stale (already-past) expected date can't
+    result in any real action, so it's ignored the same way
+    decide_window_action() ignores one. Rows with neither trigger are
+    skipped -- they'll surface again once due, or once new carrier info
+    creates a mismatch, on a future run. Rows already Delivered are excluded
+    entirely; rows already flagged carrier-managed or missing a Workflow ID
+    are skipped (the latter needs discovery first, run separately before
+    this filter).
     """
     candidates = []
     overdue = set()
@@ -299,7 +327,19 @@ def select_weekly_candidates(sheet: dict, today) -> dict:
         elif days_out <= 7:
             candidates.append(fba_id)
         else:
-            not_due.append(fba_id)
+            expected_date = _parse_flexible_date(entry.get("expected_delivery_date"), today)
+            if expected_date is not None and expected_date < today:
+                expected_date = None  # stale -- decide_window_action would discard it too
+            window_end = _parse_window_date_cell(entry.get("delivery_window_end"))
+            mismatched = (
+                expected_date is not None
+                and window_end is not None
+                and not (window_start <= expected_date <= window_end)
+            )
+            if mismatched:
+                candidates.append(fba_id)
+            else:
+                not_due.append(fba_id)
 
     return {
         "candidates": candidates,
@@ -348,54 +388,119 @@ def read_shipment_window(page, workflow_id: str, fba_id: str, base_url: str, log
 
     _dismiss_onboarding_modal(page)
 
-    views = page.get_by_text("View", exact=True)
+    # A shipment still sitting at Step 3 ("Print box labels") shows "Proceed
+    # to enter tracking details" directly on page load, since Step 3 is the
+    # active/open section by default for it -- this must be checked and
+    # clicked BEFORE the "View" links below are touched, not after: clicking
+    # a different (already-collapsed) step's "View" link re-expands that
+    # step as part of the page's accordion behavior, which collapses Step 3
+    # back closed and hides this button. Clicking it unlocks the Final step
+    # / tracking-tab UI, which is what "not found among this workflow's
+    # shipment tabs" was actually stuck behind. This whole page can take
+    # 10-20+s to finish rendering, so the button needs its own bounded wait
+    # rather than an immediate count() check. Confirmed live 2026-09-18,
+    # FBA15MB4TFGC.
+    proceed_button = page.locator("[data-testid='proceed-tracking-details-button']")
     try:
-        # Each collapsed step (Step 1, Step 1b, Step 2, Step 3, Final step...)
-        # has its own "View" link, and they render a moment after the rest of
-        # the page paints -- wait for the last one to actually be there rather
-        # than checking count() once against a guessed fixed delay. The step
-        # count varies by shipment method -- confirmed live (2026-09-06,
-        # FBA19L4ZZS14): SPD/FIST-Carrier workflows give Step 1b its own
-        # separate View, making 5 steps instead of the usual 4, so a hardcoded
-        # nth(3) landed on Step 3 instead of Final step. "Final step" is
-        # always the last collapsed section regardless of how many precede
-        # it, so .last is robust to that variation.
-        views.last.wait_for(state="visible", timeout=15000)
+        proceed_button.first.wait_for(state="visible", timeout=10000)
+        proceed_button.first.click()
+        page.wait_for_timeout(2000)
     except Exception:
-        # Confirmed live (2026-09-01): same root cause as the empty-tracking-
-        # form case below, just caught one step earlier -- when tracking was
-        # entered through the newer inbound-shipment tracking page instead of
-        # this workflow, Step 4 here never gets confirmed, so it's still
-        # showing the raw "Tracking information must be provided" carrier
-        # form instead of collapsing into a "View" summary link. There's no
-        # Final-step View link to wait for in that case; flag it distinctly
-        # so it isn't chased as a scrape/timing bug.
-        stale_workflow = page.get_by_text("Tracking information must be provided", exact=False).count() > 0
-        if stale_workflow:
-            logger.warning(
-                f"  {fba_id}: workflow page's Step 4 still shows an unconfirmed carrier form -- "
-                f"tracking for this shipment wasn't entered through this workflow, so "
-                f"Amazon never renders a delivery window here (not a scrape failure)"
-            )
-        else:
-            logger.warning(f"  {fba_id}: workflow page never rendered its 'Tracking details' section")
-        _screenshot(page, f"window_no_tracking_section_{fba_id}", logs_folder)
-        return None
-    views.last.click()
+        pass  # normal case: shipment already past Step 3, no such button here
 
+    # Final step's own shipment tabs carry a dedicated
+    # data-testid="shipment-tracking-tab" and are already present in the DOM
+    # without any "View" click at all -- unlike Steps 1-3, Final step has no
+    # separate collapsed "View" summary of its own. Confirmed live
+    # 2026-09-19 (FBA19MPKXSNQ, a 5-sibling-shipment workflow): there were
+    # only 3 "View" links total (one each for Steps 1-3), so the old code's
+    # views.last.click() was actually re-expanding Step 3 and matching one
+    # of ITS OWN "Shipment ID: ..." cards instead of Final step's real,
+    # distinct tab -- explaining a "goes back to Step 3" symptom seen live.
+    # Try this robust, decoy-proof path first; fall back to the older
+    # View-click + generic-text approach for pages that don't use this
+    # tabbed UI at all (e.g. LTL/FTL, confirmed live 2026-09-07 to use a
+    # different, non-tabbed card layout).
+    tabbed_tabs = page.locator("[data-testid='shipment-tracking-tab']")
+    tabbed_ui_present = True
     try:
-        page.wait_for_selector("text=Track shipment", timeout=15000)
+        tabbed_tabs.first.wait_for(state="visible", timeout=10000)
     except Exception:
-        logger.warning(f"  {fba_id}: tracking-details section never rendered")
-        _screenshot(page, f"window_no_track_shipment_{fba_id}", logs_folder)
-        return None
+        tabbed_ui_present = False
 
-    tab = page.get_by_text(f"Shipment ID: {fba_id}", exact=False)
-    if tab.count() == 0:
-        logger.warning(f"  {fba_id}: not found among this workflow's shipment tabs")
-        _screenshot(page, f"window_tab_not_found_{fba_id}", logs_folder)
-        return None
-    tab.first.click()
+    if tabbed_ui_present:
+        # Plain substring match, not a regex -- confirmed live (2026-09-19)
+        # that Playwright's has_text filter silently returns zero matches
+        # with a \b-word-boundary regex here even though the exact same
+        # text plainly matches a plain string. FBA IDs are fixed-length and
+        # never substrings of one another, so a plain string is exact enough
+        # anyway, no regex needed.
+        tab = tabbed_tabs.filter(has_text=fba_id)
+        try:
+            tab.first.wait_for(state="visible", timeout=10000)
+        except Exception:
+            logger.warning(f"  {fba_id}: not found among this workflow's shipment tabs")
+            _screenshot(page, f"window_tab_not_found_{fba_id}", logs_folder)
+            return None
+        tab.first.click()
+    else:
+        views = page.get_by_text("View", exact=True)
+        try:
+            # Each collapsed step (Step 1, Step 1b, Step 2, Step 3, Final step...)
+            # has its own "View" link, and they render a moment after the rest of
+            # the page paints -- wait for the last one to actually be there rather
+            # than checking count() once against a guessed fixed delay. The step
+            # count varies by shipment method -- confirmed live (2026-09-06,
+            # FBA19L4ZZS14): SPD/FIST-Carrier workflows give Step 1b its own
+            # separate View, making 5 steps instead of the usual 4, so a hardcoded
+            # nth(3) landed on Step 3 instead of Final step. "Final step" is
+            # always the last collapsed section regardless of how many precede
+            # it, so .last is robust to that variation.
+            views.last.wait_for(state="visible", timeout=15000)
+        except Exception:
+            # Confirmed live (2026-09-01): same root cause as the empty-tracking-
+            # form case below, just caught one step earlier -- when tracking was
+            # entered through the newer inbound-shipment tracking page instead of
+            # this workflow, Step 4 here never gets confirmed, so it's still
+            # showing the raw "Tracking information must be provided" carrier
+            # form instead of collapsing into a "View" summary link. There's no
+            # Final-step View link to wait for in that case; flag it distinctly
+            # so it isn't chased as a scrape/timing bug.
+            stale_workflow = page.get_by_text("Tracking information must be provided", exact=False).count() > 0
+            if stale_workflow:
+                logger.warning(
+                    f"  {fba_id}: workflow page's Step 4 still shows an unconfirmed carrier form -- "
+                    f"tracking for this shipment wasn't entered through this workflow, so "
+                    f"Amazon never renders a delivery window here (not a scrape failure)"
+                )
+            else:
+                logger.warning(f"  {fba_id}: workflow page never rendered its 'Tracking details' section")
+            _screenshot(page, f"window_no_tracking_section_{fba_id}", logs_folder)
+            return None
+        views.last.click()
+
+        try:
+            page.wait_for_selector("text=Track shipment", timeout=15000)
+        except Exception:
+            logger.warning(f"  {fba_id}: tracking-details section never rendered")
+            _screenshot(page, f"window_no_track_shipment_{fba_id}", logs_folder)
+            return None
+
+        # A workflow can list several sibling shipments' tabs here, and they can
+        # render progressively -- checking count() the instant "Track shipment"
+        # appears can catch this fba_id's own tab a moment before it's actually
+        # painted, even though it reliably shows up shortly after. Confirmed
+        # live 2026-09-18 (FBA19MPKXSNQ): a fresh, more patient check found the
+        # tab (and 4 sibling tabs) exactly where an instant count() had reported
+        # "not found among this workflow's shipment tabs".
+        tab = page.get_by_text(f"Shipment ID: {fba_id}", exact=False)
+        try:
+            tab.first.wait_for(state="visible", timeout=10000)
+        except Exception:
+            logger.warning(f"  {fba_id}: not found among this workflow's shipment tabs")
+            _screenshot(page, f"window_tab_not_found_{fba_id}", logs_folder)
+            return None
+        tab.first.click()
 
     try:
         # "Delivery window" (no colon) also matches the hidden locked-window
